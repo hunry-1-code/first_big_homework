@@ -1,0 +1,46 @@
+[
+  {
+    "platform": "sample_news",
+    "url": "https://example.com/news/city-response-001",
+    "title": "某市突发积水事件引发市民关注",
+    "raw_content": "<article><h1>某市突发积水事件引发市民关注</h1><p>7月10日上午，某市多个路段出现短时积水，交通部门已启动排水和疏导措施。</p><p>当地媒体持续跟进处置进展。</p></article>",
+    "publish_time": "2026-07-10T08:20:00+08:00",
+    "author": "示例新闻",
+    "comments_count": 128,
+    "reposts_count": 45,
+    "likes_count": 360
+  },
+  {
+    "platform": "sample_social",
+    "url": "https://example.com/social/city-response-002",
+    "title": "网友讨论某市积水处置进展",
+    "raw_content": "多名网友发布现场图片并讨论通勤影响，部分评论关注后续排水和预警信息。",
+    "publish_time": "2026-07-10T09:05:00+08:00",
+    "author": "样例用户A",
+    "comments_count": 382,
+    "reposts_count": 92,
+    "likes_count": 910
+  },
+  {
+    "platform": "sample_news",
+    "url": "https://example.com/news/food-safety-001",
+    "title": "某地市场监管部门通报食品安全检查结果",
+    "raw_content": "<p>市场监管部门发布通报称，已对相关商户开展抽检和复核，并将公布后续处理结果。</p>",
+    "publish_time": "2026-07-09T16:30:00+08:00",
+    "author": "示例晚报",
+    "comments_count": 76,
+    "reposts_count": 23,
+    "likes_count": 210
+  },
+  {
+    "platform": "sample_social",
+    "url": "https://example.com/social/food-safety-002",
+    "title": "食品安全检查通报引发家长讨论",
+    "raw_content": "家长群体关注抽检范围、复查时间和结果公开方式，希望后续信息更加透明。",
+    "publish_time": "2026-07-09T18:10:00+08:00",
+    "author": "样例用户B",
+    "comments_count": 241,
+    "reposts_count": 58,
+    "likes_count": 540
+  }
+]

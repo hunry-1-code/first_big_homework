@@ -1,0 +1,32 @@
+from flask import Blueprint, g
+
+from app.core.response import fail, ok
+from app.core.security import admin_required, login_required
+from app.services.task_service import get_task, list_tasks
+
+
+tasks_bp = Blueprint("tasks", __name__)
+
+
+@tasks_bp.get("/<int:task_id>")
+@login_required
+def task_detail(task_id: int):
+    task = get_task(task_id)
+    if not task:
+        return fail("任务不存在", 404)
+    if task["created_by"] != g.current_user["id"] and g.current_user["role"] != "admin":
+        return fail("无权查看该任务", 403)
+    return ok(task)
+
+
+@tasks_bp.get("/my")
+@login_required
+def my_tasks():
+    return ok({"tasks": list_tasks(created_by=g.current_user["id"])})
+
+
+@tasks_bp.get("")
+@admin_required
+def all_tasks():
+    return ok({"tasks": list_tasks()})
+
