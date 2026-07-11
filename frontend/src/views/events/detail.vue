@@ -151,7 +151,7 @@ function buildPropagationData() {
     const n = layer.nodes.length;
     layer.nodes.forEach((node, i) => {
       // y 从 12% 到 88% 均匀分布
-      const y = n === 1 ? 50 : 12 + (i / (n - 1)) * 76;
+      const y = n === 1 ? 46 : 10 + (i / (n - 1)) * 68;
       nodes.push({
         name: node.name,
         category: catIdx,
@@ -623,6 +623,7 @@ function initPropagationChart() {
     legend: {
       data: data.categories.map((c: any) => c.name),
       bottom: 0,
+      padding: [12, 0, 6, 0],
       textStyle: { color: dark ? "#94a3b8" : "#64748b", fontSize: 11 },
       itemWidth: 10, itemHeight: 10
     },
