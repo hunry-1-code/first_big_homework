@@ -420,3 +420,79 @@ Expected: both commands exit `0`; line-ending warnings may be reported by Git bu
 Run: `git status --short --branch`
 
 Confirm only intended sentiment files plus the user's pre-existing changes are present. Do not reset, checkout, clean or create a mixed code commit.
+
+---
+
+## 当前实施与待验证状态（2026-07-11）
+
+用户要求暂时停止测试。以下状态只记录已经实际执行过的结果，不把未运行项目表述为通过。
+
+### 已执行过的局部验证
+
+- `tests/test_sentiment_algorithms.py`：曾执行，最近一次结果为 `9 passed`。
+- `tests/test_sentiment_migration.py`：曾执行，最近一次结果为 `4 passed`。
+- 情感服务的运行复用、搜索隔离、正式事件摘要、重复文章继承、SnowNLP 降级、内容版本变化回滚、事件/搜索簇接口、后台情感任务等测试曾分别执行并通过。
+- 热点采集闭环增加 `sentiment_run_id` 后，对应单项任务测试曾执行并通过。
+- 情感配置契约单项测试曾执行并通过。
+
+这些是修改过程中的局部结果。后续代码发生过继续修改，因此不能替代最终专项或完整回归测试。
+
+### 已发现但尚未完成验证的行为
+
+- `test_transient_llm_failure_retries_before_fallback` 最近一次执行失败。
+- 当前服务在第一次 LLM 异常后直接进入 SnowNLP 降级，尚未完成“临时错误最多重试 3 次，再降级”的实现与验证。
+- 401/403、配置缺失等不可重试错误与 429/5xx、超时等可重试错误尚未完成分类验证。
+- `SENTIMENT_LLM_MAX_CONCURRENCY` 已进入设计与配置，但有限并发执行尚未实现和验证；当前服务按确定性顺序逐篇处理。
+
+### 尚未执行的情感专项测试
+
+- 未在当前最终代码状态下整体运行：
+
+```powershell
+python -m pytest tests/test_sentiment_algorithms.py tests/test_sentiment_migration.py tests/test_sentiment_service.py -q
+```
+
+- 尚未完整验证同一次运行中单篇 LLM 与 SnowNLP 均失败、但整体成功比例仍达到门槛时继续完成其他文章。
+- 尚未完整验证低于 `SENTIMENT_MIN_SUCCESS_RATIO` 时回滚文章当前摘要、事件当前摘要和快照。
+- 尚未完整验证跨运行缓存对算法版本、模型版本、Prompt 版本和预处理版本的全部隔离组合。
+- 尚未完整验证多个事件、多个搜索事件簇在同一次情感运行中的快照唯一性。
+- 尚未完整验证重复文章找不到代表文章结果时的跳过与警告。
+- 尚未完整验证任务租约失效时禁止提交情感结果。
+- 尚未完整验证并发创建相同情感运行时的数据库唯一约束竞争。
+
+### 尚未执行的 API 与权限测试
+
+- `POST /api/sentiment/runs` 管理员创建、成功结果复用和运行中任务复用。
+- 普通用户禁止创建情感运行。
+- 普通用户只能读取自己的私有手动运行。
+- 全用户可以读取共享搜索事件簇汇总，但不能读取其他用户的搜索历史。
+- `GET /api/sentiment/runs/{id}/results` 仅管理员可读取详细理由。
+- 非法分页、无效运行 ID、无效事件 ID 和无效事件簇 ID。
+- 原始 LLM 响应不向普通用户返回。
+
+### 尚未执行的任务链与相关模块回归
+
+- 未整体运行：
+
+```powershell
+python -m pytest tests/test_jobs.py tests/test_event_aggregation_service.py tests/test_hotspot_service.py tests/test_contracts.py -q
+```
+
+- 尚未验证普通关键词搜索完整链路：采集 → 预处理 → 内容分析 → 搜索事件聚合 → 情感分析。
+- 尚未验证独立热点任务：主题发现 → 事件聚合 → 热度快照 → 情感分析。
+- 尚未验证情感任务加入后台恢复注册表后的恢复行为。
+- 尚未验证情感模块不会改变事件成员、热度快照、搜索缓存和正式事件发布语义。
+- 尚未验证报告服务读取新版情感快照后的兼容性。
+
+### 尚未执行的完整与静态验证
+
+- 未运行完整后端测试：`python -m pytest -q`。
+- 未运行最终编译检查：`python -m compileall -q backend/app backend/migrations`。
+- 未运行最终差异检查：`git diff --check`。
+- 未检查最终测试收集数量。
+- 未在 MySQL 8 实例上实际执行 `migrate_sentiment_analysis.py`。
+- 未使用真实 DeepSeek API 进行少量人工联调。
+- 未人工检查 SnowNLP 对灾害、事故、否定、反讽和新闻客观语体的实际降级效果。
+- 未进行前端饼图、每日趋势和分平台内容立场的联调展示。
+
+在恢复测试前，不应宣称情感模块整体完成、全部测试通过或完整闭环已经验证。

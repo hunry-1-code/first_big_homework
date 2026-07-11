@@ -1,8 +1,5 @@
-def run_analysis_pipeline(task_id: int) -> dict:
-    return {
-        "task_id": task_id,
-        "status": "reserved",
-        "steps": ["clean", "segment", "tfidf", "cluster", "sentiment", "report"],
-        "message": "分析流水线接口已预留，后续由算法组实现。",
-    }
+from app.services.content_analysis_service import run_content_analysis
 
+
+def run_analysis_pipeline(analysis_run_id: int) -> dict:
+    return run_content_analysis(analysis_run_id)

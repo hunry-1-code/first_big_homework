@@ -25,6 +25,25 @@ def create_app(config_object=None):
 
     register_blueprints(app)
 
+    if app.config.get("AUTO_CREATE_DB", False):
+        with app.app_context():
+            db.create_all()
+
+    if app.config.get("TASK_RECOVER_ON_STARTUP", False):
+        from sqlalchemy import inspect
+        from sqlalchemy.exc import SQLAlchemyError
+
+        from app.tasks.runner import recover_background_jobs, start_recovery_scheduler
+
+        try:
+            with app.app_context():
+                task_table_exists = inspect(db.engine).has_table("task")
+            if task_table_exists:
+                recover_background_jobs(app)
+                start_recovery_scheduler(app)
+        except SQLAlchemyError as exc:
+            app.logger.warning("后台任务恢复检查失败: %s", exc)
+
     @app.get("/api/health")
     def health():
         return ok({"status": "ok", "service": "opinion-analysis-backend"})

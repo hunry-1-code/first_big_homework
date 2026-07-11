@@ -2,6 +2,8 @@ from flask import Blueprint, current_app, g, request
 
 from app.core.response import fail, ok
 from app.core.security import create_token, login_required
+from app.extensions import db
+from app.models.user import User
 
 
 auth_bp = Blueprint("auth", __name__)
@@ -15,7 +17,22 @@ def login():
     if username != current_app.config["DEMO_ADMIN_USERNAME"] or password != current_app.config["DEMO_ADMIN_PASSWORD"]:
         return fail("用户名或密码错误", 401)
 
-    user = {"id": 1, "username": username, "nickname": "管理员", "role": "admin"}
+    user_model = User.query.filter_by(username=username).first()
+    if user_model is None:
+        user_model = User(
+            username=username,
+            password_hash="configured-demo-account",
+            nickname="管理员",
+            role="admin",
+        )
+        db.session.add(user_model)
+        db.session.commit()
+    user = {
+        "id": user_model.id,
+        "username": user_model.username,
+        "nickname": user_model.nickname or "管理员",
+        "role": user_model.role or "admin",
+    }
     token, expires_in = create_token(user)
     return ok({"token": token, "expires_in": expires_in, "user": user})
 
@@ -26,4 +43,3 @@ def me():
     user = dict(g.current_user)
     user.setdefault("nickname", "管理员" if user.get("role") == "admin" else user["username"])
     return ok(user)
-

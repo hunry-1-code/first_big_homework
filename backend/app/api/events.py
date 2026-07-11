@@ -1,8 +1,10 @@
 from flask import Blueprint, request
 
-from app.core.response import ok
+from app.core.response import fail, ok
 from app.core.security import login_required
 from app.services.event_service import get_event_detail, list_events, search_events
+from app.services.event_similarity_service import find_similar_events
+from app.services.sentiment_analysis_service import get_event_sentiment
 
 
 events_bp = Blueprint("events", __name__)
@@ -11,7 +13,10 @@ events_bp = Blueprint("events", __name__)
 @events_bp.get("")
 @login_required
 def events():
-    return ok(list_events(request.args))
+    try:
+        return ok(list_events(request.args))
+    except (TypeError, ValueError):
+        return fail("page 和 size 必须是整数", 400)
 
 
 @events_bp.get("/search")
@@ -23,35 +28,68 @@ def events_search():
 @events_bp.get("/<int:event_id>")
 @login_required
 def event_detail(event_id: int):
-    return ok(get_event_detail(event_id))
+    detail = get_event_detail(event_id)
+    if detail is None:
+        return fail("事件不存在", 404)
+    return ok(detail)
 
 
 @events_bp.get("/<int:event_id>/trend")
 @login_required
 def event_trend(event_id: int):
-    return ok(get_event_detail(event_id)["trend"])
+    detail = get_event_detail(event_id)
+    if detail is None:
+        return fail("事件不存在", 404)
+    return ok(detail["trend"])
 
 
 @events_bp.get("/<int:event_id>/sentiment")
 @login_required
 def event_sentiment(event_id: int):
-    return ok(get_event_detail(event_id)["sentiment"])
+    sentiment = get_event_sentiment(event_id)
+    if sentiment is None:
+        return fail("事件不存在", 404)
+    return ok(sentiment)
 
 
 @events_bp.get("/<int:event_id>/platform")
 @login_required
 def event_platform(event_id: int):
-    return ok(get_event_detail(event_id)["platform"])
+    detail = get_event_detail(event_id)
+    if detail is None:
+        return fail("事件不存在", 404)
+    return ok(detail["platform"])
 
 
 @events_bp.get("/<int:event_id>/keywords")
 @login_required
 def event_keywords(event_id: int):
-    return ok(get_event_detail(event_id)["keywords"])
+    detail = get_event_detail(event_id)
+    if detail is None:
+        return fail("事件不存在", 404)
+    return ok(detail["keywords"])
 
 
 @events_bp.get("/<int:event_id>/articles")
 @login_required
 def event_articles(event_id: int):
-    return ok(get_event_detail(event_id)["articles"])
+    detail = get_event_detail(event_id)
+    if detail is None:
+        return fail("事件不存在", 404)
+    return ok(detail["articles"])
 
+
+@events_bp.get("/<int:event_id>/similar")
+@login_required
+def event_similar(event_id: int):
+    try:
+        limit = int(request.args.get("limit", 5))
+    except (TypeError, ValueError):
+        return fail("limit 必须是整数", 400)
+    if not 1 <= limit <= 20:
+        return fail("limit 必须在 1 到 20 之间", 400)
+    try:
+        events = find_similar_events(event_id, limit=limit)
+    except KeyError:
+        return fail("事件不存在", 404)
+    return ok({"events": events, "total": len(events)})

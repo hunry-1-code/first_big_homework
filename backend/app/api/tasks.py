@@ -2,7 +2,7 @@ from flask import Blueprint, g
 
 from app.core.response import fail, ok
 from app.core.security import admin_required, login_required
-from app.services.task_service import get_task, list_tasks
+from app.services.task_service import get_task, list_tasks, sanitize_task
 
 
 tasks_bp = Blueprint("tasks", __name__)
@@ -16,17 +16,16 @@ def task_detail(task_id: int):
         return fail("任务不存在", 404)
     if task["created_by"] != g.current_user["id"] and g.current_user["role"] != "admin":
         return fail("无权查看该任务", 403)
-    return ok(task)
+    return ok(sanitize_task(task))
 
 
 @tasks_bp.get("/my")
 @login_required
 def my_tasks():
-    return ok({"tasks": list_tasks(created_by=g.current_user["id"])})
+    return ok({"tasks": [sanitize_task(task) for task in list_tasks(created_by=g.current_user["id"])]})
 
 
 @tasks_bp.get("")
 @admin_required
 def all_tasks():
-    return ok({"tasks": list_tasks()})
-
+    return ok({"tasks": [sanitize_task(task) for task in list_tasks()]})

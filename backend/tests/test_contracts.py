@@ -14,6 +14,33 @@ from app.services.task_service import (
     reset_task_store,
     update_task,
 )
+from app.core.config import Config
+
+
+class QianfanConfigContractTest(unittest.TestCase):
+    def test_qianfan_api_configuration_is_available(self):
+        self.assertTrue(hasattr(Config, "QIANFAN_API_KEY"))
+        self.assertEqual(
+            Config.QIANFAN_API_BASE_URL, "https://qianfan.baidubce.com"
+        )
+        self.assertEqual(
+            Config.QIANFAN_WEB_SEARCH_PATH, "/v2/ai_search/web_search"
+        )
+        self.assertEqual(
+            Config.QIANFAN_TRENDING_PATH, "/v2/tools/baidu_trending"
+        )
+        self.assertEqual(Config.QIANFAN_WEB_SEARCH_TOP_K, 50)
+        self.assertEqual(Config.QIANFAN_REQUEST_TIMEOUT, 30)
+
+
+class SentimentConfigContractTest(unittest.TestCase):
+    def test_sentiment_configuration_is_available(self):
+        self.assertEqual(Config.SENTIMENT_TEXT_LIMIT, 500)
+        self.assertEqual(Config.SENTIMENT_ALGORITHM_VERSION, "sentiment-v1")
+        self.assertEqual(Config.SENTIMENT_PROMPT_VERSION, "sentiment-prompt-v1")
+        self.assertEqual(Config.SENTIMENT_PLATFORM_MIN_ARTICLES, 3)
+        self.assertEqual(Config.SNOWNLP_POSITIVE_THRESHOLD, 0.60)
+        self.assertEqual(Config.SNOWNLP_NEGATIVE_THRESHOLD, 0.40)
 
 
 class ImportServiceContractTest(unittest.TestCase):
