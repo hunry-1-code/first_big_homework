@@ -12,6 +12,8 @@ export default [
       rank: 1
     },
     children: [
+      { path: "/welcome", redirect: "/dashboard" },
+      { path: "/opinion/welcome", redirect: "/dashboard" },
       {
         path: "/dashboard",
         name: "Dashboard",
