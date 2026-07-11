@@ -87,3 +87,30 @@
 * **[Modify]** 在 `package.json` 中移除了强制使用 `pnpm` 安装依赖的 `preinstall` 钩子，去掉了 `NODE_OPTIONS` 以修复 Windows 构建错误。
 * **[Modify]** 优化了 `build/utils.ts` 中的 `getPackageSize` 逻辑，在 `dist` 目录尚未创建或打包错误时仅返回 size 0，而不再 crash 抛异常，解决了打包报错信息被掩盖的隐患。
 * **[Clean]** 精简了 `src/router/modules/` 下的 20 余个自带路由定义，将其移动至 `modules_backup/` 下。新增了 `opinion.ts` 路由文件管理专有业务。
+
+### 3.1 完整移植与修复记录 (Full Migration & Bug Fixes - 2026-07-11)
+
+针对前一阶段因模板文件丢失导致前端编译完全损坏的故障，本日开展了底座重构及功能的二次移植与修复，具体如下：
+
+1. **底座覆盖与 Windows 开发环境调优**：
+   * 彻底清空了旧版简易框架目录，重新解压部署了完整的 **Vue Pure Admin (v7.0.0)** 目录。
+   * 彻底清除了 `package.json` 中的 `preinstall` 限制，以便在 Windows 下直接使用 `npm` 进行依赖包的下载管理，并完成了 1200+ 依赖的本地安装。
+   * 对 `package.json` 的 `dev` 和 `build` 脚本去除了 `NODE_OPTIONS` 前缀，彻底消除了在 PowerShell 终端下无法识别该指令的构建故障。
+   * 针对模板中 `build/utils.ts` 内 `getPackageSize` 对 `dist/` 文件夹读取缺失导致 Vite 打包前崩溃的隐患，引入了错误捕获，使其在抛错时直接返回 `size 0` 回调，保障稳定打包。
+
+2. **接口 (API) 与认证对齐**：
+   * 逐一对比了 Flask 后端蓝图（`backend/app/api/`），在前端 `src/api/` 下建立了强类型 TypeScript 定义的业务接口，路径与数据格式保持 100% 对齐。
+   * 编写了 `client.ts` 通用 API 客户端，注入全局 token 并处理 `401` 时登出的拦截器。
+   * 重构了 `store/modules/user.ts` 的 `loginByUsername` 动作，兼容后端 `/api/auth/login` 的 `code: 200` 报文结构，并将 `token` 正确映射为 Pure Admin 的 `accessToken`、`expires` 格式以缓存至 Cookies 和 LocalStorage。
+   * 配置了 `vite.config.ts` 中的 `server.proxy` 规则，将前端发往 `/api` 的请求自动转发至本地 Flask 服务端 `127.0.0.1:5000`。
+
+3. **运行时路由崩塌 (Route Crash) 修复**：
+   * **故障原因**：开发服务启动后，页面加载抛出 `TypeError: Cannot read properties of undefined (reading 'findIndex')` 报错。原因为 Pure Admin 的拍平与路由注册机制在 `src/router/utils.ts` 中强制依赖根路径为 `path: "/"` 的 Layout 布局路由，由于先前清理了默认路由导致该布局路由缺失。
+   * **解决方案**：修改了专有路由 `opinion.ts` 中的顶级父级路由，将其 path 变更为 `/`，将 name 命名为 `Home`，作为主页面 Layout 底座；同时将所有业务页（看板、详情、问答等）注册为二级路由，彻底解决路由加载崩溃故障，页面热更新正常。
+
+4. **高级业务视图重构与移植**：
+   * **舆情看板 (`views/welcome/index.vue`)**：重新设计了卡片式监控网格，**并重构实现了“按发布时间”与“按综合热度”进行列表排序的切换算法**，对齐需求文档。
+   * **事件分析报告 (`views/events/detail.vue`)**：还原了 2.5D 力导气泡词云图、ECharts 走势与三大图表，并在关联报道列表中追加了**“真实性检测”置信度百分比列**，修复了与新版路由冲突下的跳转和报告导出。
+   * **智能问答 (`views/qa/index.vue`)**：重构了 ChatGPT 双向对话消息流气泡，添加了事件上下文选择器以及针对选中事件筛选提问历史记录的过滤器。
+   * **个人中心 & 系统管理**：整合了敏感词/数据源 preset 的输入与自动胶囊 Tag 渲染，整合了异步进程进度条任务流水监控，以及爬虫健康状态 JSON 终端式展示。
+

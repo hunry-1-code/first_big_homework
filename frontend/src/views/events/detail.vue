@@ -521,7 +521,7 @@ function resetZoom() {
         <template #header>
           <div class="flex justify-between items-center">
             <span class="font-bold">关联舆情报道列表</span>
-            <el-button type="primary" link @click="router.push(`/qa?event_id=${route.params.id}`)">
+            <el-button type="primary" link @click="router.push(`/opinion/qa?event_id=${route.params.id}`)">
               <IconifyIconOffline icon="ri:question-answer-line" class="mr-1" />
               就该事件进行智能提问
             </el-button>
