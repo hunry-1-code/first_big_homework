@@ -133,23 +133,37 @@ function getEnrichedTrend(): { dates: string[]; counts: number[] } {
   return { dates, counts };
 }
 
-// 构造模拟传播网络数据
+// 构造模拟传播网络数据（分层手动布局，清晰有序）
 function buildPropagationData() {
+  // 每层的节点列表和 Y 轴分布
+  const layers = [
+    { x: 8,  nodes: [{ name: "初始爆料", symbolSize: 46 }] },
+    { x: 26, nodes: [{ name: "大V-财经观察", symbolSize: 34 }, { name: "大V-科技圈那些事", symbolSize: 32 }] },
+    { x: 44, nodes: [{ name: "微博热搜", symbolSize: 40 }, { name: "今日头条", symbolSize: 34 }, { name: "知乎热榜", symbolSize: 30 }] },
+    { x: 62, nodes: [{ name: "人民日报", symbolSize: 38 }, { name: "央视新闻", symbolSize: 36 }] },
+    { x: 80, nodes: [{ name: "网友A", symbolSize: 16 }, { name: "网友B", symbolSize: 15 }, { name: "网友C", symbolSize: 14 }, { name: "网友D", symbolSize: 13 }] }
+  ];
+
+  const nodes: any[] = [];
+  let catIdx = 0;
+  layers.forEach((layer) => {
+    const n = layer.nodes.length;
+    layer.nodes.forEach((node, i) => {
+      // y 从 12% 到 88% 均匀分布
+      const y = n === 1 ? 50 : 12 + (i / (n - 1)) * 76;
+      nodes.push({
+        name: node.name,
+        category: catIdx,
+        symbolSize: node.symbolSize,
+        x: layer.x,
+        y
+      });
+    });
+    catIdx++;
+  });
+
   return {
-    nodes: [
-      { name: "初始爆料", category: 0, symbolSize: 50 },
-      { name: "大V-财经观察", category: 1, symbolSize: 38 },
-      { name: "大V-科技圈那些事", category: 1, symbolSize: 34 },
-      { name: "微博热搜", category: 2, symbolSize: 44 },
-      { name: "今日头条", category: 2, symbolSize: 36 },
-      { name: "知乎热榜", category: 2, symbolSize: 30 },
-      { name: "人民日报", category: 3, symbolSize: 40 },
-      { name: "央视新闻", category: 3, symbolSize: 38 },
-      { name: "网友A", category: 4, symbolSize: 18 },
-      { name: "网友B", category: 4, symbolSize: 16 },
-      { name: "网友C", category: 4, symbolSize: 14 },
-      { name: "网友D", category: 4, symbolSize: 12 }
-    ],
+    nodes,
     links: [
       { source: "初始爆料", target: "大V-财经观察", value: 3800 },
       { source: "初始爆料", target: "大V-科技圈那些事", value: 2900 },
@@ -613,33 +627,31 @@ function initPropagationChart() {
     },
     series: [{
       type: "graph",
-      layout: "force",
-      force: { repulsion: 400, gravity: 0.08, edgeLength: [120, 280], friction: 0.6 },
-      roam: true,
-      draggable: true,
+      layout: "none",
+      coordinateSystem: undefined,
+      roam: false,
       categories: data.categories.map((c: any, i: number) => ({ name: c.name, itemStyle: { color: categoryColors[i] } })),
       data: data.nodes,
       links: data.links,
-      lineStyle: { color: dark ? "#475569" : "#cbd5e1", curveness: 0.2, opacity: 0.6, width: 1.5 },
+      lineStyle: { color: dark ? "#475569" : "#cbd5e1", curveness: 0.3, opacity: 0.45, width: 1.2 },
       edgeSymbol: ["none", "arrow"],
-      edgeSymbolSize: [0, 8],
+      edgeSymbolSize: [0, 6],
       emphasis: {
         focus: "adjacency",
-        lineStyle: { width: 2.5, opacity: 0.9 },
-        itemStyle: { shadowBlur: 12, shadowColor: "rgba(0,0,0,0.25)" }
+        lineStyle: { width: 2, opacity: 0.8 },
+        itemStyle: { shadowBlur: 10, shadowColor: "rgba(0,0,0,0.2)" }
       },
       label: {
         show: true,
         fontSize: 11,
         color: dark ? "#cbd6df" : "#334155",
-        fontWeight: 500,
-        formatter: (p: any) => p.name.length > 6 ? p.name.slice(0, 6) + "…" : p.name
+        fontWeight: 500
       },
       itemStyle: {
         borderColor: dark ? "#1e293b" : "#fff",
         borderWidth: 2,
-        shadowBlur: 4,
-        shadowColor: "rgba(0,0,0,0.1)"
+        shadowBlur: 3,
+        shadowColor: "rgba(0,0,0,0.08)"
       }
     }]
   });
@@ -1112,7 +1124,7 @@ function getProgressColor(heat: number) {
             <div class="font-bold text-slate-800 dark:text-slate-100">
               🔗 事件溯源与关键传播路径 (Propagation Network)
             </div>
-            <span class="text-[11px] text-slate-400 dark:text-slate-500">拖拽节点查看传播关系</span>
+            <span class="text-[11px] text-slate-400 dark:text-slate-500">左→右: 源头 → 传播者 → 平台 → 官媒 → 公众</span>
           </div>
         </template>
         <div class="flex gap-3 mb-3">
