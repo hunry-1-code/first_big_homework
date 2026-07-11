@@ -1113,7 +1113,18 @@ function getProgressColor(heat: number) {
             <template #header>
               <div class="font-bold text-slate-800 dark:text-slate-100">📡 传播平台分布</div>
             </template>
-            <div ref="platformRef" class="w-full h-[320px]" />
+            <div class="flex flex-wrap gap-1.5 mb-3">
+              <span
+                v-for="p in getEnrichedPlatforms()"
+                :key="p.name"
+                class="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-medium"
+                :style="{ color: p.color, background: p.bg }"
+              >
+                <IconifyIconOffline :icon="p.icon" class="text-sm" />
+                {{ p.name }}
+              </span>
+            </div>
+            <div ref="platformRef" class="w-full h-[280px]" />
           </el-card>
         </el-col>
         <el-col :xs="24" :md="8" class="mb-4">

@@ -42,7 +42,9 @@
               :value="p.name"
             >
               <span class="inline-flex items-center gap-1.5">
-                <IconifyIconOffline :icon="p.icon" style="font-size:16px" />
+                <span :style="{ color: p.color, display: 'inline-flex' }">
+                  <IconifyIconOffline :icon="p.icon" style="font-size:16px" />
+                </span>
                 <span :style="{ color: p.color }">{{ p.name }}</span>
               </span>
             </el-option>
