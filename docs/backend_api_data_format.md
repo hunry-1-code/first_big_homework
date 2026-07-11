@@ -55,6 +55,8 @@
 
 ### 2.1 基本信息
 
+> 现有框架状态：✅ Event 模型已定义所有字段。⚠️ 当前 mock 未填充 `time_code/location/cause/key_figures`，需实现 service 层时补上。
+
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|:--:|------|
 | `id` | int | ✅ | |
@@ -80,6 +82,8 @@
 
 ### 2.3 趋势数据 `trend`
 
+> 现有框架状态：⚠️ mock 仅返回 2 个 ISO 格式日期。需改为 7-14 个短格式 (`"M/D"`) 点，并填充 `key_points`。
+
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|:--:|------|
 | `trend.dates[]` | string[] | ✅ | 日期序列，如 `["7/1", "7/2", ...]`，**建议 7-14 个点** |
@@ -92,6 +96,8 @@
 ```
 
 ### 2.4 平台分布 `platform`
+
+> 现有框架状态：⚠️ mock 用 `"name"` 字段且值为 `"样例数据"`。需改为 `"platform"` 字段，取 7 个合法值之一。
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|:--:|------|
@@ -224,7 +230,48 @@
 
 ---
 
-## 5. 关键约束
+## 5. 与现有后端框架的差距标注
+
+> 以下基于 `backend/app/` 现有代码逐项对照，标注每一项是否需要后端改动。
+
+### 5.1 模型层面
+
+| 需求字段 | 后端模型现状 | 差距 |
+|----------|-------------|:--:|
+| Event: `time_code/location/cause/key_figures` | ✅ 已在 `models/event.py` 定义 | 无 |
+| Article: `author/reposts_count/comments_count/likes_count/publish_time` | ✅ 已在 `models/article.py` 定义 | 无 |
+| Article: `suspicious_score` | ✅ 已有 | 无 |
+| User: `status`（启用/停用） | 🔴 **缺失**，需在 `models/user.py` 新增 `status = db.Column(db.Integer, default=1)` | ⚠️ 需改动 |
+| `lifecycle_stage` 四选一约束 | 🟡 无 CHECK 约束，建议加应用层校验 | 建议加 |
+| `sentiment_*` 和为 1 | 🟡 无约束，建议加应用层校验 | 建议加 |
+
+### 5.2 API 层面
+
+| 端点 | 后端现状 | 差距 |
+|------|----------|:--:|
+| `GET /api/events` 列表 | ✅ 已有 | 无 |
+| `GET /api/events/:id` 详情 | ✅ 已有（含全部子资源内联） | 无 |
+| `POST /api/qa/ask` | ✅ 已有 | 无 |
+| `/api/admin/users` 用户 CRUD | 🔴 **整个 `/api/admin` 蓝图不存在**，需新建 | ⚠️ 需新建 |
+| `admin_required` 装饰器 | ✅ 已在 `security.py:53` 定义，crawler/import/tasks 已在使用 | 无 |
+
+### 5.3 数据格式层面
+
+| 问题 | 当前 mock | 要求 |
+|------|-----------|------|
+| ⚠️ **平台字段名** | `"name": "样例数据"` | `"platform": "微博热搜"`（7 选 1） |
+| ⚠️ **趋势日期格式** | `"2026-07-08"`（ISO 全格式） | `"7/8"`（短格式 M/D） |
+| ⚠️ **趋势数据量** | 仅 2 个点 | 建议 7-14 个点 |
+| ⚠️ **情感标签** | 出现 `"中立"` | 只能是 `"中性"` |
+| 🔴 **User 表缺 status** | 无此字段 | 新增 `status` int 列 |
+
+### 5.4 结论
+
+**没有超出框架能力的需求**。所有缺失项都是实现层问题（mock 数据格式、新增 admin 蓝图、User 模型加字段），不是架构限制。Flask + SQLAlchemy + JWT + `admin_required` 全套基础设施已就绪。
+
+---
+
+## 6. 关键约束
 
 | 约束 | 说明 |
 |------|------|
