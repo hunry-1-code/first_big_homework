@@ -7,3 +7,4 @@
 ## AI 助手行为规则
 * **优先阅读**：任何参与本项目开发、调试、新需求承接或新会话启动的 AI 助手，在开始研究和编写代码前，**必须强制读取并严格遵循 [docs/frontend_changelog_and_memory.md](file:///d:/work2/programing_practice_demo/docs/frontend_changelog_and_memory.md) 中的工程选型、路由拦截方式和接口映射逻辑**。
 * **开发原则**：所有前端修改必须在现有的 Vue Pure Admin 风格体系内进行（即在原版布局和组件逻辑上做增删改，配合 Tailwind CSS / Element Plus 样式），禁止引入风格不一致或多余的 UI 样式库。
+* **更新日志纪律**：每完成一次经用户认可的改动（无 bug、效果符合预期），**必须同步更新 [docs/frontend_changelog_and_memory.md](file:///d:/work2/programing_practice_demo/docs/frontend_changelog_and_memory.md) 的更新日志章节**，记录改了什么、为什么改、注意事项。然后**提交 git commit**。
