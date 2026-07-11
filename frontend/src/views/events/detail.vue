@@ -58,7 +58,6 @@ const trendRef = ref<HTMLDivElement>();
 const sentimentRef = ref<HTMLDivElement>();
 const platformRef = ref<HTMLDivElement>();
 const bubbleRef = ref<HTMLDivElement>();
-const gaugeRef = ref<HTMLDivElement>();
 const radarRef = ref<HTMLDivElement>();
 const propagationRef = ref<HTMLDivElement>();
 const influenceRef = ref<HTMLDivElement>();
@@ -67,7 +66,6 @@ let trendChart: echarts.ECharts | null = null;
 let sentimentChart: echarts.ECharts | null = null;
 let platformChart: echarts.ECharts | null = null;
 let bubbleChart: echarts.ECharts | null = null;
-let gaugeChart: echarts.ECharts | null = null;
 let radarChart: echarts.ECharts | null = null;
 let propagationChart: echarts.ECharts | null = null;
 let influenceChart: echarts.ECharts | null = null;
@@ -170,7 +168,6 @@ function initCharts() {
   initTrendChart();
   initSentimentChart();
   initPlatformChart();
-  initGaugeChart();
   initRadarChart();
   initBubbleChart();
   initPropagationChart();
@@ -425,64 +422,7 @@ function initPlatformChart() {
   });
 }
 
-// ==================== 4. 风险评分仪表盘 (Gauge) ====================
-function initGaugeChart() {
-  if (!gaugeRef.value) return;
-  if (gaugeChart) gaugeChart.dispose();
-  gaugeChart = echarts.init(gaugeRef.value);
-
-  const dark = isDark.value;
-  const score = eventData.value.report?.risk_data?.score || 0;
-  const level = eventData.value.report?.risk_data?.level || "低风险";
-
-  gaugeChart.setOption({
-    series: [{
-      type: "gauge",
-      startAngle: 210,
-      endAngle: -30,
-      center: ["50%", "55%"],
-      radius: "90%",
-      min: 0,
-      max: 100,
-      splitNumber: 10,
-      axisLine: {
-        show: true,
-        lineStyle: {
-          width: 14,
-          color: [
-            [0.35, "#22c55e"],
-            [0.65, "#f59e0b"],
-            [1, "#ef4444"]
-          ]
-        }
-      },
-      pointer: {
-        icon: "path://M12.8,0.7l12,40.1H0.7L12.8,0.7z",
-        length: "65%",
-        width: 6,
-        offsetCenter: [0, "-10%"],
-        itemStyle: { color: "auto" }
-      },
-      axisTick: { distance: -14, length: 6, lineStyle: { width: 1.5, color: dark ? "#64748b" : "#94a3b8" } },
-      splitLine: { distance: -18, length: 16, lineStyle: { width: 2.5, color: dark ? "#64748b" : "#94a3b8" } },
-      axisLabel: { color: dark ? "#94a3b8" : "#475569", fontSize: 10, distance: 25, formatter: "{value}" },
-      anchor: { show: true, showAbove: true, size: 16, itemStyle: { borderWidth: 2, borderColor: dark ? "#475569" : "#cbd5e1" } },
-      title: { show: true, offsetCenter: [0, "75%"], fontSize: 13, color: dark ? "#cbd6df" : "#334155", fontWeight: 600 },
-      detail: {
-        valueAnimation: true,
-        fontSize: 22,
-        fontWeight: 700,
-        offsetCenter: [0, "48%"],
-        formatter: (v: number) => `${v}\n{unit|/ 100}`,
-        rich: { unit: { fontSize: 11, color: dark ? "#94a3b8" : "#94a3b8", padding: [2, 0, 0, 0] } },
-        color: dark ? "#e2e8f0" : "#1e293b"
-      },
-      data: [{ value: score, name: level }]
-    }]
-  });
-}
-
-// ==================== 5. 风险雷达图 ====================
+// ==================== 4. 风险雷达图 ====================
 function initRadarChart() {
   if (!radarRef.value) return;
   if (radarChart) radarChart.dispose();
@@ -541,7 +481,7 @@ function initRadarChart() {
   });
 }
 
-// ==================== 6. 传播路径网络图 ====================
+// ==================== 5. 传播路径网络图 ====================
 function initPropagationChart() {
   if (!propagationRef.value) return;
   if (propagationChart) propagationChart.dispose();
@@ -604,7 +544,7 @@ function initPropagationChart() {
   });
 }
 
-// ==================== 7. 报道影响力排行榜 ====================
+// ==================== 6. 报道影响力排行榜 ====================
 function initInfluenceChart() {
   if (!influenceRef.value) return;
   if (influenceChart) influenceChart.dispose();
@@ -670,7 +610,7 @@ function initInfluenceChart() {
   });
 }
 
-// ==================== 8. 词云 ====================
+// ==================== 7. 词云 ====================
 function getWordColor(t: number): string {
   if (t >= 0.8) return "rgba(79, 70, 229, 1.0)";
   if (t >= 0.55) return "rgba(59, 130, 246, 1.0)";
@@ -820,7 +760,6 @@ const handleResize = () => {
   sentimentChart?.resize();
   platformChart?.resize();
   bubbleChart?.resize();
-  gaugeChart?.resize();
   radarChart?.resize();
   propagationChart?.resize();
   influenceChart?.resize();
@@ -829,7 +768,7 @@ const handleResize = () => {
 window.addEventListener("resize", handleResize);
 onBeforeUnmount(() => {
   window.removeEventListener("resize", handleResize);
-  [trendChart, sentimentChart, platformChart, bubbleChart, gaugeChart, radarChart, propagationChart, influenceChart].forEach(c => c?.dispose());
+  [trendChart, sentimentChart, platformChart, bubbleChart, radarChart, propagationChart, influenceChart].forEach(c => c?.dispose());
 });
 
 // ==================== 导出报告 ====================
@@ -912,8 +851,22 @@ function getProgressColor(heat: number) {
         </el-col>
         <el-col :xs="24" :sm="12" :md="6" class="mb-4">
           <el-card shadow="never" class="!border-none">
-            <div class="text-xs text-gray-400 mb-1">风险评估</div>
-            <div ref="gaugeRef" class="w-full h-[110px]" />
+            <div class="text-xs text-gray-400 mb-1">风险评估等级</div>
+            <div
+              :class="[
+                'text-2xl font-bold mb-2',
+                eventData.report?.risk_data?.level === '高风险'
+                  ? 'text-red-500'
+                  : eventData.report?.risk_data?.level === '中风险'
+                    ? 'text-orange-500'
+                    : 'text-green-500'
+              ]"
+            >
+              {{ eventData.report?.risk_data?.level || '低风险' }}
+            </div>
+            <div class="text-xs text-gray-500 dark:text-gray-400">
+              分值: {{ eventData.report?.risk_data?.score || 0 }} / 100
+            </div>
           </el-card>
         </el-col>
         <el-col :xs="24" :sm="12" :md="6" class="mb-4">
@@ -957,7 +910,7 @@ function getProgressColor(heat: number) {
             <template #header>
               <div class="font-bold text-slate-800 dark:text-slate-100">🎯 情感极性占比</div>
             </template>
-            <div ref="sentimentRef" class="w-full h-[340px]" />
+            <div ref="sentimentRef" class="w-full h-[320px]" />
           </el-card>
         </el-col>
         <el-col :xs="24" :md="8" class="mb-4">
@@ -965,7 +918,7 @@ function getProgressColor(heat: number) {
             <template #header>
               <div class="font-bold text-slate-800 dark:text-slate-100">📡 传播平台分布</div>
             </template>
-            <div ref="platformRef" class="w-full h-[340px]" />
+            <div ref="platformRef" class="w-full h-[320px]" />
           </el-card>
         </el-col>
         <el-col :xs="24" :md="8" class="mb-4">
@@ -973,7 +926,7 @@ function getProgressColor(heat: number) {
             <template #header>
               <div class="font-bold text-slate-800 dark:text-slate-100">🛡️ 多维风险雷达</div>
             </template>
-            <div ref="radarRef" class="w-full h-[340px]" />
+            <div ref="radarRef" class="w-full h-[320px]" />
           </el-card>
         </el-col>
       </el-row>
@@ -1027,7 +980,7 @@ function getProgressColor(heat: number) {
                 </div>
               </div>
             </template>
-            <div class="w-full h-[440px] overflow-hidden flex items-center justify-center bg-slate-50/30 dark:bg-slate-950/30 rounded-lg">
+            <div class="w-full h-[380px] overflow-hidden flex items-center justify-center bg-slate-50/30 dark:bg-slate-950/30 rounded-lg">
               <div ref="bubbleRef" class="w-full h-full" />
             </div>
           </el-card>
@@ -1061,7 +1014,7 @@ function getProgressColor(heat: number) {
             <span class="w-2.5 h-2.5 rounded-full bg-slate-400" /> 公众讨论
           </div>
         </div>
-        <div ref="propagationRef" class="w-full h-[400px]" />
+        <div ref="propagationRef" class="w-full h-[380px]" />
       </el-card>
 
       <!-- ===== 关键事件时间轴 + 报道影响力排行榜 ===== -->
@@ -1096,7 +1049,7 @@ function getProgressColor(heat: number) {
             <template #header>
               <div class="font-bold text-slate-800 dark:text-slate-100">📊 报道传播影响力排行</div>
             </template>
-            <div ref="influenceRef" class="w-full h-[300px]" />
+            <div ref="influenceRef" class="w-full h-[320px]" />
           </el-card>
         </el-col>
       </el-row>
