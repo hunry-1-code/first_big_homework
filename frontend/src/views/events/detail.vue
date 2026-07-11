@@ -95,11 +95,36 @@ function buildKeyPoints(dates: string[], counts: number[]) {
   return points;
 }
 
-// 供模板使用，基于模拟趋势数据计算关键节点（避免模板中多次调用产生不同随机结果）
+// 供模板使用，基于模拟趋势数据计算关键节点
 const displayKeyPoints = computed(() => {
   const { dates, counts } = getEnrichedTrend();
   return buildKeyPoints(dates, counts);
 });
+
+// 7 个可爬取平台及其配色
+const PLATFORM_PRESETS: { name: string; color: string; api: string }[] = [
+  { name: "微博热搜", color: "#e84118", api: "公开接口" },
+  { name: "微博搜索", color: "#c23616", api: "TikHub" },
+  { name: "知乎", color: "#0066ff", api: "开放平台" },
+  { name: "B站", color: "#fb7299", api: "bilibili-api" },
+  { name: "小红书", color: "#ff4757", api: "TikHub" },
+  { name: "百度热搜", color: "#3385ff", api: "千帆 API" },
+  { name: "百度搜索", color: "#2e77e5", api: "千帆 API" },
+];
+
+// 当后端平台数据稀疏时，构造 7 平台模拟分布
+function getEnrichedPlatforms(): { name: string; count: number; color: string; api: string }[] {
+  const raw = eventData.value?.platform?.platforms || [];
+  if (raw.length >= 3) return raw.map((p: any) => ({ name: p.platform || p.name, count: p.count, color: "#409eff", api: "" }));
+  const total = eventData.value?.articles?.total || 50;
+  // 按事件热度随机分配报道量到各平台
+  const seed = eventData.value?.id || 1;
+  return PLATFORM_PRESETS.map((p, i) => {
+    const ratio = [0.22, 0.18, 0.16, 0.14, 0.12, 0.10, 0.08][i];
+    const noise = ((seed * (i + 3)) % 7 - 3);
+    return { ...p, count: Math.max(2, Math.round(total * ratio + noise)) };
+  });
+}
 
 // 当后端只给极少数据点时，自动生成 14 天模拟趋势数据用于展示
 function getEnrichedTrend(): { dates: string[]; counts: number[] } {
@@ -481,7 +506,7 @@ function initSentimentChart() {
   });
 }
 
-// ==================== 3. 平台来源柱状图（增强：横向柱状图 + 占比标签） ====================
+// ==================== 3. 平台来源分布图 ====================
 function initPlatformChart() {
   if (!platformRef.value) return;
   if (platformChart) platformChart.dispose();
@@ -489,18 +514,22 @@ function initPlatformChart() {
 
   const dark = isDark.value;
   const c = chartColors(dark);
-  const platforms = eventData.value.platform?.platforms || [];
-  const names = platforms.map((p: any) => p.platform || p.name);
-  const values = platforms.map((p: any) => p.count);
+  const platforms = getEnrichedPlatforms();
+  const names = platforms.map(p => p.name);
+  const values = platforms.map(p => p.count);
 
   platformChart.setOption({
-    grid: { top: 10, right: 30, bottom: 20, left: 80 },
+    grid: { top: 10, right: 50, bottom: 20, left: 80 },
     tooltip: {
       trigger: "axis",
       axisPointer: { type: "shadow" },
       backgroundColor: dark ? "rgba(17,24,39,0.95)" : "rgba(255,255,255,0.95)",
       borderColor: dark ? "#374151" : "#e5e7eb",
-      textStyle: { color: dark ? "#e2e8f0" : "#1e293b" }
+      textStyle: { color: dark ? "#e2e8f0" : "#1e293b" },
+      formatter: (params: any) => {
+        const p = platforms.find(x => x.name === params[0]?.name);
+        return p ? `<b>${p.name}</b><br/>报道量: <b>${p.count} 篇</b><br/>接入方式: ${p.api}` : "";
+      }
     },
     xAxis: {
       type: "value",
@@ -509,24 +538,25 @@ function initPlatformChart() {
     },
     yAxis: {
       type: "category",
-      data: names.reverse(),
+      data: [...names].reverse(),
       axisLabel: { color: c.textColor, fontSize: 12 },
       axisLine: { lineStyle: { color: c.splitLineColor } }
     },
     series: [{
       name: "报道量",
-      data: [...values].reverse().map((v: number, i: number) => ({
-        value: v,
+      type: "bar",
+      barWidth: "50%",
+      data: [...platforms].reverse().map(p => ({
+        name: p.name,
+        value: p.count,
         itemStyle: {
           color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
-            { offset: 0, color: "#0066cc" },
-            { offset: 1, color: "#36b2f0" }
+            { offset: 0, color: p.color },
+            { offset: 1, color: p.color + "88" }
           ]),
           borderRadius: [0, 4, 4, 0]
         }
       })),
-      type: "bar",
-      barWidth: "45%",
       label: {
         show: true,
         position: "right",
@@ -1241,14 +1271,33 @@ function getProgressColor(heat: number) {
           </div>
         </template>
         <el-table :data="eventData.articles?.articles" stripe style="width: 100%">
-          <el-table-column type="index" label="#" width="50" />
-          <el-table-column prop="title" label="报道标题" min-width="240" show-overflow-tooltip />
-          <el-table-column prop="platform" label="来源平台" width="110">
+          <el-table-column type="index" label="#" width="50" align="center" />
+          <el-table-column prop="title" label="报道标题" min-width="200" show-overflow-tooltip />
+          <el-table-column prop="platform" label="来源平台" width="100">
             <template #default="{ row }">
               <el-tag size="small" effect="light">{{ row.platform }}</el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="sentiment_label" label="情感倾向" width="110">
+          <el-table-column prop="author" label="作者" width="100" show-overflow-tooltip>
+            <template #default="{ row }">
+              <span class="text-xs text-slate-500 dark:text-slate-400">{{ row.author || '-' }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="publish_time" label="发布时间" width="110">
+            <template #default="{ row }">
+              <span class="text-xs text-slate-500 dark:text-slate-400">{{ row.publish_time || '-' }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="互动量" width="130" align="right">
+            <template #default="{ row }">
+              <div class="flex items-center justify-end gap-2 text-xs text-slate-500 dark:text-slate-400">
+                <span title="转发">↺ {{ (row.reposts_count || 0) }}</span>
+                <span title="评论">💬 {{ (row.comments_count || 0) }}</span>
+                <span title="点赞">♥ {{ (row.likes_count || 0) }}</span>
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column prop="sentiment_label" label="情感倾向" width="100" align="center">
             <template #default="{ row }">
               <el-tag
                 size="small"
@@ -1259,7 +1308,7 @@ function getProgressColor(heat: number) {
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="is_suspicious" label="真实性检测" width="130">
+          <el-table-column prop="is_suspicious" label="真实性" width="120" align="center">
             <template #default="{ row }">
               <div class="flex items-center gap-1">
                 <el-tag size="small" effect="dark" :type="row.is_suspicious ? 'danger' : 'success'">

@@ -27,13 +27,30 @@
             />
           </el-select>
         </el-form-item>
+        <el-form-item label="聚焦平台（可选）">
+          <el-select
+            v-model="selectedPlatform"
+            placeholder="全部平台"
+            class="w-full"
+            size="large"
+            clearable
+          >
+            <el-option label="微博热搜" value="微博热搜" />
+            <el-option label="微博搜索" value="微博搜索" />
+            <el-option label="知乎" value="知乎" />
+            <el-option label="B站" value="B站" />
+            <el-option label="小红书" value="小红书" />
+            <el-option label="百度热搜" value="百度热搜" />
+            <el-option label="百度搜索" value="百度搜索" />
+          </el-select>
+        </el-form-item>
       </el-form>
 
       <div class="border-t border-slate-100 dark:border-slate-800/60 pt-4 mt-auto hidden md:block">
         <div class="text-xs text-slate-400 dark:text-slate-500 flex flex-col gap-1">
           <span>💡 提示：</span>
-          <span>1. 可从「舆情看板 -> 分析报告」一键跳转至此处提问。</span>
-          <span>2. AI 自动关联后台采集的该事件所有文章报道。</span>
+          <span>1. 可从「事件详情」顶部或 AI 研判卡片一键跳转至此。</span>
+          <span>2. 选择平台后，AI 将聚焦该平台的报道进行分析。</span>
         </div>
       </div>
     </div>
@@ -137,6 +154,7 @@ const route = useRoute();
 const eventsStore = useEventsStore();
 
 const selectedEventId = ref<number | undefined>(undefined);
+const selectedPlatform = ref<string>("");
 const inputQuestion = ref("");
 const thinking = ref(false);
 const chatBoxRef = ref<HTMLDivElement>();
@@ -156,6 +174,9 @@ onMounted(async () => {
   // 如果路由携带了 event_id 参数，则自动选择
   if (route.query.event_id) {
     selectedEventId.value = Number(route.query.event_id);
+  }
+  if (route.query.platform) {
+    selectedPlatform.value = String(route.query.platform);
   }
 
   // 加载历史提问记录
@@ -215,8 +236,12 @@ async function sendQuestion() {
   thinking.value = true;
 
   try {
+    // 如果选了平台，将平台上下文注入问题
+    const contextualQuestion = selectedPlatform.value
+      ? `[聚焦平台：${selectedPlatform.value}] ${q}`
+      : q;
     const response = await askQuestion({
-      question: q,
+      question: contextualQuestion,
       event_id: selectedEventId.value
     });
 

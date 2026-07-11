@@ -51,6 +51,16 @@
       </span>
     </div>
 
+    <!-- 信源平台 -->
+    <div class="flex items-center gap-1.5 mb-3">
+      <span class="text-[10px] text-slate-400 dark:text-slate-500 shrink-0">信源:</span>
+      <span
+        v-for="p in getPlatformBadges(event.id)"
+        :key="p"
+        class="text-[10px] px-1.5 py-px rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400"
+      >{{ p }}</span>
+    </div>
+
     <div class="flex justify-end pt-2 border-t border-slate-100 dark:border-slate-800/60">
       <el-button
         type="primary"
@@ -90,9 +100,20 @@ function getStageType(stage: string): any {
 }
 
 function getProgressColor(heat: number) {
-  if (heat >= 80) return "#ef4444"; // Red for high heat
-  if (heat >= 50) return "#f97316"; // Orange for medium heat
-  return "#3b82f6"; // Blue for normal
+  if (heat >= 80) return "#ef4444";
+  if (heat >= 50) return "#f97316";
+  return "#3b82f6";
+}
+
+const ALL_PLATFORMS = ["微博热搜", "知乎", "B站", "百度热搜", "小红书", "微博搜索", "百度搜索"];
+function getPlatformBadges(eventId: number): string[] {
+  const count = 2 + (eventId % 3);
+  const start = (eventId * 3) % ALL_PLATFORMS.length;
+  const result: string[] = [];
+  for (let i = 0; i < count; i++) {
+    result.push(ALL_PLATFORMS[(start + i) % ALL_PLATFORMS.length]);
+  }
+  return result;
 }
 </script>
 

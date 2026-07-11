@@ -161,14 +161,42 @@ def get_event_detail(event_id: int) -> dict:
         "articles": {
             "articles": [
                 {
-                    "id": 1,
-                    "platform": "sample",
-                    "title": "样例报道标题",
-                    "clean_content": "样例报道清洗正文，供前端联调。",
-                    "sentiment_label": "负面",
-                }
+                    "id": 1, "platform": "微博热搜", "title": "网传某平台用户数据遭泄露，官方尚未回应",
+                    "author": "科技圈那些事", "publish_time": "2026-07-11 14:20",
+                    "reposts_count": 4521, "comments_count": 2830, "likes_count": 12056,
+                    "clean_content": "近日有网友爆料称某大型互联网平台发生用户数据泄露事件，涉及数千万用户信息。截至目前官方尚未发布正式声明，引发广泛关注。",
+                    "sentiment_label": "负面", "is_suspicious": False, "suspicious_score": 0
+                },
+                {
+                    "id": 2, "platform": "知乎", "title": "如何看待某平台疑似数据泄露？技术层面分析可能原因",
+                    "author": "后端工程师小王", "publish_time": "2026-07-11 16:45",
+                    "reposts_count": 892, "comments_count": 1560, "likes_count": 3420,
+                    "clean_content": "从技术角度来看，大规模数据泄露通常与以下几个方面有关：数据库配置不当、API权限控制缺失、内部人员操作等。需要等待官方调查结果。",
+                    "sentiment_label": "中性", "is_suspicious": False, "suspicious_score": 0
+                },
+                {
+                    "id": 3, "platform": "B站", "title": "【速报】某平台千万用户数据疑在暗网出售",
+                    "author": "科技观察猿", "publish_time": "2026-07-11 12:10",
+                    "reposts_count": 2300, "comments_count": 4200, "likes_count": 18900,
+                    "clean_content": "据暗网监测账号消息，有人声称持有某平台完整用户数据库并在暗网论坛挂牌出售。安全研究人员正在进行验证，提醒用户及时修改密码。",
+                    "sentiment_label": "负面", "is_suspicious": True, "suspicious_score": 0.65
+                },
+                {
+                    "id": 4, "platform": "百度热搜", "title": "某平台数据安全事件持续发酵，相关部门已介入",
+                    "author": "新华网", "publish_time": "2026-07-11 18:00",
+                    "reposts_count": 6700, "comments_count": 3210, "likes_count": 8500,
+                    "clean_content": "记者今日从有关部门获悉，针对近期网络上关于某互联网平台用户数据泄露的相关报道，监管部门已经启动调查程序，后续结果将及时向社会公布。",
+                    "sentiment_label": "中性", "is_suspicious": False, "suspicious_score": 0
+                },
+                {
+                    "id": 5, "platform": "小红书", "title": "教大家自查账号是否在这次泄露事件中受影响",
+                    "author": "数码生活家", "publish_time": "2026-07-11 15:30",
+                    "reposts_count": 5600, "comments_count": 7800, "likes_count": 22300,
+                    "clean_content": "今天看到新闻说某平台数据疑似泄露，整理了几个自查方法分享给大家，可以确认自己的信息是否在泄露范围内。",
+                    "sentiment_label": "中立", "is_suspicious": False, "suspicious_score": 0
+                },
             ],
-            "total": 1,
+            "total": 5,
         },
     }
 
