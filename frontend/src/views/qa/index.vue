@@ -35,13 +35,17 @@
             size="large"
             clearable
           >
-            <el-option label="微博热搜" value="微博热搜" />
-            <el-option label="微博搜索" value="微博搜索" />
-            <el-option label="知乎" value="知乎" />
-            <el-option label="B站" value="B站" />
-            <el-option label="小红书" value="小红书" />
-            <el-option label="百度热搜" value="百度热搜" />
-            <el-option label="百度搜索" value="百度搜索" />
+            <el-option
+              v-for="p in PLATFORMS"
+              :key="p.name"
+              :label="p.name"
+              :value="p.name"
+            >
+              <span class="inline-flex items-center gap-1.5">
+                <IconifyIconOffline :icon="p.icon" style="font-size:16px" />
+                <span :style="{ color: p.color }">{{ p.name }}</span>
+              </span>
+            </el-option>
           </el-select>
         </el-form-item>
       </el-form>
@@ -145,6 +149,8 @@ import { useRoute } from "vue-router";
 import { useEventsStore } from "@/store/modules/events";
 import { askQuestion, getQaHistory } from "@/api/qa";
 import { message } from "@/utils/message";
+import { PLATFORMS } from "@/constants/platforms";
+import IconifyIconOffline from "@/components/ReIcon/src/iconifyIconOffline";
 
 defineOptions({
   name: "OpinionQa"

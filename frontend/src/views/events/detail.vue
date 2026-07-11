@@ -542,7 +542,14 @@ function initPlatformChart() {
     yAxis: {
       type: "category",
       data: yData.map(p => p.name),
-      axisLabel: { color: c.textColor, fontSize: 12 },
+      axisLabel: {
+        fontSize: 12,
+        formatter: (name: string) => name,
+        color: (name: string) => {
+          const p = PLATFORMS.find(x => x.name === name);
+          return p ? p.color : (dark ? "#cbd6df" : "#4a5568");
+        }
+      },
       axisLine: { lineStyle: { color: c.splitLineColor } }
     },
     series: [{
