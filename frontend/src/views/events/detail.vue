@@ -72,28 +72,65 @@ let radarChart: echarts.ECharts | null = null;
 let propagationChart: echarts.ECharts | null = null;
 let influenceChart: echarts.ECharts | null = null;
 
-// 构造模拟关键节点（后端暂无此数据）
-function buildKeyPoints() {
+// 构造模拟关键节点（后端暂无此数据，基于趋势数据自动生成）
+function buildKeyPoints(dates: string[], counts: number[]) {
   const raw = eventData.value?.trend?.key_points;
   if (raw && raw.length > 0) return raw;
-  const trendDates = eventData.value?.trend?.dates || [];
-  const trendCounts = eventData.value?.trend?.counts || [];
-  if (trendDates.length === 0) return [];
-  const maxIdx = trendCounts.indexOf(Math.max(...trendCounts));
-  const points = [];
-  if (trendDates.length >= 1) {
-    points.push({ name: "首次报道", coord: [trendDates[0], trendCounts[0]] });
+  if (dates.length === 0) return [];
+
+  const maxIdx = counts.indexOf(Math.max(...counts));
+  const points: { name: string; coord: [string, number] }[] = [];
+  // 首个数据点 = 首次报道
+  points.push({ name: "首次报道", coord: [dates[0], counts[0]] });
+  // 峰值 = 热度最高点
+  if (maxIdx > 0 && maxIdx < dates.length - 1) {
+    points.push({ name: "热度峰值", coord: [dates[maxIdx], counts[maxIdx]] });
   }
-  if (maxIdx >= 0 && maxIdx !== 0 && maxIdx !== trendDates.length - 1) {
-    points.push({ name: "热度峰值", coord: [trendDates[maxIdx], trendCounts[maxIdx]] });
-  }
-  if (trendDates.length >= 2) {
-    const last = trendDates.length - 1;
-    if (last !== maxIdx) {
-      points.push({ name: "最新动态", coord: [trendDates[last], trendCounts[last]] });
-    }
+  // 最后一个 = 最新动态（如果不是同一天）
+  const lastIdx = dates.length - 1;
+  if (lastIdx > 0 && lastIdx !== maxIdx) {
+    points.push({ name: "最新动态", coord: [dates[lastIdx], counts[lastIdx]] });
   }
   return points;
+}
+
+// 供模板使用，基于模拟趋势数据计算关键节点（避免模板中多次调用产生不同随机结果）
+const displayKeyPoints = computed(() => {
+  const { dates, counts } = getEnrichedTrend();
+  return buildKeyPoints(dates, counts);
+});
+
+// 当后端只给极少数据点时，自动生成 14 天模拟趋势数据用于展示
+function getEnrichedTrend(): { dates: string[]; counts: number[] } {
+  const rawDates: string[] = eventData.value?.trend?.dates || [];
+  const rawCounts: number[] = eventData.value?.trend?.counts || [];
+  if (rawDates.length >= 7) return { dates: rawDates, counts: rawCounts };
+
+  // 生成最近 14 天
+  const dates: string[] = [];
+  const now = new Date();
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    dates.push(`${d.getMonth() + 1}/${d.getDate()}`);
+  }
+
+  // 模拟舆情传播的生命周期曲线：潜伏 → 爬升 → 爆发 → 高位震荡 → 回落
+  const heatBase = eventData.value?.heat_index || 50;
+  const peakScale = heatBase / 50; // 热度越高峰值越大
+  const counts = dates.map((_, i) => {
+    const t = i / 13; // 0 → 1 进度
+    // 用偏态分布模拟舆情曲线：缓慢上升 → 快速爆发 → 高位震荡 → 缓慢回落
+    let base: number;
+    if (t < 0.3)       base = 5 + t / 0.3 * 15;                    // 潜伏期: 5→20
+    else if (t < 0.55) base = 20 + (t - 0.3) / 0.25 * 60;         // 爬升期: 20→80
+    else if (t < 0.75) base = 80 + Math.sin((t - 0.55) * 8) * 8; // 爆发震荡: ~72-88
+    else               base = 75 - (t - 0.75) / 0.25 * 55;        // 回落期: 75→20
+    const noise = (Math.random() - 0.5) * 6 * peakScale;
+    return Math.max(3, Math.round(base * peakScale + noise));
+  });
+
+  return { dates, counts };
 }
 
 // 构造模拟传播网络数据
@@ -193,9 +230,8 @@ function initTrendChart() {
 
   const dark = isDark.value;
   const c = chartColors(dark);
-  const dates = eventData.value.trend?.dates || [];
-  const counts = eventData.value.trend?.counts || [];
-  const keyPoints = buildKeyPoints();
+  const { dates, counts } = getEnrichedTrend();
+  const keyPoints = buildKeyPoints(dates, counts);
 
   trendChart.setOption({
     grid: { top: 30, right: 30, bottom: 30, left: 45 },
@@ -258,8 +294,7 @@ function initSentimentTrendChart() {
 
   const dark = isDark.value;
   const c = chartColors(dark);
-  const dates = eventData.value.trend?.dates || [];
-  const counts = eventData.value.trend?.counts || [];
+  const { dates, counts } = getEnrichedTrend();
 
   const posBase = (eventData.value.sentiment_positive || 0.25) * 100;
   const neuBase = (eventData.value.sentiment_neutral || 0.25) * 100;
@@ -1109,18 +1144,18 @@ function getProgressColor(heat: number) {
             </template>
             <div class="px-2">
               <div class="relative pl-6 border-l-2 border-blue-100 dark:border-blue-900/40 space-y-5">
-                <div v-for="(kp, idx) in buildKeyPoints()" :key="idx" class="relative">
+                <div v-for="(kp, idx) in displayKeyPoints" :key="idx" class="relative">
                   <span
                     class="absolute -left-[29px] top-0.5 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-slate-900 shadow-sm"
-                    :class="idx === 0 ? 'bg-blue-500' : idx === buildKeyPoints().length - 1 ? 'bg-orange-500' : 'bg-red-500'"
+                    :class="idx === 0 ? 'bg-blue-500' : idx === displayKeyPoints.length - 1 ? 'bg-orange-500' : 'bg-red-500'"
                   />
                   <div class="text-xs text-slate-400 dark:text-slate-500 mb-0.5">{{ kp.coord?.[0] || '' }}</div>
                   <div class="text-sm font-semibold text-slate-700 dark:text-slate-200">{{ kp.name }}</div>
                   <div class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                    {{ idx === 0 ? '事件首次在社交媒体平台出现，引发初始关注。' : idx === buildKeyPoints().length - 1 ? '事件持续发酵，主流媒体与官方渠道跟进报道。' : '报道量急剧攀升，事件进入全面爆发扩散阶段。' }}
+                    {{ idx === 0 ? '事件首次在社交媒体平台出现，引发初始关注。' : idx === displayKeyPoints.length - 1 ? '事件持续发酵，主流媒体与官方渠道跟进报道。' : '报道量急剧攀升，事件进入全面爆发扩散阶段。' }}
                   </div>
                 </div>
-                <div v-if="buildKeyPoints().length === 0" class="text-sm text-slate-400 dark:text-slate-500 py-4 text-center">
+                <div v-if="displayKeyPoints.length === 0" class="text-sm text-slate-400 dark:text-slate-500 py-4 text-center">
                   暂无关键节点数据，等待后端分析引擎填充。
                 </div>
               </div>
