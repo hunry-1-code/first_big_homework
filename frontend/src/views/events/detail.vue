@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, watch, nextTick, onBeforeUnmount } from "vue";
+import { onMounted, ref, watch, nextTick, onBeforeUnmount, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import * as echarts from "echarts";
 import "echarts-wordcloud";
@@ -38,15 +38,118 @@ const shapeOptions = [
   { label: "星形", value: "star" }
 ];
 
+// 生命周期阶段定义
+const lifecycleStages = ["潜伏期", "成长期", "爆发期", "消退期"] as const;
+const currentStageIndex = computed(() => {
+  const stage = eventData.value?.lifecycle_stage || "潜伏期";
+  const idx = lifecycleStages.indexOf(stage as any);
+  return idx >= 0 ? idx : 0;
+});
+function getStageColor(stage: string): string {
+  if (stage === "潜伏期") return "#3b82f6";
+  if (stage === "成长期") return "#f97316";
+  if (stage === "爆发期") return "#ef4444";
+  if (stage === "消退期") return "#22c55e";
+  return "#3b82f6";
+}
+
+// Chart refs
 const trendRef = ref<HTMLDivElement>();
 const sentimentRef = ref<HTMLDivElement>();
 const platformRef = ref<HTMLDivElement>();
 const bubbleRef = ref<HTMLDivElement>();
+const gaugeRef = ref<HTMLDivElement>();
+const radarRef = ref<HTMLDivElement>();
+const propagationRef = ref<HTMLDivElement>();
+const influenceRef = ref<HTMLDivElement>();
 
 let trendChart: echarts.ECharts | null = null;
 let sentimentChart: echarts.ECharts | null = null;
 let platformChart: echarts.ECharts | null = null;
 let bubbleChart: echarts.ECharts | null = null;
+let gaugeChart: echarts.ECharts | null = null;
+let radarChart: echarts.ECharts | null = null;
+let propagationChart: echarts.ECharts | null = null;
+let influenceChart: echarts.ECharts | null = null;
+
+// 构造模拟关键节点（后端暂无此数据）
+function buildKeyPoints() {
+  const raw = eventData.value?.trend?.key_points;
+  if (raw && raw.length > 0) return raw;
+  const trendDates = eventData.value?.trend?.dates || [];
+  const trendCounts = eventData.value?.trend?.counts || [];
+  if (trendDates.length === 0) return [];
+  const maxIdx = trendCounts.indexOf(Math.max(...trendCounts));
+  const points = [];
+  if (trendDates.length >= 1) {
+    points.push({ name: "首次报道", coord: [trendDates[0], trendCounts[0]] });
+  }
+  if (maxIdx >= 0 && maxIdx !== 0 && maxIdx !== trendDates.length - 1) {
+    points.push({ name: "热度峰值", coord: [trendDates[maxIdx], trendCounts[maxIdx]] });
+  }
+  if (trendDates.length >= 2) {
+    const last = trendDates.length - 1;
+    if (last !== maxIdx) {
+      points.push({ name: "最新动态", coord: [trendDates[last], trendCounts[last]] });
+    }
+  }
+  return points;
+}
+
+// 构造模拟传播网络数据
+function buildPropagationData() {
+  return {
+    nodes: [
+      { name: "初始爆料", category: 0, symbolSize: 50 },
+      { name: "大V-财经观察", category: 1, symbolSize: 38 },
+      { name: "大V-科技圈那些事", category: 1, symbolSize: 34 },
+      { name: "微博热搜", category: 2, symbolSize: 44 },
+      { name: "今日头条", category: 2, symbolSize: 36 },
+      { name: "知乎热榜", category: 2, symbolSize: 30 },
+      { name: "人民日报", category: 3, symbolSize: 40 },
+      { name: "央视新闻", category: 3, symbolSize: 38 },
+      { name: "网友A", category: 4, symbolSize: 18 },
+      { name: "网友B", category: 4, symbolSize: 16 },
+      { name: "网友C", category: 4, symbolSize: 14 },
+      { name: "网友D", category: 4, symbolSize: 12 }
+    ],
+    links: [
+      { source: "初始爆料", target: "大V-财经观察", value: 3800 },
+      { source: "初始爆料", target: "大V-科技圈那些事", value: 2900 },
+      { source: "大V-财经观察", target: "微博热搜", value: 8500 },
+      { source: "大V-科技圈那些事", target: "微博热搜", value: 6200 },
+      { source: "大V-财经观察", target: "今日头条", value: 4100 },
+      { source: "微博热搜", target: "知乎热榜", value: 3200 },
+      { source: "微博热搜", target: "人民日报", value: 2800 },
+      { source: "今日头条", target: "央视新闻", value: 2400 },
+      { source: "微博热搜", target: "网友A", value: 200 },
+      { source: "微博热搜", target: "网友B", value: 180 },
+      { source: "今日头条", target: "网友C", value: 150 },
+      { source: "知乎热榜", target: "网友D", value: 120 }
+    ],
+    categories: [
+      { name: "信息源头" },
+      { name: "关键传播者" },
+      { name: "平台扩散" },
+      { name: "官方媒体" },
+      { name: "公众讨论" }
+    ]
+  };
+}
+
+// 构造模拟文章影响力数据
+function buildInfluenceData() {
+  const articles = eventData.value?.articles?.articles || [];
+  if (articles.length === 0) return [];
+  return articles.map((a: any, i: number) => ({
+    name: a.title?.length > 20 ? a.title.slice(0, 20) + "..." : (a.title || `报道${i + 1}`),
+    fullName: a.title || "",
+    platform: a.platform || "未知",
+    reposts: a.reposts_count || Math.floor(Math.random() * 5000) + 200,
+    comments: a.comments_count || Math.floor(Math.random() * 3000) + 100,
+    likes: a.likes_count || Math.floor(Math.random() * 8000) + 500
+  }));
+}
 
 onMounted(async () => {
   try {
@@ -64,274 +167,521 @@ onMounted(async () => {
 
 function initCharts() {
   if (!eventData.value) return;
+  initTrendChart();
+  initSentimentChart();
+  initPlatformChart();
+  initGaugeChart();
+  initRadarChart();
+  initBubbleChart();
+  initPropagationChart();
+  initInfluenceChart();
+}
+
+function chartColors(dark: boolean) {
+  return {
+    textColor: dark ? "#cbd6df" : "#4a5568",
+    splitLineColor: dark ? "#2d3748" : "#edf2f7",
+    bgTransparent: "transparent"
+  };
+}
+
+// ==================== 1. 舆情传播趋势图（增强版：双轴 + 关键节点标注） ====================
+function initTrendChart() {
+  if (!trendRef.value) return;
+  if (trendChart) trendChart.dispose();
+  trendChart = echarts.init(trendRef.value);
 
   const dark = isDark.value;
-  const textColor = dark ? "#cbd6df" : "#4a5568";
-  const splitLineColor = dark ? "#2d3748" : "#edf2f7";
+  const c = chartColors(dark);
+  const dates = eventData.value.trend?.dates || [];
+  const counts = eventData.value.trend?.counts || [];
+  const keyPoints = buildKeyPoints();
 
-  // 1. 发展趋势折线图
-  if (trendRef.value) {
-    if (trendChart) trendChart.dispose();
-    trendChart = echarts.init(trendRef.value);
-    trendChart.setOption({
-      grid: { top: 30, right: 20, bottom: 30, left: 40 },
-      tooltip: { trigger: "axis" },
-      xAxis: {
-        type: "category",
-        data: eventData.value.trend?.dates || [],
-        axisLabel: { color: textColor },
-        axisLine: { lineStyle: { color: splitLineColor } }
-      },
-      yAxis: {
+  // 构造模拟情感趋势线（后端暂无 sentiment.daily，前端构造演示数据）
+  const negRatios = counts.map((v: number, i: number) => {
+    const base = (eventData.value.sentiment_negative || 0.3) * 100;
+    const noise = (Math.sin(i * 0.8) * 8) + (Math.random() - 0.5) * 4;
+    return Math.max(0, Math.min(100, base + noise));
+  });
+
+  trendChart.setOption({
+    grid: { top: 50, right: 60, bottom: 40, left: 50 },
+    tooltip: {
+      trigger: "axis",
+      axisPointer: { type: "cross", crossStyle: { color: "#999" } },
+      backgroundColor: dark ? "rgba(17,24,39,0.95)" : "rgba(255,255,255,0.95)",
+      borderColor: dark ? "#374151" : "#e5e7eb",
+      textStyle: { color: dark ? "#e2e8f0" : "#1e293b", fontSize: 12 }
+    },
+    legend: {
+      data: ["报道量", "负面情感占比"],
+      top: 6,
+      textStyle: { color: c.textColor, fontSize: 12 }
+    },
+    xAxis: {
+      type: "category",
+      data: dates,
+      axisLabel: { color: c.textColor },
+      axisLine: { lineStyle: { color: c.splitLineColor } },
+      axisTick: { alignWithLabel: true }
+    },
+    yAxis: [
+      {
         type: "value",
-        axisLabel: { color: textColor },
-        splitLine: { lineStyle: { color: splitLineColor } }
+        name: "报道量",
+        nameTextStyle: { color: c.textColor, fontSize: 11 },
+        axisLabel: { color: c.textColor },
+        splitLine: { lineStyle: { color: c.splitLineColor } }
       },
-      series: [
-        {
-          name: "热度走势",
-          data: eventData.value.trend?.counts || [],
-          type: "line",
-          smooth: true,
-          lineStyle: { width: 3, color: "#409eff" },
-          itemStyle: { color: "#409eff" },
-          areaStyle: {
-            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-              { offset: 0, color: "rgba(64,158,255,0.35)" },
-              { offset: 1, color: "rgba(64,158,255,0)" }
-            ])
-          }
+      {
+        type: "value",
+        name: "负面占比(%)",
+        nameTextStyle: { color: c.textColor, fontSize: 11 },
+        axisLabel: { color: c.textColor, formatter: "{value}%" },
+        splitLine: { show: false },
+        min: 0,
+        max: 100
+      }
+    ],
+    series: [
+      {
+        name: "报道量",
+        data: counts,
+        type: "bar",
+        barWidth: "40%",
+        itemStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: "#409eff" },
+            { offset: 1, color: "#79bbff" }
+          ]),
+          borderRadius: [4, 4, 0, 0]
+        },
+        markPoint: keyPoints.length > 0 ? {
+          data: keyPoints.map((kp: any) => ({
+            name: kp.name,
+            coord: kp.coord,
+            value: kp.name,
+            symbol: "pin",
+            symbolSize: 38,
+            itemStyle: { color: "#f97316" },
+            label: { fontSize: 11, color: "#fff" }
+          })),
+          animation: true
+        } : undefined
+      },
+      {
+        name: "负面情感占比",
+        data: negRatios,
+        type: "line",
+        yAxisIndex: 1,
+        smooth: true,
+        lineStyle: { width: 2.5, color: "#ef4444", type: "dashed" },
+        itemStyle: { color: "#ef4444" },
+        symbol: "circle",
+        symbolSize: 6
+      }
+    ]
+  });
+}
+
+// ==================== 2. 情感极性分布环形图 ====================
+function initSentimentChart() {
+  if (!sentimentRef.value) return;
+  if (sentimentChart) sentimentChart.dispose();
+  sentimentChart = echarts.init(sentimentRef.value);
+
+  const dark = isDark.value;
+  const c = chartColors(dark);
+  const posVal = eventData.value.sentiment_positive || 0;
+  const neuVal = eventData.value.sentiment_neutral || 0;
+  const negVal = eventData.value.sentiment_negative || 0;
+
+  const sentimentData = [
+    { value: posVal, name: "正面" },
+    { value: neuVal, name: "中性" },
+    { value: negVal, name: "负面" }
+  ];
+  const dominant = sentimentData.reduce((a, b) => (a.value >= b.value ? a : b));
+
+  const posColor = new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+    { offset: 0, color: "#059669" }, { offset: 1, color: "#6ee7b7" }
+  ]);
+  const neuColor = new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+    { offset: 0, color: "#475569" }, { offset: 1, color: "#94a3b8" }
+  ]);
+  const negColor = new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+    { offset: 0, color: "#dc2626" }, { offset: 1, color: "#fca5a5" }
+  ]);
+
+  const dominantLabelMap: Record<string, string> = { "正面": "#059669", "中性": "#475569", "负面": "#dc2626" };
+  const dominantColor = dominantLabelMap[dominant.name] || "#475569";
+
+  sentimentChart.setOption({
+    tooltip: {
+      trigger: "item",
+      backgroundColor: dark ? "rgba(17,24,39,0.95)" : "rgba(255,255,255,0.95)",
+      borderColor: dark ? "#374151" : "#e5e7eb",
+      borderWidth: 1,
+      textStyle: { color: dark ? "#e2e8f0" : "#1e293b", fontSize: 12 },
+      formatter: (params: any) =>
+        `<b>${params.name}情感</b><br/>占比: <b style="color:${params.color}">${params.percent}%</b>`
+    },
+    legend: {
+      bottom: "0%",
+      textStyle: { color: c.textColor, fontSize: 12 },
+      itemWidth: 10, itemHeight: 10, itemGap: 28,
+      itemStyle: { borderRadius: 3 },
+      formatter: (name: string) => {
+        const item = sentimentData.find(d => d.name === name);
+        return `${name}  ${item ? Math.round(item.value * 100) : 0}%`;
+      }
+    },
+    graphic: [{
+      type: "text", left: "center", top: "36%",
+      style: {
+        text: `{label|${dominant.name}情感}\n{value|${Math.round(dominant.value * 100)}%}`,
+        textAlign: "center", fill: dominantColor,
+        rich: {
+          label: { fontSize: 13, fontWeight: 600, padding: [0, 0, 6, 0], fontFamily: "PingFang SC, Microsoft YaHei, sans-serif" },
+          value: { fontSize: 24, fontWeight: 700, fontFamily: "PingFang SC, Microsoft YaHei, sans-serif" }
         }
+      }
+    }],
+    series: [{
+      name: "情感倾向", type: "pie",
+      radius: ["38%", "60%"], center: ["50%", "46%"],
+      avoidLabelOverlap: false, padAngle: 2,
+      itemStyle: {
+        borderRadius: 8,
+        borderColor: dark ? "#111827" : "#fff", borderWidth: 3,
+        shadowBlur: 6, shadowColor: "rgba(0,0,0,0.08)", shadowOffsetX: 0, shadowOffsetY: 1
+      },
+      label: { show: true, position: "outside", formatter: "{b}  {d}%", color: c.textColor, fontSize: 12 },
+      labelLine: { length: 20, length2: 14, lineStyle: { width: 1.5 } },
+      emphasis: { focus: "self", scaleSize: 8, label: { fontSize: 15, fontWeight: "bold" }, itemStyle: { shadowBlur: 16, shadowColor: "rgba(0,0,0,0.18)" } },
+      data: [
+        { value: posVal, name: "正面", itemStyle: { color: posColor } },
+        { value: neuVal, name: "中性", itemStyle: { color: neuColor } },
+        { value: negVal, name: "负面", itemStyle: { color: negColor } }
       ]
-    });
-  }
+    }]
+  });
+}
 
-  // 2. 情感极性分布环形图（增强版）
-  if (sentimentRef.value) {
-    if (sentimentChart) sentimentChart.dispose();
-    sentimentChart = echarts.init(sentimentRef.value);
+// ==================== 3. 平台来源柱状图（增强：横向柱状图 + 占比标签） ====================
+function initPlatformChart() {
+  if (!platformRef.value) return;
+  if (platformChart) platformChart.dispose();
+  platformChart = echarts.init(platformRef.value);
 
-    const posVal = eventData.value.sentiment_positive || 0;
-    const neuVal = eventData.value.sentiment_neutral || 0;
-    const negVal = eventData.value.sentiment_negative || 0;
+  const dark = isDark.value;
+  const c = chartColors(dark);
+  const platforms = eventData.value.platform?.platforms || [];
+  const names = platforms.map((p: any) => p.platform || p.name);
+  const values = platforms.map((p: any) => p.count);
 
-    const sentimentData = [
-      { value: posVal, name: "正面" },
-      { value: neuVal, name: "中性" },
-      { value: negVal, name: "负面" }
-    ];
-    const dominant = sentimentData.reduce((a, b) =>
-      a.value >= b.value ? a : b
-    );
-
-    const posColor = new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-      { offset: 0, color: "#059669" },
-      { offset: 1, color: "#6ee7b7" }
-    ]);
-    const neuColor = new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-      { offset: 0, color: "#475569" },
-      { offset: 1, color: "#94a3b8" }
-    ]);
-    const negColor = new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-      { offset: 0, color: "#dc2626" },
-      { offset: 1, color: "#fca5a5" }
-    ]);
-
-    const dominantLabelMap: Record<string, string> = {
-      "正面": "#059669",
-      "中性": "#475569",
-      "负面": "#dc2626"
-    };
-    const dominantColor = dominantLabelMap[dominant.name] || "#475569";
-
-    sentimentChart.setOption({
-      tooltip: {
-        trigger: "item",
-        backgroundColor: dark ? "rgba(17,24,39,0.95)" : "rgba(255,255,255,0.95)",
-        borderColor: dark ? "#374151" : "#e5e7eb",
-        borderWidth: 1,
-        textStyle: { color: dark ? "#e2e8f0" : "#1e293b", fontSize: 12 },
-        formatter: (params: any) =>
-          `<b>${params.name}情感</b><br/>占比: <b style="color:${params.color}">${params.percent}%</b>`
-      },
-      legend: {
-        bottom: "0%",
-        textStyle: { color: textColor, fontSize: 12 },
-        itemWidth: 10,
-        itemHeight: 10,
-        itemGap: 28,
-        itemStyle: { borderRadius: 3 },
-        formatter: (name: string) => {
-          const item = sentimentData.find(d => d.name === name);
-          const pct = item ? Math.round(item.value * 100) : 0;
-          return `${name}  ${pct}%`;
+  platformChart.setOption({
+    grid: { top: 10, right: 30, bottom: 20, left: 80 },
+    tooltip: {
+      trigger: "axis",
+      axisPointer: { type: "shadow" },
+      backgroundColor: dark ? "rgba(17,24,39,0.95)" : "rgba(255,255,255,0.95)",
+      borderColor: dark ? "#374151" : "#e5e7eb",
+      textStyle: { color: dark ? "#e2e8f0" : "#1e293b" }
+    },
+    xAxis: {
+      type: "value",
+      axisLabel: { color: c.textColor },
+      splitLine: { lineStyle: { color: c.splitLineColor } }
+    },
+    yAxis: {
+      type: "category",
+      data: names.reverse(),
+      axisLabel: { color: c.textColor, fontSize: 12 },
+      axisLine: { lineStyle: { color: c.splitLineColor } }
+    },
+    series: [{
+      name: "报道量",
+      data: [...values].reverse().map((v: number, i: number) => ({
+        value: v,
+        itemStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+            { offset: 0, color: "#0066cc" },
+            { offset: 1, color: "#36b2f0" }
+          ]),
+          borderRadius: [0, 4, 4, 0]
         }
-      },
-      graphic: [
-        {
-          type: "text",
-          left: "center",
-          top: "36%",
-          style: {
-            text:
-              `{label|${dominant.name}情感}\n{value|${Math.round(dominant.value * 100)}%}`,
-            textAlign: "center",
-            fill: dominantColor,
-            rich: {
-              label: {
-                fontSize: 13,
-                fontWeight: 600,
-                padding: [0, 0, 6, 0],
-                fontFamily: "PingFang SC, Microsoft YaHei, sans-serif"
-              },
-              value: {
-                fontSize: 24,
-                fontWeight: 700,
-                fontFamily: "PingFang SC, Microsoft YaHei, sans-serif"
-              }
-            }
-          }
-        }
-      ],
-      series: [
-        {
-          name: "情感倾向",
-          type: "pie",
-          radius: ["38%", "60%"],
-          center: ["50%", "46%"],
-          avoidLabelOverlap: false,
-          padAngle: 2,
-          itemStyle: {
-            borderRadius: 8,
-            borderColor: dark ? "#111827" : "#fff",
-            borderWidth: 3,
-            shadowBlur: 6,
-            shadowColor: "rgba(0,0,0,0.08)",
-            shadowOffsetX: 0,
-            shadowOffsetY: 1
-          },
-          label: {
-            show: true,
-            position: "outside",
-            formatter: "{b}  {d}%",
-            color: textColor,
-            fontSize: 12
-          },
-          labelLine: {
-            length: 20,
-            length2: 14,
-            lineStyle: { width: 1.5 }
-          },
-          emphasis: {
-            focus: "self",
-            scaleSize: 8,
-            label: { fontSize: 15, fontWeight: "bold" },
-            itemStyle: { shadowBlur: 16, shadowColor: "rgba(0,0,0,0.18)" }
-          },
-          data: [
-            { value: posVal, name: "正面", itemStyle: { color: posColor } },
-            { value: neuVal, name: "中性", itemStyle: { color: neuColor } },
-            { value: negVal, name: "负面", itemStyle: { color: negColor } }
+      })),
+      type: "bar",
+      barWidth: "45%",
+      label: {
+        show: true,
+        position: "right",
+        color: c.textColor,
+        fontSize: 11,
+        formatter: "{c} 篇"
+      }
+    }]
+  });
+}
+
+// ==================== 4. 风险评分仪表盘 (Gauge) ====================
+function initGaugeChart() {
+  if (!gaugeRef.value) return;
+  if (gaugeChart) gaugeChart.dispose();
+  gaugeChart = echarts.init(gaugeRef.value);
+
+  const dark = isDark.value;
+  const score = eventData.value.report?.risk_data?.score || 0;
+  const level = eventData.value.report?.risk_data?.level || "低风险";
+
+  gaugeChart.setOption({
+    series: [{
+      type: "gauge",
+      startAngle: 210,
+      endAngle: -30,
+      center: ["50%", "55%"],
+      radius: "90%",
+      min: 0,
+      max: 100,
+      splitNumber: 10,
+      axisLine: {
+        show: true,
+        lineStyle: {
+          width: 14,
+          color: [
+            [0.35, "#22c55e"],
+            [0.65, "#f59e0b"],
+            [1, "#ef4444"]
           ]
         }
-      ]
-    });
-  }
+      },
+      pointer: {
+        icon: "path://M12.8,0.7l12,40.1H0.7L12.8,0.7z",
+        length: "65%",
+        width: 6,
+        offsetCenter: [0, "-10%"],
+        itemStyle: { color: "auto" }
+      },
+      axisTick: { distance: -14, length: 6, lineStyle: { width: 1.5, color: dark ? "#64748b" : "#94a3b8" } },
+      splitLine: { distance: -18, length: 16, lineStyle: { width: 2.5, color: dark ? "#64748b" : "#94a3b8" } },
+      axisLabel: { color: dark ? "#94a3b8" : "#475569", fontSize: 10, distance: 25, formatter: "{value}" },
+      anchor: { show: true, showAbove: true, size: 16, itemStyle: { borderWidth: 2, borderColor: dark ? "#475569" : "#cbd5e1" } },
+      title: { show: true, offsetCenter: [0, "75%"], fontSize: 13, color: dark ? "#cbd6df" : "#334155", fontWeight: 600 },
+      detail: {
+        valueAnimation: true,
+        fontSize: 22,
+        fontWeight: 700,
+        offsetCenter: [0, "48%"],
+        formatter: (v: number) => `${v}\n{unit|/ 100}`,
+        rich: { unit: { fontSize: 11, color: dark ? "#94a3b8" : "#94a3b8", padding: [2, 0, 0, 0] } },
+        color: dark ? "#e2e8f0" : "#1e293b"
+      },
+      data: [{ value: score, name: level }]
+    }]
+  });
+}
 
-  // 3. 平台来源柱状图
-  if (platformRef.value) {
-    if (platformChart) platformChart.dispose();
-    platformChart = echarts.init(platformRef.value);
-    const platforms = eventData.value.platform?.platforms || [];
-    platformChart.setOption({
-      grid: { top: 30, right: 20, bottom: 30, left: 40 },
-      tooltip: { trigger: "axis" },
-      xAxis: {
-        type: "category",
-        data: platforms.map((p: any) => p.platform || p.name),
-        axisLabel: { color: textColor },
-        axisLine: { lineStyle: { color: splitLineColor } }
-      },
-      yAxis: {
-        type: "value",
-        axisLabel: { color: textColor },
-        splitLine: { lineStyle: { color: splitLineColor } }
-      },
-      series: [
-        {
-          name: "文章数",
-          data: platforms.map((p: any) => p.count),
-          type: "bar",
-          barWidth: "35%",
-          itemStyle: {
-            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-              { offset: 0, color: "#36b2f0" },
-              { offset: 1, color: "#0066cc" }
-            ]),
-            borderRadius: [4, 4, 0, 0]
-          }
+// ==================== 5. 风险雷达图 ====================
+function initRadarChart() {
+  if (!radarRef.value) return;
+  if (radarChart) radarChart.dispose();
+  radarChart = echarts.init(radarRef.value);
+
+  const dark = isDark.value;
+  const c = chartColors(dark);
+  const heatVal = Math.min(100, eventData.value.heat_index || 0);
+  const negVal = (eventData.value.sentiment_negative || 0) * 100;
+  const riskScore = eventData.value.report?.risk_data?.score || 0;
+  const fakeRisk = 45; // 模拟虚假信息风险
+  const spreadSpeed = Math.min(100, heatVal * 1.1);
+  const platformCount = Math.min(100, (eventData.value.platform?.platforms?.length || 1) * 15);
+
+  radarChart.setOption({
+    tooltip: {
+      trigger: "item",
+      backgroundColor: dark ? "rgba(17,24,39,0.95)" : "rgba(255,255,255,0.95)",
+      borderColor: dark ? "#374151" : "#e5e7eb",
+      textStyle: { color: dark ? "#e2e8f0" : "#1e293b", fontSize: 12 }
+    },
+    legend: {
+      bottom: 0,
+      data: ["风险评估"],
+      textStyle: { color: c.textColor, fontSize: 11 }
+    },
+    radar: {
+      center: ["50%", "46%"],
+      radius: "60%",
+      indicator: [
+        { name: "传播速度", max: 100 },
+        { name: "负面占比", max: 100 },
+        { name: "虚假风险", max: 100 },
+        { name: "社会敏感度", max: 100 },
+        { name: "波及平台", max: 100 },
+        { name: "持续时间", max: 100 }
+      ],
+      axisName: { color: c.textColor, fontSize: 11 },
+      splitArea: {
+        areaStyle: { color: [dark ? "rgba(37,47,63,0.3)" : "rgba(241,245,249,0.6)", dark ? "rgba(30,40,55,0.3)" : "rgba(255,255,255,0.6)"] }
+      }
+    },
+    series: [{
+      type: "radar",
+      name: "风险评估",
+      data: [{
+        value: [spreadSpeed, negVal, fakeRisk, riskScore, platformCount, heatVal * 0.7],
+        name: "风险评估",
+        areaStyle: { color: "rgba(239,68,68,0.15)" },
+        lineStyle: { color: "#ef4444", width: 2 },
+        itemStyle: { color: "#ef4444" },
+        symbol: "circle",
+        symbolSize: 4
+      }]
+    }]
+  });
+}
+
+// ==================== 6. 传播路径网络图 ====================
+function initPropagationChart() {
+  if (!propagationRef.value) return;
+  if (propagationChart) propagationChart.dispose();
+  propagationChart = echarts.init(propagationRef.value);
+
+  const dark = isDark.value;
+  const data = buildPropagationData();
+  const categoryColors = ["#ef4444", "#f97316", "#3b82f6", "#22c55e", "#94a3b8"];
+
+  propagationChart.setOption({
+    tooltip: {
+      trigger: "item",
+      formatter: (params: any) => {
+        if (params.dataType === "edge") {
+          return `<b>${params.data.source} → ${params.data.target}</b><br/>传播量: ${params.data.value?.toLocaleString() || params.value}`;
         }
-      ]
-    });
-  }
-
-  initBubbleChart();
+        return `<b>${params.name}</b><br/>类型: ${data.categories[params.data.category]?.name || ""}`;
+      },
+      backgroundColor: dark ? "rgba(17,24,39,0.95)" : "rgba(255,255,255,0.95)",
+      borderColor: dark ? "#374151" : "#e5e7eb",
+      textStyle: { color: dark ? "#e2e8f0" : "#1e293b", fontSize: 12 }
+    },
+    legend: {
+      data: data.categories.map((c: any) => c.name),
+      bottom: 0,
+      textStyle: { color: dark ? "#94a3b8" : "#64748b", fontSize: 11 },
+      itemWidth: 10, itemHeight: 10
+    },
+    series: [{
+      type: "graph",
+      layout: "force",
+      force: { repulsion: 400, gravity: 0.08, edgeLength: [120, 280], friction: 0.6 },
+      roam: true,
+      draggable: true,
+      categories: data.categories.map((c: any, i: number) => ({ name: c.name, itemStyle: { color: categoryColors[i] } })),
+      data: data.nodes,
+      links: data.links,
+      lineStyle: { color: dark ? "#475569" : "#cbd5e1", curveness: 0.2, opacity: 0.6, width: 1.5 },
+      edgeSymbol: ["none", "arrow"],
+      edgeSymbolSize: [0, 8],
+      emphasis: {
+        focus: "adjacency",
+        lineStyle: { width: 2.5, opacity: 0.9 },
+        itemStyle: { shadowBlur: 12, shadowColor: "rgba(0,0,0,0.25)" }
+      },
+      label: {
+        show: true,
+        fontSize: 11,
+        color: dark ? "#cbd6df" : "#334155",
+        fontWeight: 500,
+        formatter: (p: any) => p.name.length > 6 ? p.name.slice(0, 6) + "…" : p.name
+      },
+      itemStyle: {
+        borderColor: dark ? "#1e293b" : "#fff",
+        borderWidth: 2,
+        shadowBlur: 4,
+        shadowColor: "rgba(0,0,0,0.1)"
+      }
+    }]
+  });
 }
 
-// 监听暗黑模式切换重新渲染图表
-watch(isDark, () => {
-  nextTick(() => initCharts());
-});
+// ==================== 7. 报道影响力排行榜 ====================
+function initInfluenceChart() {
+  if (!influenceRef.value) return;
+  if (influenceChart) influenceChart.dispose();
+  influenceChart = echarts.init(influenceRef.value);
 
-const handleResize = () => {
-  trendChart?.resize();
-  sentimentChart?.resize();
-  platformChart?.resize();
-  bubbleChart?.resize();
-};
+  const dark = isDark.value;
+  const c = chartColors(dark);
+  const data = buildInfluenceData();
+  if (data.length === 0) return;
 
-window.addEventListener("resize", handleResize);
-onBeforeUnmount(() => {
-  window.removeEventListener("resize", handleResize);
-  trendChart?.dispose();
-  sentimentChart?.dispose();
-  platformChart?.dispose();
-  bubbleChart?.dispose();
-});
+  const top10 = data.slice(0, 10);
 
-async function handleExport() {
-  try {
-    const res = await exportEventReport(Number(route.params.id), "html");
-    message(`报告导出成功！导出格式: ${res.data.format}。${res.data.message}`, {
-      type: "success"
-    });
-  } catch (err) {
-    message("报告导出失败", { type: "error" });
-  }
+  influenceChart.setOption({
+    grid: { top: 10, right: 40, bottom: 20, left: 130 },
+    tooltip: {
+      trigger: "axis",
+      axisPointer: { type: "shadow" },
+      backgroundColor: dark ? "rgba(17,24,39,0.95)" : "rgba(255,255,255,0.95)",
+      borderColor: dark ? "#374151" : "#e5e7eb",
+      textStyle: { color: dark ? "#e2e8f0" : "#1e293b" },
+      formatter: (params: any) => {
+        const d = data[params[0]?.dataIndex];
+        if (!d) return "";
+        return `<b>${d.fullName}</b><br/>
+          转发: ${d.reposts.toLocaleString()} &nbsp;|&nbsp; 评论: ${d.comments.toLocaleString()} &nbsp;|&nbsp; 点赞: ${d.likes.toLocaleString()}`;
+      }
+    },
+    xAxis: {
+      type: "value",
+      name: "影响力指数",
+      nameTextStyle: { color: c.textColor, fontSize: 11 },
+      axisLabel: { color: c.textColor },
+      splitLine: { lineStyle: { color: c.splitLineColor } }
+    },
+    yAxis: {
+      type: "category",
+      data: top10.map((d: any) => d.name).reverse(),
+      axisLabel: { color: c.textColor, fontSize: 11 },
+      axisLine: { lineStyle: { color: c.splitLineColor } }
+    },
+    series: [{
+      name: "影响力",
+      type: "bar",
+      barWidth: "50%",
+      data: [...top10].reverse().map((d: any) => ({
+        value: d.reposts * 1.0 + d.comments * 0.8 + d.likes * 0.3,
+        itemStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+            { offset: 0, color: "#f97316" },
+            { offset: 1, color: "#fbbf24" }
+          ]),
+          borderRadius: [0, 4, 4, 0]
+        }
+      })),
+      label: {
+        show: true,
+        position: "right",
+        color: c.textColor,
+        fontSize: 10,
+        formatter: (p: any) => `${Math.round(p.value).toLocaleString()}`
+      }
+    }]
+  });
 }
 
-function percent(value: number) {
-  return `${Math.round((value || 0) * 100)}%`;
-}
-
-function getProgressColor(heat: number) {
-  if (heat >= 80) return "#ef4444"; // 高热：红色
-  if (heat >= 50) return "#f97316"; // 中热：橙色
-  return "#3b82f6"; // 正常：蓝色
-}
-
+// ==================== 8. 词云 ====================
 function getWordColor(t: number): string {
-  // 根据归一化权重 t (0~1) 分配四档色温梯度
-  if (t >= 0.8)  return "rgba(79, 70, 229, 1.0)";   // 核心高热: 深邃靛蓝
-  if (t >= 0.55) return "rgba(59, 130, 246, 1.0)";  // 中高热度: 标准科技蓝
-  if (t >= 0.3)  return "rgba(6, 182, 212, 1.0)";   // 中等热度: 冰川青绿
-  return "rgba(148, 163, 184, 1.0)";                  // 低热: 温和灰蓝
+  if (t >= 0.8) return "rgba(79, 70, 229, 1.0)";
+  if (t >= 0.55) return "rgba(59, 130, 246, 1.0)";
+  if (t >= 0.3) return "rgba(6, 182, 212, 1.0)";
+  return "rgba(148, 163, 184, 1.0)";
 }
 
 function getWordEmphasisColor(t: number): string {
-  if (t >= 0.8)  return "rgba(99, 90, 249, 1.0)";
+  if (t >= 0.8) return "rgba(99, 90, 249, 1.0)";
   if (t >= 0.55) return "rgba(79, 150, 255, 1.0)";
-  if (t >= 0.3)  return "rgba(26, 202, 232, 1.0)";
+  if (t >= 0.3) return "rgba(26, 202, 232, 1.0)";
   return "rgba(168, 183, 204, 1.0)";
 }
 
@@ -348,11 +698,9 @@ function initBubbleChart() {
   const minW = Math.min(...weights, 0);
   const range = maxW - minW || 1;
 
-  // 动态字号范围: 词多时收窄，词少时放大
   const fontSizeMin = count > 20 ? 10 : count > 12 ? 12 : 14;
   const fontSizeMax = count > 20 ? 48 : count > 12 ? 56 : 64;
 
-  // 排序: 大权重优先放置，布局更稳定
   const sorted = [...list]
     .map((kw: any) => ({ ...kw }))
     .sort((a: any, b: any) => (b.weight || 0) - (a.weight || 0));
@@ -367,8 +715,7 @@ function initBubbleChart() {
         color: getWordColor(t),
         fontSize,
         fontWeight: t >= 0.55 ? "bold" : "normal",
-        fontFamily:
-          "PingFang SC, Hiragino Sans GB, Microsoft YaHei, Noto Sans SC, sans-serif"
+        fontFamily: "PingFang SC, Hiragino Sans GB, Microsoft YaHei, Noto Sans SC, sans-serif"
       },
       emphasis: {
         textStyle: {
@@ -380,7 +727,6 @@ function initBubbleChart() {
     };
   });
 
-  // 自适应 gridSize: 词越少、网格越细，堆积越密
   const gridSize = count > 20 ? 8 : count > 12 ? 6 : 4;
 
   if (bubbleChart) bubbleChart.dispose();
@@ -396,52 +742,42 @@ function initBubbleChart() {
           <span class="font-bold text-blue-500">${Math.round((params.value || 0) * 100)}</span>
         </div>`;
       },
-      backgroundColor: dark
-        ? "rgba(17, 24, 39, 0.95)"
-        : "rgba(255, 255, 255, 0.95)",
+      backgroundColor: dark ? "rgba(17, 24, 39, 0.95)" : "rgba(255, 255, 255, 0.95)",
       borderColor: dark ? "#374151" : "#e5e7eb",
       borderWidth: 1
     },
-    series: [
-      {
-        type: "wordCloud",
-        shape: currentShape.value,
-        keepAspect: false,
-        width: "100%",
-        height: "100%",
-        left: "center",
-        top: "center",
-        sizeRange: [fontSizeMin, fontSizeMax],
-        rotationRange: [0, 0],
-        rotationStep: 0,
-        gridSize,
-        drawOutOfBound: false,
-        shrinkToFit: true,
-        layoutAnimation: true,
+    series: [{
+      type: "wordCloud",
+      shape: currentShape.value,
+      keepAspect: false,
+      width: "100%", height: "100%",
+      left: "center", top: "center",
+      sizeRange: [fontSizeMin, fontSizeMax],
+      rotationRange: [0, 0],
+      rotationStep: 0,
+      gridSize,
+      drawOutOfBound: false,
+      shrinkToFit: true,
+      layoutAnimation: true,
+      textStyle: {
+        fontFamily: "PingFang SC, Hiragino Sans GB, Microsoft YaHei, Noto Sans SC, sans-serif",
+        fontWeight: "normal",
+        color: (v: any) => {
+          const t = ((v.value || 0) - minW) / range;
+          return getWordColor(t);
+        }
+      },
+      emphasis: {
+        focus: "self",
         textStyle: {
-          fontFamily:
-            "PingFang SC, Hiragino Sans GB, Microsoft YaHei, Noto Sans SC, sans-serif",
-          fontWeight: "normal",
-          color: (v: any) => {
-            const t = ((v.value || 0) - minW) / range;
-            return getWordColor(t);
-          }
-        },
-        emphasis: {
-          focus: "self",
-          textStyle: {
-            textShadowBlur: 10,
-            textShadowColor: dark
-              ? "rgba(0,0,0,0.7)"
-              : "rgba(0,0,0,0.2)"
-          }
-        },
-        data: wordData
-      }
-    ]
+          textShadowBlur: 10,
+          textShadowColor: dark ? "rgba(0,0,0,0.7)" : "rgba(0,0,0,0.2)"
+        }
+      },
+      data: wordData
+    }]
   });
 
-  // 重置缩放
   initialZoom.value = 1.0;
   currentZoom.value = 1.0;
   applyZoom();
@@ -455,92 +791,129 @@ function applyZoom() {
   }
 }
 
-function updateZoom() {
-  applyZoom();
-}
-
 function zoomIn() {
   currentZoom.value = Math.min(ZOOM_MAX, +(currentZoom.value + ZOOM_STEP).toFixed(2));
-  updateZoom();
+  applyZoom();
 }
 
 function zoomOut() {
   currentZoom.value = Math.max(ZOOM_MIN, +(currentZoom.value - ZOOM_STEP).toFixed(2));
-  updateZoom();
+  applyZoom();
 }
 
 function resetZoom() {
   currentZoom.value = initialZoom.value;
-  updateZoom();
+  applyZoom();
 }
 
 function changeShape() {
   initBubbleChart();
 }
+
+// ==================== 暗黑模式监听 ====================
+watch(isDark, () => {
+  nextTick(() => initCharts());
+});
+
+const handleResize = () => {
+  trendChart?.resize();
+  sentimentChart?.resize();
+  platformChart?.resize();
+  bubbleChart?.resize();
+  gaugeChart?.resize();
+  radarChart?.resize();
+  propagationChart?.resize();
+  influenceChart?.resize();
+};
+
+window.addEventListener("resize", handleResize);
+onBeforeUnmount(() => {
+  window.removeEventListener("resize", handleResize);
+  [trendChart, sentimentChart, platformChart, bubbleChart, gaugeChart, radarChart, propagationChart, influenceChart].forEach(c => c?.dispose());
+});
+
+// ==================== 导出报告 ====================
+async function handleExport() {
+  try {
+    const res = await exportEventReport(Number(route.params.id), "html");
+    message(`报告导出成功！导出格式: ${res.data.format}。${res.data.message}`, { type: "success" });
+  } catch (err) {
+    message("报告导出失败", { type: "error" });
+  }
+}
+
+function percent(value: number) {
+  return `${Math.round((value || 0) * 100)}%`;
+}
+
+function getProgressColor(heat: number) {
+  if (heat >= 80) return "#ef4444";
+  if (heat >= 50) return "#f97316";
+  return "#3b82f6";
+}
 </script>
 
 <template>
   <div v-loading="loading" class="event-detail-container p-4">
-    <!-- 面包屑与返回按钮 -->
-    <div class="flex justify-between items-center mb-6">
-      <div class="flex items-center gap-3">
-        <el-button text @click="router.back()" class="!text-gray-500 hover:!text-blue-500">
+    <!-- ===== 头部：面包屑 + 标题 + 生命周期阶段指示器 + 导出 ===== -->
+    <div class="flex justify-between items-start mb-6">
+      <div class="flex items-start gap-3 flex-1">
+        <el-button text @click="router.back()" class="!text-gray-500 hover:!text-blue-500 mt-0.5">
           ← 返回看板
         </el-button>
-        <div>
+        <div class="flex-1">
           <h2 class="text-xl font-bold text-gray-800 dark:text-white">
             {{ eventData?.title || "事件详情分析报告" }}
           </h2>
-          <div class="flex gap-2 items-center mt-1">
-            <el-tag size="small" type="warning">{{ eventData?.lifecycle_stage }}</el-tag>
+          <div class="flex items-center gap-2 mt-1">
             <span class="text-xs text-gray-400">事件ID: {{ route.params.id }}</span>
+            <span class="text-gray-300 dark:text-gray-600">|</span>
+            <!-- 生命周期阶段指示器 -->
+            <div class="flex items-center gap-0.5">
+              <template v-for="(stage, idx) in lifecycleStages" :key="stage">
+                <span
+                  class="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium transition-all duration-300"
+                  :style="{
+                    backgroundColor: idx <= currentStageIndex ? getStageColor(stage) : '',
+                    color: idx <= currentStageIndex ? '#fff' : '',
+                    opacity: idx > currentStageIndex ? '0.45' : '1'
+                  }"
+                >
+                  <span class="w-1.5 h-1.5 rounded-full shrink-0 bg-white/70" />
+                  {{ stage }}
+                </span>
+                <span v-if="idx < lifecycleStages.length - 1" class="text-gray-300 dark:text-gray-600 text-[10px] mx-0.5">▸</span>
+              </template>
+            </div>
           </div>
         </div>
       </div>
-      <el-button type="primary" plain @click="handleExport">
-        <IconifyIconOffline icon="ep:download" class="mr-1" />
-        导出报告
+      <el-button type="primary" plain @click="handleExport" class="shrink-0">
+        <span class="flex items-center gap-1">📄 导出报告</span>
       </el-button>
     </div>
 
     <div v-if="eventData">
-      <!-- 指标数据卡片组 -->
+      <!-- ===== 指标数据卡片组 ===== -->
       <el-row :gutter="20" class="mb-6">
         <el-col :xs="24" :sm="12" :md="6" class="mb-4">
           <el-card shadow="never" class="!border-none">
             <div class="text-xs text-gray-400 mb-1">综合热度指数</div>
-            <div
-              class="text-2xl font-bold mb-2"
-              :style="{ color: getProgressColor(eventData.heat_index) }"
-            >
+            <div class="text-2xl font-bold mb-2" :style="{ color: getProgressColor(eventData.heat_index) }">
               {{ Math.round(eventData.heat_index) }}
             </div>
             <el-progress
               :percentage="Math.min(100, Math.round(eventData.heat_index || 0))"
               :show-text="false"
-              stroke-width="5"
+              :stroke-width="5"
               :color="getProgressColor(eventData.heat_index)"
             />
           </el-card>
         </el-col>
         <el-col :xs="24" :sm="12" :md="6" class="mb-4">
           <el-card shadow="never" class="!border-none">
-            <div class="text-xs text-gray-400 mb-1">风险评估等级</div>
-            <div
-              :class="[
-                'text-2xl font-bold mb-2',
-                eventData.report?.risk_data?.level === '高风险'
-                  ? 'text-red-500'
-                  : eventData.report?.risk_data?.level === '中风险'
-                    ? 'text-orange-500'
-                    : 'text-green-500'
-              ]"
-            >
-              {{ eventData.report?.risk_data?.level || "低风险" }}
-            </div>
-            <div class="text-xs text-gray-500 dark:text-gray-400">
-              分值: {{ eventData.report?.risk_data?.score || 0 }} / 100
-            </div>
+            <div class="text-xs text-gray-400 mb-1">风险评估</div>
+            <div ref="gaugeRef" class="w-full h-[110px]" />
           </el-card>
         </el-col>
         <el-col :xs="24" :sm="12" :md="6" class="mb-4">
@@ -567,60 +940,68 @@ function changeShape() {
         </el-col>
       </el-row>
 
-      <!-- 中间内容区域：图表与事件报告 -->
+      <!-- ===== 趋势图（增强版：双轴 + 关键节点标注）全宽 ===== -->
+      <el-card shadow="never" class="!border-slate-200/60 dark:!border-slate-800/60 rounded-xl mb-6">
+        <template #header>
+          <div class="font-bold text-slate-800 dark:text-slate-100">
+            📈 舆情传播趋势与情感变化 (Daily Trend & Sentiment)
+          </div>
+        </template>
+        <div ref="trendRef" class="w-full h-[320px]" />
+      </el-card>
+
+      <!-- ===== 三列图表：情感饼图 | 平台分布 | 风险雷达 ===== -->
       <el-row :gutter="20" class="mb-6">
-        <!-- 统计图表区域 -->
-        <el-col :xs="24" :lg="16" class="mb-6">
-          <el-card shadow="never" class="!border-none mb-6">
+        <el-col :xs="24" :md="8" class="mb-4">
+          <el-card shadow="never" class="!border-slate-200/60 dark:!border-slate-800/60 rounded-xl">
             <template #header>
-              <div class="font-bold">舆情传播趋势 (Daily Trend)</div>
+              <div class="font-bold text-slate-800 dark:text-slate-100">🎯 情感极性占比</div>
             </template>
-            <div ref="trendRef" class="w-full h-[280px]" />
+            <div ref="sentimentRef" class="w-full h-[340px]" />
           </el-card>
-
-          <el-row :gutter="20">
-            <el-col :xs="24" :sm="12">
-              <el-card shadow="never" class="!border-none">
-                <template #header>
-                  <div class="font-bold">情感极性占比</div>
-                </template>
-                <div ref="sentimentRef" class="w-full h-[340px]" />
-              </el-card>
-            </el-col>
-            <el-col :xs="24" :sm="12">
-              <el-card shadow="never" class="!border-none">
-                <template #header>
-                  <div class="font-bold">传播平台分布</div>
-                </template>
-                <div ref="platformRef" class="w-full h-[340px]" />
-              </el-card>
-            </el-col>
-          </el-row>
         </el-col>
-
-        <!-- AI报告与词云区域 -->
-        <el-col :xs="24" :lg="8" class="mb-6">
-          <el-card shadow="never" class="!border-none mb-6 h-[720px]">
+        <el-col :xs="24" :md="8" class="mb-4">
+          <el-card shadow="never" class="!border-slate-200/60 dark:!border-slate-800/60 rounded-xl">
             <template #header>
-              <div class="font-bold">AI 研判与核心摘要</div>
+              <div class="font-bold text-slate-800 dark:text-slate-100">📡 传播平台分布</div>
+            </template>
+            <div ref="platformRef" class="w-full h-[340px]" />
+          </el-card>
+        </el-col>
+        <el-col :xs="24" :md="8" class="mb-4">
+          <el-card shadow="never" class="!border-slate-200/60 dark:!border-slate-800/60 rounded-xl">
+            <template #header>
+              <div class="font-bold text-slate-800 dark:text-slate-100">🛡️ 多维风险雷达</div>
+            </template>
+            <div ref="radarRef" class="w-full h-[340px]" />
+          </el-card>
+        </el-col>
+      </el-row>
+
+      <!-- ===== AI报告 + 词云 并排 ===== -->
+      <el-row :gutter="20" class="mb-6">
+        <el-col :xs="24" :lg="8" class="mb-4">
+          <el-card shadow="never" class="!border-slate-200/60 dark:!border-slate-800/60 rounded-xl h-full">
+            <template #header>
+              <div class="font-bold text-slate-800 dark:text-slate-100">🤖 AI 研判与核心摘要</div>
             </template>
             <!-- 核心摘要网格 -->
             <div class="grid grid-cols-2 gap-2 text-xs border-b border-gray-100 dark:border-gray-800 pb-3 mb-3">
               <div>
                 <span class="text-gray-400">发生时间:</span>
-                <span class="font-medium ml-1 text-gray-700 dark:text-gray-300">{{ eventData.time_code || '未录入' }}</span>
+                <span class="font-medium ml-1 text-gray-700 dark:text-gray-300">{{ eventData.time_code || '待后端录入' }}</span>
               </div>
               <div>
                 <span class="text-gray-400">发生地点:</span>
-                <span class="font-medium ml-1 text-gray-700 dark:text-gray-300">{{ eventData.location || '未录入' }}</span>
+                <span class="font-medium ml-1 text-gray-700 dark:text-gray-300">{{ eventData.location || '待后端录入' }}</span>
               </div>
               <div class="col-span-2">
                 <span class="text-gray-400">涉事人物:</span>
-                <span class="font-medium ml-1 text-gray-700 dark:text-gray-300">{{ eventData.key_figures || '未录入' }}</span>
+                <span class="font-medium ml-1 text-gray-700 dark:text-gray-300">{{ eventData.key_figures || '待后端录入' }}</span>
               </div>
               <div class="col-span-2">
                 <span class="text-gray-400">事件起因:</span>
-                <span class="font-medium ml-1 text-gray-700 dark:text-gray-300 line-clamp-1" :title="eventData.cause">{{ eventData.cause || '未录入' }}</span>
+                <span class="font-medium ml-1 text-gray-700 dark:text-gray-300 line-clamp-1" :title="eventData.cause">{{ eventData.cause || '待后端录入' }}</span>
               </div>
             </div>
             <p class="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
@@ -628,30 +1009,20 @@ function changeShape() {
             </p>
           </el-card>
         </el-col>
-      </el-row>
-
-      <!-- 底部：热点词云图 (满宽) -->
-      <el-row class="mb-6">
-        <el-col :span="24">
-          <el-card shadow="never" class="!border-none">
+        <el-col :xs="24" :lg="16" class="mb-4">
+          <el-card shadow="never" class="!border-slate-200/60 dark:!border-slate-800/60 rounded-xl">
             <template #header>
               <div class="flex justify-between items-center w-full">
-                <div class="font-bold">热点关键词云 (Word Cloud)</div>
+                <div class="font-bold text-slate-800 dark:text-slate-100">☁️ 热点关键词云</div>
                 <div class="flex items-center gap-2">
                   <el-select v-model="currentShape" size="small" class="!w-[90px]" @change="changeShape">
                     <el-option v-for="s in shapeOptions" :key="s.value" :label="s.label" :value="s.value" />
                   </el-select>
                   <span class="text-[11px] text-slate-400">{{ Math.round(currentZoom * 100) }}%</span>
                   <el-button-group size="small">
-                    <el-button @click="zoomIn" title="放大">
-                      <el-icon><PlusIcon /></el-icon>
-                    </el-button>
-                    <el-button @click="zoomOut" title="缩小">
-                      <el-icon><MinusIcon /></el-icon>
-                    </el-button>
-                    <el-button @click="resetZoom" title="重置">
-                      <el-icon><RefreshRightIcon /></el-icon>
-                    </el-button>
+                    <el-button @click="zoomIn" title="放大"><el-icon><PlusIcon /></el-icon></el-button>
+                    <el-button @click="zoomOut" title="缩小"><el-icon><MinusIcon /></el-icon></el-button>
+                    <el-button @click="resetZoom" title="重置"><el-icon><RefreshRightIcon /></el-icon></el-button>
                   </el-button-group>
                 </div>
               </div>
@@ -663,48 +1034,106 @@ function changeShape() {
         </el-col>
       </el-row>
 
-      <!-- 底部列表：关联报道 -->
-      <el-card shadow="never" class="!border-none">
+      <!-- ===== 传播路径网络图（需求明确要求的高级功能） ===== -->
+      <el-card shadow="never" class="!border-slate-200/60 dark:!border-slate-800/60 rounded-xl mb-6">
         <template #header>
           <div class="flex justify-between items-center">
-            <span class="font-bold">关联舆情报道列表</span>
+            <div class="font-bold text-slate-800 dark:text-slate-100">
+              🔗 事件溯源与关键传播路径 (Propagation Network)
+            </div>
+            <span class="text-[11px] text-slate-400 dark:text-slate-500">拖拽节点查看传播关系</span>
+          </div>
+        </template>
+        <div class="flex gap-3 mb-3">
+          <div class="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
+            <span class="w-2.5 h-2.5 rounded-full bg-red-500" /> 信息源头
+          </div>
+          <div class="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
+            <span class="w-2.5 h-2.5 rounded-full bg-orange-500" /> 关键传播者
+          </div>
+          <div class="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
+            <span class="w-2.5 h-2.5 rounded-full bg-blue-500" /> 平台扩散
+          </div>
+          <div class="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
+            <span class="w-2.5 h-2.5 rounded-full bg-green-500" /> 官方媒体
+          </div>
+          <div class="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
+            <span class="w-2.5 h-2.5 rounded-full bg-slate-400" /> 公众讨论
+          </div>
+        </div>
+        <div ref="propagationRef" class="w-full h-[400px]" />
+      </el-card>
+
+      <!-- ===== 关键事件时间轴 + 报道影响力排行榜 ===== -->
+      <el-row :gutter="20" class="mb-6">
+        <el-col :xs="24" :lg="12" class="mb-4">
+          <el-card shadow="never" class="!border-slate-200/60 dark:!border-slate-800/60 rounded-xl">
+            <template #header>
+              <div class="font-bold text-slate-800 dark:text-slate-100">📋 关键传播节点时间轴</div>
+            </template>
+            <div class="px-2">
+              <div class="relative pl-6 border-l-2 border-blue-100 dark:border-blue-900/40 space-y-5">
+                <div v-for="(kp, idx) in buildKeyPoints()" :key="idx" class="relative">
+                  <span
+                    class="absolute -left-[29px] top-0.5 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-slate-900 shadow-sm"
+                    :class="idx === 0 ? 'bg-blue-500' : idx === buildKeyPoints().length - 1 ? 'bg-orange-500' : 'bg-red-500'"
+                  />
+                  <div class="text-xs text-slate-400 dark:text-slate-500 mb-0.5">{{ kp.coord?.[0] || '' }}</div>
+                  <div class="text-sm font-semibold text-slate-700 dark:text-slate-200">{{ kp.name }}</div>
+                  <div class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    {{ idx === 0 ? '事件首次在社交媒体平台出现，引发初始关注。' : idx === buildKeyPoints().length - 1 ? '事件持续发酵，主流媒体与官方渠道跟进报道。' : '报道量急剧攀升，事件进入全面爆发扩散阶段。' }}
+                  </div>
+                </div>
+                <div v-if="buildKeyPoints().length === 0" class="text-sm text-slate-400 dark:text-slate-500 py-4 text-center">
+                  暂无关键节点数据，等待后端分析引擎填充。
+                </div>
+              </div>
+            </div>
+          </el-card>
+        </el-col>
+        <el-col :xs="24" :lg="12" class="mb-4">
+          <el-card shadow="never" class="!border-slate-200/60 dark:!border-slate-800/60 rounded-xl">
+            <template #header>
+              <div class="font-bold text-slate-800 dark:text-slate-100">📊 报道传播影响力排行</div>
+            </template>
+            <div ref="influenceRef" class="w-full h-[300px]" />
+          </el-card>
+        </el-col>
+      </el-row>
+
+      <!-- ===== 关联报道列表 ===== -->
+      <el-card shadow="never" class="!border-slate-200/60 dark:!border-slate-800/60 rounded-xl">
+        <template #header>
+          <div class="flex justify-between items-center">
+            <span class="font-bold text-slate-800 dark:text-slate-100">📰 关联舆情报道列表</span>
             <el-button type="primary" link @click="router.push(`/opinion/qa?event_id=${route.params.id}`)">
-              <IconifyIconOffline icon="ri:question-answer-line" class="mr-1" />
-              就该事件进行智能提问
+              💬 就该事件进行智能提问
             </el-button>
           </div>
         </template>
         <el-table :data="eventData.articles?.articles" stripe style="width: 100%">
-          <el-table-column type="index" label="序号" width="60" />
-          <el-table-column prop="title" label="报道标题" min-width="250" show-overflow-tooltip />
-          <el-table-column prop="platform" label="来源平台" width="120">
+          <el-table-column type="index" label="#" width="50" />
+          <el-table-column prop="title" label="报道标题" min-width="240" show-overflow-tooltip />
+          <el-table-column prop="platform" label="来源平台" width="110">
             <template #default="{ row }">
-              <el-tag size="small">{{ row.platform }}</el-tag>
+              <el-tag size="small" effect="light">{{ row.platform }}</el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="sentiment_label" label="情感倾向" width="120">
+          <el-table-column prop="sentiment_label" label="情感倾向" width="110">
             <template #default="{ row }">
               <el-tag
                 size="small"
-                :type="
-                  row.sentiment_label === '正面'
-                    ? 'success'
-                    : row.sentiment_label === '负面'
-                      ? 'danger'
-                      : 'info'
-                "
+                effect="dark"
+                :type="row.sentiment_label === '正面' ? 'success' : row.sentiment_label === '负面' ? 'danger' : 'info'"
               >
-                {{ row.sentiment_label }}
+                {{ row.sentiment_label || '中性' }}
               </el-tag>
             </template>
           </el-table-column>
           <el-table-column prop="is_suspicious" label="真实性检测" width="130">
             <template #default="{ row }">
               <div class="flex items-center gap-1">
-                <el-tag
-                  size="small"
-                  :type="row.is_suspicious ? 'danger' : 'success'"
-                >
+                <el-tag size="small" effect="dark" :type="row.is_suspicious ? 'danger' : 'success'">
                   {{ row.is_suspicious ? '可疑谣言' : '真实信源' }}
                 </el-tag>
                 <span v-if="row.is_suspicious && row.suspicious_score" class="text-[11px] text-red-500 font-bold">
