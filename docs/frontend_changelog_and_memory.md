@@ -315,3 +315,31 @@ initRouter()
 * 排查路由问题时，优先级应为：`router modules` → `mock 目录` → `localStorage` → `后端 API`
 * 清理模板代码时必须同步清理 `mock/` 目录下的对应文件
 
+---
+
+## 9. 更新日志 (Changelog - 2026-07-12 第四版) — Mock 目录深度清理
+
+### 9.1 清理内容
+
+对 `mock/` 目录进行全面审计，删除 3 个仅服务于已删除模板页面的 mock 文件：
+
+| 文件 | 大小 | 服务对象 | 判定 |
+|------|------|----------|------|
+| `mock/system.ts` | 1815 行 | 已删除的 `views/system/`（用户/角色/菜单/部门 CRUD）和 `views/monitor/`（登录/操作/系统日志） | 🔴 删除 |
+| `mock/list.ts` | 457 行 | 已删除的 `views/list/card/`（卡片列表页） | 🔴 删除 |
+| `mock/map.ts` | 43 行 | 已删除的 `views/able/map.vue`（高德地图 demo） | 🔴 删除 |
+
+保留的 mock 文件（均有有效引用）：
+
+| 文件 | 端点 | 用途 |
+|------|------|------|
+| `mock/login.ts` | `POST /login` | 登录认证（admin/common 双角色） |
+| `mock/refreshToken.ts` | `POST /refresh-token` | Token 刷新 |
+| `mock/asyncRoutes.ts` | `GET /get-async-routes` | 动态路由（已改为返回空数组） |
+| `mock/mine.ts` | `GET /mine`, `/mine-logs` | 账户设置-个人信息/安全日志 |
+
+### 9.2 剩余待处理项
+
+* **`locales/zh-CN.yaml`**：仍含 120+ 条模板翻译标签（`pureExternalPage`、`purePermission` 等），不影响功能但增加文件体积。可在后续迭代中精简。
+* **`enableProd: true`**（`build/plugins.ts` 第 58 行）：当前生产构建会包含 mock server。后端 API 就绪后应改为 `false` 或移除此插件。
+
