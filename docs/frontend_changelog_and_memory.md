@@ -266,3 +266,52 @@
 * **views 目录**：30 个目录 → 9 个（welcome, events, qa, user, admin, login, error, empty, account-settings）
 * **构建时间**：无影响，保持 ~11-30 秒
 
+---
+
+## 8. 更新日志 (Changelog - 2026-07-12 第三版) — Mock 旧路由污染修复
+
+### 8.1 问题现象
+
+路由重构 + 死代码清理后，侧边栏仍然出现「外部页面」「权限管理」「系统管理」「系统监控」「标签页」等旧模板菜单项，且点击后能正常跳转渲染。
+
+### 8.2 排查过程
+
+1. **怀疑 localStorage 缓存** → 检查 `responsive-configure` 和 `async-routes` 键值，均为空，排除
+2. **怀疑模块导入遗漏** → 确认 `router/modules/` 仅剩 `opinion.ts` 和 `remaining.ts`，`modules_backup/` 已删除
+3. **怀疑源代码残留** → 全文搜索「外部页面」「权限管理」，`src/` 中无匹配
+4. **加 debug 日志** → `handleWholeMenus` 的 `constantMenus` 只有 7 项（我们的路由），但 `routes` 参数被传入了 5 组旧模板路由对象
+5. **追踪 `routes` 来源** → `initRouter()` → `getAsyncRoutes()` → Vite 并未报网络错误，说明 **请求成功了**
+6. **发现 `vite-plugin-fake-server`** → `build/plugins.ts` 配置了 `vitePluginFakeServer({ include: "mock", enableProd: true })`，拦截 HTTP 请求并返回 mock 数据
+7. **定位真凶 `mock/asyncRoutes.ts`** → 定义了 `/get-async-routes` 端点，返回 `systemManagementRouter`、`systemMonitorRouter`、`permissionRouter`、`frameRouter`、`tabsRouter` 共 5 组完整模板路由对象
+
+### 8.3 根因分析
+
+```
+initRouter()
+  → getAsyncRoutes()                    // 调用 /get-async-routes
+    → vite-plugin-fake-server 拦截       // 匹配 mock/asyncRoutes.ts
+      → 返回 { code: 0, data: [5组旧路由] }  // code:0 表示成功
+        → handleAsyncRoutes(data)        // 将旧路由注入路由表
+          → handleWholeMenus(data)       // 将旧路由写入 wholeMenus
+            → 侧边栏渲染出旧菜单          // 🔴 幽灵菜单
+```
+
+关键点：`vite-plugin-fake-server` 的 `enableProd: true` 意味着**生产构建也会加载 mock 数据**。Mock 返回 `code: 0`，所以 `initRouter` 的 `.catch()` 兜底逻辑永远走不到——请求是成功的。
+
+### 8.4 修复方案
+
+**修改 `mock/asyncRoutes.ts`**：将 `data` 数组从 5 组旧路由改为空 `[]`。
+
+```diff
+- data: [systemManagementRouter, systemMonitorRouter, permissionRouter, frameRouter, tabsRouter]
++ data: []
+```
+
+同时修改 `router/utils.ts` 的 `initRouter()`，给 `getAsyncRoutes()` 添加 `.catch()` 兜底（后端/mock 不可用时回退到静态路由，防止侧边栏永久卡加载）。
+
+### 8.5 教训
+
+* `vite-plugin-fake-server` 的 mock 数据是**独立于 Vite/Webpack 热更新的持久化路由来源**，删除 views 和 router modules 不会影响 mock 目录
+* 排查路由问题时，优先级应为：`router modules` → `mock 目录` → `localStorage` → `后端 API`
+* 清理模板代码时必须同步清理 `mock/` 目录下的对应文件
+
