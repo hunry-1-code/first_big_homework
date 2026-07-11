@@ -343,3 +343,59 @@ initRouter()
 * **`locales/zh-CN.yaml`**：仍含 120+ 条模板翻译标签（`pureExternalPage`、`purePermission` 等），不影响功能但增加文件体积。可在后续迭代中精简。
 * **`enableProd: true`**（`build/plugins.ts` 第 58 行）：当前生产构建会包含 mock server。后端 API 就绪后应改为 `false` 或移除此插件。
 
+---
+
+## 10. 更新日志 (Changelog - 2026-07-12 第五版) — 用户管理模块
+
+### 10.1 后端 API 需求文档
+
+* **[Docs]** 新建 `docs/backend_user_management_api_requirements.md`，明确后端需实现的 6 个接口：
+  `GET /api/admin/users`（列表）、`POST /api/admin/users`（新建）、
+  `PUT /api/admin/users/:id`（编辑）、`DELETE /api/admin/users/:id`（删除）、
+  `PUT /api/admin/users/:id/password`（重置密码）、`GET /api/admin/roles`（角色列表，可选）
+
+### 10.2 前端用户管理页面
+
+* **[Feat]** 新建 `views/admin/users.vue` — 独立用户管理页面，对齐模板原始 `views/system/user/` 风格：
+  - `useRenderIcon` 驱动的图标按钮（搜索/新增/修改/删除/重置密码/停用）
+  - `el-form inline` 搜索栏（用户名/角色/状态筛选）
+  - `el-table` + 批量选择 + 批量删除栏（"已选 N 项"样式）
+  - `el-dropdown` 更多操作菜单（重置密码、启用/停用）
+  - 新增/编辑弹窗、重置密码弹窗
+* **[Feat]** 新建 `api/admin.ts` — 用户管理 API 层（`getUserList`/`createUser`/`updateUser`/`resetUserPassword`/`deleteUser`）
+* **[Feat]** 新建 `mock/admin.ts` — 6 条模拟用户数据 + 5 个 mock 端点，`vite-plugin-fake-server` 自动拦截，无需后端即可演示完整 CRUD
+
+### 10.3 路由结构调整
+
+* **[Refactor]** 新增顶层独立路由组 `/system`（`component: Layout`，仅 admin 可见），子路由 `/system/users` → 用户管理
+* **[Rename]** 原 `/admin`（爬虫+导入+任务）标题从「系统管理」改为「运维管理」，避免与新 `/system`「系统管理」组重名
+
+**当前侧边栏结构**：
+```
+📊 舆情分析系统 (rank 1)
+├── 舆情看板
+├── 智能问答
+├── 个人中心
+└── 运维管理          ← 爬虫管理+数据导入+任务
+
+⚙️ 系统管理 (rank 99, admin only)
+└── 用户管理          ← 新增，mock 数据立即可用
+```
+
+### 10.4 页面不可用故障记录
+
+* **现象**：新增路由和 mock 文件后，刷新浏览器页面崩溃（连接被拒绝）
+* **原因**：
+  1. 路由拓扑变更（新增顶层 `/system` Layout 组）无法通过 HMR 热更新，Vue Router 尝试匹配新路径但路由表是旧的
+  2. `mock/admin.ts` 是新文件，`vite-plugin-fake-server` 仅在 server 启动时扫描 `mock/` 目录，不支持新文件热加载
+* **解决**：杀掉旧 Vite 进程，清除 `.vite` 缓存，重启 dev server
+
+### 10.5 登录与用户管理体系梳理
+
+* **登录流程**：`POST /api/auth/login` → Flask 后端验证 `admin/admin123` → JWT 签发 → 前端 Cookie + localStorage 存储 → 路由守卫校验
+* **权限体系**：
+  - 路由级：`meta.roles: ["admin"]` 控制菜单可见性和路由访问（`filterNoPermissionTree` + 路由守卫）
+  - 按钮级：`v-perms` / `v-auth` 指令存在，但当前 `store/user.ts:93` 行硬编码 `permissions: ["*:*:*"]`，实际不生效
+* **Mock 登录文件**：`mock/login.ts` 拦截路径为 `/login`，与业务调用的 `/api/auth/login` 不匹配，从未被使用。登录实际走 Flask 后端
+* **用户管理现状**：后端仅有 `POST /login` + `GET /me` 两个认证接口，无用户 CRUD API。前端用户管理页面依赖 mock 数据，后端接口就绪后可直接对接
+
