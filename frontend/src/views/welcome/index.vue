@@ -25,14 +25,14 @@
 
     <!-- 搜索与排序工具栏 -->
     <div class="flex flex-col md:flex-row gap-4 items-stretch md:items-center bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/60 dark:border-slate-800/60 shadow-sm">
-      <div class="flex-1 flex gap-2">
+      <div class="flex gap-2">
         <el-input
           v-model="keyword"
-          placeholder="输入事件关键词搜索，或回车直接采集相关信息..."
+          placeholder="输入事件关键词搜索"
           clearable
           size="large"
           @keyup.enter="handleSearch"
-          class="flex-1"
+          class="w-[280px]"
         >
           <template #prefix>
             <span class="text-slate-400">🔍</span>
@@ -44,8 +44,8 @@
       </div>
 
       <div class="flex items-center gap-2 shrink-0">
-        <span class="text-sm text-slate-400 dark:text-slate-500">排序依据:</span>
-        <el-select v-model="sortBy" size="large" class="w-[140px]">
+        <span class="text-sm text-slate-400 dark:text-slate-500 whitespace-nowrap">排序依据:</span>
+        <el-select v-model="sortBy" size="large" style="min-width: 180px">
           <el-option label="按发布时间" value="time" />
           <el-option label="按综合热度" value="heat" />
         </el-select>

@@ -106,26 +106,132 @@ function initCharts() {
     });
   }
 
-  // 2. 情感极性分布环形图
+  // 2. 情感极性分布环形图（增强版）
   if (sentimentRef.value) {
     if (sentimentChart) sentimentChart.dispose();
     sentimentChart = echarts.init(sentimentRef.value);
+
+    const posVal = eventData.value.sentiment_positive || 0;
+    const neuVal = eventData.value.sentiment_neutral || 0;
+    const negVal = eventData.value.sentiment_negative || 0;
+
+    const sentimentData = [
+      { value: posVal, name: "正面" },
+      { value: neuVal, name: "中性" },
+      { value: negVal, name: "负面" }
+    ];
+    const dominant = sentimentData.reduce((a, b) =>
+      a.value >= b.value ? a : b
+    );
+
+    const posColor = new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+      { offset: 0, color: "#059669" },
+      { offset: 1, color: "#6ee7b7" }
+    ]);
+    const neuColor = new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+      { offset: 0, color: "#475569" },
+      { offset: 1, color: "#94a3b8" }
+    ]);
+    const negColor = new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+      { offset: 0, color: "#dc2626" },
+      { offset: 1, color: "#fca5a5" }
+    ]);
+
+    const dominantLabelMap: Record<string, string> = {
+      "正面": "#059669",
+      "中性": "#475569",
+      "负面": "#dc2626"
+    };
+    const dominantColor = dominantLabelMap[dominant.name] || "#475569";
+
     sentimentChart.setOption({
-      tooltip: { trigger: "item", formatter: "{a} <br/>{b}: {c} ({d}%)" },
-      legend: { bottom: "0%", textStyle: { color: textColor }, itemGap: 15 },
+      tooltip: {
+        trigger: "item",
+        backgroundColor: dark ? "rgba(17,24,39,0.95)" : "rgba(255,255,255,0.95)",
+        borderColor: dark ? "#374151" : "#e5e7eb",
+        borderWidth: 1,
+        textStyle: { color: dark ? "#e2e8f0" : "#1e293b", fontSize: 12 },
+        formatter: (params: any) =>
+          `<b>${params.name}情感</b><br/>占比: <b style="color:${params.color}">${params.percent}%</b>`
+      },
+      legend: {
+        bottom: "0%",
+        textStyle: { color: textColor, fontSize: 12 },
+        itemWidth: 10,
+        itemHeight: 10,
+        itemGap: 28,
+        itemStyle: { borderRadius: 3 },
+        formatter: (name: string) => {
+          const item = sentimentData.find(d => d.name === name);
+          const pct = item ? Math.round(item.value * 100) : 0;
+          return `${name}  ${pct}%`;
+        }
+      },
+      graphic: [
+        {
+          type: "text",
+          left: "center",
+          top: "36%",
+          style: {
+            text:
+              `{label|${dominant.name}情感}\n{value|${Math.round(dominant.value * 100)}%}`,
+            textAlign: "center",
+            fill: dominantColor,
+            rich: {
+              label: {
+                fontSize: 13,
+                fontWeight: 600,
+                padding: [0, 0, 6, 0],
+                fontFamily: "PingFang SC, Microsoft YaHei, sans-serif"
+              },
+              value: {
+                fontSize: 24,
+                fontWeight: 700,
+                fontFamily: "PingFang SC, Microsoft YaHei, sans-serif"
+              }
+            }
+          }
+        }
+      ],
       series: [
         {
           name: "情感倾向",
           type: "pie",
-          radius: ["45%", "70%"],
-          center: ["50%", "45%"],
+          radius: ["38%", "60%"],
+          center: ["50%", "46%"],
           avoidLabelOverlap: false,
-          itemStyle: { borderRadius: 6, borderColor: dark ? "#111827" : "#fff", borderWidth: 2 },
-          label: { show: false },
+          padAngle: 2,
+          itemStyle: {
+            borderRadius: 8,
+            borderColor: dark ? "#111827" : "#fff",
+            borderWidth: 3,
+            shadowBlur: 6,
+            shadowColor: "rgba(0,0,0,0.08)",
+            shadowOffsetX: 0,
+            shadowOffsetY: 1
+          },
+          label: {
+            show: true,
+            position: "outside",
+            formatter: "{b}  {d}%",
+            color: textColor,
+            fontSize: 12
+          },
+          labelLine: {
+            length: 20,
+            length2: 14,
+            lineStyle: { width: 1.5 }
+          },
+          emphasis: {
+            focus: "self",
+            scaleSize: 8,
+            label: { fontSize: 15, fontWeight: "bold" },
+            itemStyle: { shadowBlur: 16, shadowColor: "rgba(0,0,0,0.18)" }
+          },
           data: [
-            { value: eventData.value.sentiment_positive || 0, name: "正面", itemStyle: { color: "#67c23a" } },
-            { value: eventData.value.sentiment_neutral || 0, name: "中性", itemStyle: { color: "#909399" } },
-            { value: eventData.value.sentiment_negative || 0, name: "负面", itemStyle: { color: "#f56c6c" } }
+            { value: posVal, name: "正面", itemStyle: { color: posColor } },
+            { value: neuVal, name: "中性", itemStyle: { color: neuColor } },
+            { value: negVal, name: "负面", itemStyle: { color: negColor } }
           ]
         }
       ]
@@ -206,6 +312,12 @@ async function handleExport() {
 
 function percent(value: number) {
   return `${Math.round((value || 0) * 100)}%`;
+}
+
+function getProgressColor(heat: number) {
+  if (heat >= 80) return "#ef4444"; // 高热：红色
+  if (heat >= 50) return "#f97316"; // 中热：橙色
+  return "#3b82f6"; // 正常：蓝色
 }
 
 function getWordColor(t: number): string {
@@ -372,8 +484,8 @@ function changeShape() {
     <!-- 面包屑与返回按钮 -->
     <div class="flex justify-between items-center mb-6">
       <div class="flex items-center gap-3">
-        <el-button circle @click="router.back()">
-          <IconifyIconOffline icon="ep:arrow-left" />
+        <el-button text @click="router.back()" class="!text-gray-500 hover:!text-blue-500">
+          ← 返回看板
         </el-button>
         <div>
           <h2 class="text-xl font-bold text-gray-800 dark:text-white">
@@ -397,14 +509,17 @@ function changeShape() {
         <el-col :xs="24" :sm="12" :md="6" class="mb-4">
           <el-card shadow="never" class="!border-none">
             <div class="text-xs text-gray-400 mb-1">综合热度指数</div>
-            <div class="text-2xl font-bold text-blue-500 mb-2">
+            <div
+              class="text-2xl font-bold mb-2"
+              :style="{ color: getProgressColor(eventData.heat_index) }"
+            >
               {{ Math.round(eventData.heat_index) }}
             </div>
             <el-progress
               :percentage="Math.min(100, Math.round(eventData.heat_index || 0))"
               :show-text="false"
               stroke-width="5"
-              color="#3b82f6"
+              :color="getProgressColor(eventData.heat_index)"
             />
           </el-card>
         </el-col>
@@ -469,7 +584,7 @@ function changeShape() {
                 <template #header>
                   <div class="font-bold">情感极性占比</div>
                 </template>
-                <div ref="sentimentRef" class="w-full h-[220px]" />
+                <div ref="sentimentRef" class="w-full h-[340px]" />
               </el-card>
             </el-col>
             <el-col :xs="24" :sm="12">
@@ -477,7 +592,7 @@ function changeShape() {
                 <template #header>
                   <div class="font-bold">传播平台分布</div>
                 </template>
-                <div ref="platformRef" class="w-full h-[220px]" />
+                <div ref="platformRef" class="w-full h-[340px]" />
               </el-card>
             </el-col>
           </el-row>
@@ -485,12 +600,12 @@ function changeShape() {
 
         <!-- AI报告与词云区域 -->
         <el-col :xs="24" :lg="8" class="mb-6">
-          <el-card shadow="never" class="!border-none mb-6 h-[590px] flex flex-col">
+          <el-card shadow="never" class="!border-none mb-6 h-[720px]">
             <template #header>
               <div class="font-bold">AI 研判与核心摘要</div>
             </template>
             <!-- 核心摘要网格 -->
-            <div class="grid grid-cols-2 gap-2 text-xs border-b border-gray-100 dark:border-gray-800 pb-3 mb-3 shrink-0">
+            <div class="grid grid-cols-2 gap-2 text-xs border-b border-gray-100 dark:border-gray-800 pb-3 mb-3">
               <div>
                 <span class="text-gray-400">发生时间:</span>
                 <span class="font-medium ml-1 text-gray-700 dark:text-gray-300">{{ eventData.time_code || '未录入' }}</span>
@@ -508,11 +623,9 @@ function changeShape() {
                 <span class="font-medium ml-1 text-gray-700 dark:text-gray-300 line-clamp-1" :title="eventData.cause">{{ eventData.cause || '未录入' }}</span>
               </div>
             </div>
-            <el-scrollbar class="flex-1">
-              <p class="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
-                {{ eventData.report?.overview_text }}
-              </p>
-            </el-scrollbar>
+            <p class="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
+              {{ eventData.report?.overview_text }}
+            </p>
           </el-card>
         </el-col>
       </el-row>

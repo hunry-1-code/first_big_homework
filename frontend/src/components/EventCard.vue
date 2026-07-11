@@ -27,7 +27,7 @@
     <div class="mb-4">
       <div class="flex justify-between text-xs mb-1.5">
         <span class="text-slate-400 dark:text-slate-500">综合热度指数</span>
-        <span class="font-semibold text-blue-500">{{ Math.round(event.heat_index || 0) }}</span>
+        <span class="font-semibold" :style="{ color: getProgressColor(event.heat_index) }">{{ Math.round(event.heat_index || 0) }}</span>
       </div>
       <el-progress
         :percentage="Math.min(100, Math.round(event.heat_index || 0))"
