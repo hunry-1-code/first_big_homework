@@ -967,9 +967,14 @@ function getProgressColor(heat: number) {
           </div>
         </div>
       </div>
-      <el-button type="primary" plain @click="handleExport" class="shrink-0">
-        <span class="flex items-center gap-1">📄 导出报告</span>
-      </el-button>
+      <div class="flex items-center gap-2 shrink-0">
+        <el-button type="primary" @click="router.push(`/qa?event_id=${route.params.id}`)">
+          <span class="flex items-center gap-1">💬 智能提问</span>
+        </el-button>
+        <el-button type="primary" plain @click="handleExport">
+          <span class="flex items-center gap-1">📄 导出报告</span>
+        </el-button>
+      </div>
     </div>
 
     <div v-if="eventData">
@@ -1225,9 +1230,6 @@ function getProgressColor(heat: number) {
         <template #header>
           <div class="flex justify-between items-center">
             <span class="font-bold text-slate-800 dark:text-slate-100">📰 关联舆情报道列表</span>
-            <el-button type="primary" link @click="router.push(`/qa?event_id=${route.params.id}`)">
-              💬 就该事件进行智能提问
-            </el-button>
           </div>
         </template>
         <el-table :data="eventData.articles?.articles" stripe style="width: 100%">
