@@ -834,23 +834,26 @@ function getProgressColor(heat: number) {
 
     <div v-if="eventData">
       <!-- ===== 指标数据卡片组 ===== -->
-      <el-row :gutter="20" class="mb-6">
+      <el-row :gutter="20" class="mb-6 stat-cards-row">
         <el-col :xs="24" :sm="12" :md="6" class="mb-4">
-          <el-card shadow="never" class="!border-none h-full flex flex-col">
+          <el-card shadow="never" class="!border-none">
             <div class="text-xs text-gray-400 mb-1">综合热度指数</div>
             <div class="text-2xl font-bold mb-2" :style="{ color: getProgressColor(eventData.heat_index) }">
               {{ Math.round(eventData.heat_index) }}
             </div>
-            <el-progress
-              :percentage="Math.min(100, Math.round(eventData.heat_index || 0))"
-              :show-text="false"
-              :stroke-width="5"
-              :color="getProgressColor(eventData.heat_index)"
-            />
+            <div class="h-5 flex items-center">
+              <el-progress
+                :percentage="Math.min(100, Math.round(eventData.heat_index || 0))"
+                :show-text="false"
+                :stroke-width="5"
+                :color="getProgressColor(eventData.heat_index)"
+                class="w-full"
+              />
+            </div>
           </el-card>
         </el-col>
         <el-col :xs="24" :sm="12" :md="6" class="mb-4">
-          <el-card shadow="never" class="!border-none h-full flex flex-col">
+          <el-card shadow="never" class="!border-none">
             <div class="text-xs text-gray-400 mb-1">风险评估等级</div>
             <div
               :class="[
@@ -864,30 +867,36 @@ function getProgressColor(heat: number) {
             >
               {{ eventData.report?.risk_data?.level || '低风险' }}
             </div>
-            <div class="text-xs text-gray-500 dark:text-gray-400">
-              分值: {{ eventData.report?.risk_data?.score || 0 }} / 100
+            <div class="h-5 flex items-center">
+              <span class="text-xs text-gray-500 dark:text-gray-400">
+                分值: {{ eventData.report?.risk_data?.score || 0 }} / 100
+              </span>
             </div>
           </el-card>
         </el-col>
         <el-col :xs="24" :sm="12" :md="6" class="mb-4">
-          <el-card shadow="never" class="!border-none h-full flex flex-col">
+          <el-card shadow="never" class="!border-none">
             <div class="text-xs text-gray-400 mb-1">核心情感倾向</div>
             <div class="text-2xl font-bold text-red-500 mb-2">
               负面率 {{ percent(eventData.sentiment_negative) }}
             </div>
-            <div class="text-xs text-gray-500 dark:text-gray-400">
-              正面占比 {{ percent(eventData.sentiment_positive) }}
+            <div class="h-5 flex items-center">
+              <span class="text-xs text-gray-500 dark:text-gray-400">
+                正面占比 {{ percent(eventData.sentiment_positive) }}
+              </span>
             </div>
           </el-card>
         </el-col>
         <el-col :xs="24" :sm="12" :md="6" class="mb-4">
-          <el-card shadow="never" class="!border-none h-full flex flex-col">
+          <el-card shadow="never" class="!border-none">
             <div class="text-xs text-gray-400 mb-1">关联报道总数</div>
             <div class="text-2xl font-bold text-gray-700 dark:text-gray-300 mb-2">
               {{ eventData.articles?.total || 0 }} 篇
             </div>
-            <div class="text-xs text-gray-500 dark:text-gray-400">
-              涉及 {{ eventData.platform?.platforms?.length || 0 }} 个信源平台
+            <div class="h-5 flex items-center">
+              <span class="text-xs text-gray-500 dark:text-gray-400">
+                涉及 {{ eventData.platform?.platforms?.length || 0 }} 个信源平台
+              </span>
             </div>
           </el-card>
         </el-col>
@@ -1107,6 +1116,20 @@ function getProgressColor(heat: number) {
   :deep(.el-card__header) {
     padding: 14px 20px;
     border-bottom: 1px solid var(--el-border-color-extra-light);
+  }
+}
+
+/* 统计卡片行强制等高等宽 */
+.stat-cards-row {
+  :deep(.el-col) {
+    display: flex;
+    > .el-card {
+      flex: 1;
+      .el-card__body {
+        display: flex;
+        flex-direction: column;
+      }
+    }
   }
 }
 </style>
