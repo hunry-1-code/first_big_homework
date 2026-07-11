@@ -35,7 +35,28 @@ def get_event_detail(event_id: int) -> dict:
             "daily": [],
         },
         "platform": {"platforms": [{"name": "样例数据", "count": 47, "percentage": 1.0}]},
-        "keywords": {"keywords": [{"word": "舆情", "weight": 0.9}, {"word": "风险", "weight": 0.72}]},
+        "keywords": {
+            "keywords": [
+                {"word": "舆情", "weight": 0.95},
+                {"word": "安全", "weight": 0.88},
+                {"word": "网络", "weight": 0.82},
+                {"word": "监测", "weight": 0.76},
+                {"word": "热点", "weight": 0.71},
+                {"word": "传播", "weight": 0.65},
+                {"word": "大V转发", "weight": 0.58},
+                {"word": "评论区", "weight": 0.53},
+                {"word": "热度指数", "weight": 0.49},
+                {"word": "负面情感", "weight": 0.44},
+                {"word": "研判报告", "weight": 0.39},
+                {"word": "谣言检测", "weight": 0.34},
+                {"word": "置信度", "weight": 0.30},
+                {"word": "数据清洗", "weight": 0.26},
+                {"word": "博主", "weight": 0.22},
+                {"word": "系统预警", "weight": 0.18},
+                {"word": "敏感词", "weight": 0.15},
+                {"word": "公关", "weight": 0.12}
+            ]
+        },
         "articles": {
             "articles": [
                 {

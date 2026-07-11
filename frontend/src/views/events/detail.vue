@@ -213,23 +213,22 @@ function initBubbleChart() {
   const minSize = count > 15 ? 38 : 55;
   const maxSize = count > 15 ? 70 : 100;
 
-  // 2. 业内高级莫兰迪/微渐变调色板
-  const palette = [
-    { light: "rgba(59, 130, 246, 0.12)", main: "rgba(59, 130, 246, 0.7)", border: "rgba(37, 99, 235, 0.9)", shadow: "rgba(59, 130, 246, 0.25)" }, // 科技蓝
-    { light: "rgba(16, 185, 129, 0.12)", main: "rgba(16, 185, 129, 0.7)", border: "rgba(5, 150, 105, 0.9)", shadow: "rgba(16, 185, 129, 0.25)" }, // 翡翠绿
-    { light: "rgba(139, 92, 246, 0.12)", main: "rgba(139, 92, 246, 0.7)", border: "rgba(124, 58, 237, 0.9)", shadow: "rgba(139, 92, 246, 0.25)" }, // 丁香紫
-    { light: "rgba(20, 184, 166, 0.12)", main: "rgba(20, 184, 166, 0.7)", border: "rgba(13, 148, 136, 0.9)", shadow: "rgba(20, 184, 166, 0.25)" }, // 青黛绿
-    { light: "rgba(245, 158, 11, 0.12)", main: "rgba(245, 158, 11, 0.7)", border: "rgba(217, 119, 6, 0.9)", shadow: "rgba(245, 158, 11, 0.25)" }, // 琥珀黄
-    { light: "rgba(236, 72, 153, 0.12)", main: "rgba(236, 72, 153, 0.7)", border: "rgba(219, 39, 119, 0.9)", shadow: "rgba(236, 72, 153, 0.25)" }  // 蔷薇红
-  ];
-
   const bubbleData = list.map((kw: any, idx: number) => {
     // 线性归一化映射
     const t = ((kw.weight || 0) - minW) / range;
     const size = Math.round(minSize + t * (maxSize - minSize));
 
-    // 获取莫兰迪配色
-    const color = palette[idx % palette.length];
+    // 🌟 根据归一化热度 t 动态分配色温梯度（大词靛蓝耀眼，中等科技蓝，小词灰蓝温和，完美契合冷调科技背景）
+    let color;
+    if (t >= 0.8) {
+      color = { light: "rgba(79, 70, 229, 0.08)", main: "rgba(79, 70, 229, 0.65)", border: "rgba(79, 70, 229, 0.95)", shadow: "rgba(79, 70, 229, 0.2)" }; // 核心超高热度：深邃靛蓝
+    } else if (t >= 0.55) {
+      color = { light: "rgba(59, 130, 246, 0.08)", main: "rgba(59, 130, 246, 0.65)", border: "rgba(59, 130, 246, 0.95)", shadow: "rgba(59, 130, 246, 0.15)" }; // 中高热度：标准科技蓝
+    } else if (t >= 0.3) {
+      color = { light: "rgba(6, 182, 212, 0.08)", main: "rgba(6, 182, 212, 0.65)", border: "rgba(6, 182, 212, 0.95)", shadow: "rgba(6, 182, 212, 0.12)" };  // 中等热度：冰川青绿
+    } else {
+      color = { light: "rgba(148, 163, 184, 0.06)", main: "rgba(148, 163, 184, 0.55)", border: "rgba(148, 163, 184, 0.85)", shadow: "rgba(148, 163, 184, 0.1)" }; // 低热度：温和灰蓝色
+    }
 
     // 3. 造型多样化设计 (100% 全云朵气泡图，交替使用三种不同轮廓的云朵造型)
     let symbol = "";
