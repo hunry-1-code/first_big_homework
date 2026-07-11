@@ -56,6 +56,16 @@ function getStageColor(stage: string): string {
   return "#3b82f6";
 }
 
+// 轻量背景（已完成阶段用）
+function getStageLightBg(stage: string): string {
+  const c = getStageColor(stage);
+  if (c === "#3b82f6") return "#dbeafe";
+  if (c === "#f97316") return "#ffedd5";
+  if (c === "#ef4444") return "#fee2e2";
+  if (c === "#22c55e") return "#dcfce7";
+  return "#dbeafe";
+}
+
 // Chart refs
 const trendRef = ref<HTMLDivElement>();
 const sentimentTrendRef = ref<HTMLDivElement>();
@@ -984,19 +994,27 @@ function getProgressColor(heat: number) {
             <!-- 生命周期阶段指示器 -->
             <div class="flex items-center gap-0.5">
               <template v-for="(stage, idx) in lifecycleStages" :key="stage">
-                <span
+                <!-- 已完成 -->
+                <span v-if="idx < currentStageIndex"
                   class="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium transition-all duration-300"
-                  :style="{
-                    backgroundColor: idx < currentStageIndex ? getStageColor(stage) + '30' : idx === currentStageIndex ? getStageColor(stage) : '',
-                    color: idx <= currentStageIndex ? getStageColor(stage) : '',
-                    border: idx < currentStageIndex ? '1px solid ' + getStageColor(stage) + '60' : '1px solid transparent',
-                    fontWeight: idx === currentStageIndex ? '600' : '400'
-                  }"
+                  :style="{ backgroundColor: getStageLightBg(stage), color: getStageColor(stage), border: '1px solid ' + getStageColor(stage) + '40' }"
                 >
-                  <span
-                    class="w-1.5 h-1.5 rounded-full shrink-0"
-                    :style="{ backgroundColor: getStageColor(stage), opacity: idx > currentStageIndex ? '0.35' : '1' }"
-                  />
+                  <span class="w-1.5 h-1.5 rounded-full shrink-0" :style="{ backgroundColor: getStageColor(stage) }" />
+                  {{ stage }}
+                </span>
+                <!-- 当前 -->
+                <span v-else-if="idx === currentStageIndex"
+                  class="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold text-white transition-all duration-300"
+                  :style="{ backgroundColor: getStageColor(stage) }"
+                >
+                  <span class="w-1.5 h-1.5 rounded-full shrink-0 bg-white/70" />
+                  {{ stage }}
+                </span>
+                <!-- 未到达 -->
+                <span v-else
+                  class="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium text-slate-400 dark:text-slate-500 transition-all duration-300"
+                >
+                  <span class="w-1.5 h-1.5 rounded-full shrink-0 bg-slate-300 dark:bg-slate-600" />
                   {{ stage }}
                 </span>
                 <span
