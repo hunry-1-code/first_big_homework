@@ -1121,6 +1121,14 @@ function getProgressColor(heat: number) {
             <p class="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
               {{ eventData.report?.overview_text }}
             </p>
+            <div class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800">
+              <p class="text-xs text-gray-400 dark:text-gray-500 mb-2">
+                💡 对该事件有疑问？使用 AI 智能问答获取深度分析
+              </p>
+              <el-button type="primary" size="small" class="w-full" @click="router.push(`/qa?event_id=${route.params.id}`)">
+                💬 就该事件进行智能提问 →
+              </el-button>
+            </div>
           </el-card>
         </el-col>
         <el-col :xs="24" :lg="16" class="mb-4">
