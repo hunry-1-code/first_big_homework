@@ -987,15 +987,23 @@ function getProgressColor(heat: number) {
                 <span
                   class="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium transition-all duration-300"
                   :style="{
-                    backgroundColor: idx <= currentStageIndex ? getStageColor(stage) : '',
-                    color: idx <= currentStageIndex ? '#fff' : '',
-                    opacity: idx > currentStageIndex ? '0.45' : '1'
+                    backgroundColor: idx < currentStageIndex ? getStageColor(stage) + '30' : idx === currentStageIndex ? getStageColor(stage) : '',
+                    color: idx <= currentStageIndex ? getStageColor(stage) : '',
+                    border: idx < currentStageIndex ? '1px solid ' + getStageColor(stage) + '60' : '1px solid transparent',
+                    fontWeight: idx === currentStageIndex ? '600' : '400'
                   }"
                 >
-                  <span class="w-1.5 h-1.5 rounded-full shrink-0 bg-white/70" />
+                  <span
+                    class="w-1.5 h-1.5 rounded-full shrink-0"
+                    :style="{ backgroundColor: getStageColor(stage), opacity: idx > currentStageIndex ? '0.35' : '1' }"
+                  />
                   {{ stage }}
                 </span>
-                <span v-if="idx < lifecycleStages.length - 1" class="text-gray-300 dark:text-gray-600 text-[10px] mx-0.5">▸</span>
+                <span
+                  v-if="idx < lifecycleStages.length - 1"
+                  class="text-[10px] mx-0.5"
+                  :style="{ color: idx < currentStageIndex ? getStageColor(lifecycleStages[idx + 1]) + '80' : '#cbd5e1' }"
+                >▸</span>
               </template>
             </div>
           </div>
