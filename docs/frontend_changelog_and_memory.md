@@ -114,3 +114,22 @@
    * **智能问答 (`views/qa/index.vue`)**：重构了 ChatGPT 双向对话消息流气泡，添加了事件上下文选择器以及针对选中事件筛选提问历史记录的过滤器。
    * **个人中心 & 系统管理**：整合了敏感词/数据源 preset 的输入与自动胶囊 Tag 渲染，整合了异步进程进度条任务流水监控，以及爬虫健康状态 JSON 终端式展示。
 
+---
+
+## 4. 更新日志 (Changelog - 2026-07-11 第二版)
+
+* **[Refactor]** 将 `views/events/detail.vue` 中的**物理力导向气泡词云**（ECharts `graph` + `layout: "force"` + 云朵 SVG 符号）全面替换为行业标准 **ECharts 官方词云扩展**（`echarts-wordcloud@2.1.0`，基于 wordcloud2.js 螺旋放置算法）。新词云使用**文字即视觉元素**的经典设计：字号线性映射权重、色温四档渐变（靛蓝→科技蓝→青绿→灰蓝）、±45° 随机微旋、自适应 gridSize 碰撞检测、shrinkToFit 自动缩放到边界、layoutAnimation 异步布局防止阻塞渲染。
+* **[Fix]** 解决 `echarts-wordcloud@2.1.0` 与 **ECharts 6.x 的兼容性问题**：该扩展内部通过 `import 'echarts/lib/echarts'` 引用 ECharts 内部模块，而 ECharts 6 的 `package.json` exports 字段封堵了此子路径。通过 `patch-package` 将三个源文件（`wordCloud.js`、`WordCloudSeries.js`、`WordCloudView.js`）的 import 路径修正为 `import 'echarts'`，补丁存放于 `frontend/patches/echarts-wordcloud+2.1.0.patch`。
+* **[Fix]** 将 `echarts-wordcloud` 加入 Vite `optimizeDeps.exclude`（`frontend/build/optimize.ts`），防止预打包使用未打补丁的 `dist/` bundle 而导致词云注册到错误的 echarts 实例。
+* **[Config]** 新增 `frontend/package.json` 依赖 `echarts-wordcloud@2.1.0`、devDependency `patch-package@8.0.1`、`postinstall` 脚本自动应用补丁。
+* **[Fix]** 修复根目录 `.gitignore` 中 `build/` 规则误伤 `frontend/build/` 目录（改为 `/build/` 仅匹配根级）。
+* **[Style]** 词云所有词语改为水平排列（`rotationRange: [0, 0]`），提升可读性。
+* **[Feat]** 词云卡片新增**形状选择器**（`el-select` 下拉框），支持 8 种内置形状：圆形（默认）、心形、菱形、方形、三角、倒三角、五边形、星形，切换即时重绘。
+
+### 4.1 注意事项 (Caveats)
+
+* **补丁持久化**：`npm install` 后 `postinstall` 脚本会自动运行 `patch-package` 应用补丁。若补丁应用失败（如 echarts-wordcloud 大版本升级），需重新生成。
+* **缩放机制**：echarts-wordcloud 不支持原生 `zoom` 属性，缩放通过 CSS `transform: scale()` 作用于图表容器 `<div>` 实现，容器需包裹 `overflow: hidden` 防止溢出。
+* **ECharts 版本**：当前 ECharts 6.1.0，`echarts-wordcloud` peerDependency 为 `^5.0.1`。升级 ECharts 大版本时需重新验证兼容性。
+* **Vite 预打包**：`echarts-wordcloud` 必须在 `optimizeDeps.exclude` 中，否则 Vite 会用未打补丁的 `dist/` webpack bundle 替代源码，导致 `[ECharts] Unknown series wordCloud` 运行时错误。
+
