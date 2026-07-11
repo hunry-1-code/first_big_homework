@@ -328,13 +328,7 @@ export default defineFakeRoute([
       return {
         code: 0,
         message: "操作成功",
-        data: [
-          systemManagementRouter,
-          systemMonitorRouter,
-          permissionRouter,
-          frameRouter,
-          tabsRouter
-        ]
+        data: []
       };
     }
   }

@@ -154,6 +154,7 @@ function addPathMatch() {
   }
 }
 
+// ---- 调试：打印侧边栏菜单数据 ----
 /** 处理动态路由（后端返回的路由） */
 function handleAsyncRoutes(routeList) {
   if (routeList.length === 0) {
