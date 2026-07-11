@@ -6,7 +6,8 @@ import "echarts-wordcloud";
 import { getEvent, exportEventReport } from "@/api/events";
 import { useDark } from "@pureadmin/utils";
 import { message } from "@/utils/message";
-import { PLATFORMS, platformColor, platformBg, type PlatformInfo } from "@/constants/platforms";
+import { PLATFORMS, platformColor, platformBg, getPlatform, type PlatformInfo } from "@/constants/platforms";
+import IconifyIconOffline from "@/components/ReIcon/src/iconifyIconOffline";
 import PlusIcon from "~icons/ep/plus";
 import MinusIcon from "~icons/ep/minus";
 import RefreshRightIcon from "~icons/ep/refresh-right";
@@ -1281,12 +1282,15 @@ function getProgressColor(heat: number) {
         <el-table :data="eventData.articles?.articles" stripe style="width: 100%">
           <el-table-column type="index" label="#" width="50" align="center" />
           <el-table-column prop="title" label="报道标题" min-width="200" show-overflow-tooltip />
-          <el-table-column prop="platform" label="来源平台" width="100">
+          <el-table-column prop="platform" label="来源平台" width="120">
             <template #default="{ row }">
               <span
-                class="text-[11px] px-1.5 py-px rounded font-medium"
+                class="inline-flex items-center gap-1 text-[11px] px-1.5 py-px rounded font-medium"
                 :style="{ color: platformColor(row.platform), background: platformBg(row.platform) }"
-              >{{ row.platform }}</span>
+              >
+                <IconifyIconOffline :icon="getPlatform(row.platform)?.icon || ''" class="text-sm" />
+                {{ row.platform }}
+              </span>
             </template>
           </el-table-column>
           <el-table-column prop="author" label="作者" width="100" show-overflow-tooltip>

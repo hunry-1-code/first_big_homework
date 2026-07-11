@@ -52,14 +52,17 @@
     </div>
 
     <!-- 信源平台 -->
-    <div class="flex items-center gap-1.5 mb-3">
+    <div class="flex items-center gap-1.5 mb-3 flex-wrap">
       <span class="text-[10px] text-slate-400 dark:text-slate-500 shrink-0">信源:</span>
       <span
         v-for="p in getPlatformBadges(event.id)"
         :key="p.name"
-        class="text-[10px] px-1.5 py-px rounded font-medium"
+        class="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-px rounded font-medium"
         :style="{ color: p.color, background: p.bg }"
-      >{{ p.name }}</span>
+      >
+        <IconifyIconOffline :icon="p.icon" class="text-xs" />
+        {{ p.name }}
+      </span>
     </div>
 
     <div class="flex justify-end pt-2 border-t border-slate-100 dark:border-slate-800/60">
@@ -77,6 +80,7 @@
 
 <script setup lang="ts">
 import { PLATFORMS, type PlatformInfo } from "@/constants/platforms";
+import IconifyIconOffline from "@/components/ReIcon/src/iconifyIconOffline";
 
 defineProps<{
   event: {
