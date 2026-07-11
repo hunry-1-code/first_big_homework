@@ -1,96 +1,147 @@
 <template>
-  <div class="users-container p-6 space-y-6">
-    <!-- 头部横幅 -->
-    <div class="flex justify-between items-center bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/60 p-6 rounded-2xl shadow-sm">
-      <div>
-        <h1 class="text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-          <span>👥 用户管理</span>
-        </h1>
-        <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">
-          管理系统用户账号，包括创建、编辑、重置密码、删除等操作。
-        </p>
-      </div>
-      <el-button type="primary" size="large" @click="openCreateUser">新增用户</el-button>
+  <div class="users-container p-6 space-y-4">
+    <!-- 搜索表单 -->
+    <div class="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/60 p-4 rounded-xl shadow-sm">
+      <el-form :model="form" inline class="search-form">
+        <el-form-item label="用户名称：">
+          <el-input v-model="form.username" placeholder="请输入用户名" clearable class="!w-[200px]" @keyup.enter="onSearch" />
+        </el-form-item>
+        <el-form-item label="角色：">
+          <el-select v-model="form.role" placeholder="全部" clearable class="!w-[140px]" @change="onSearch">
+            <el-option label="管理员" value="admin" />
+            <el-option label="普通用户" value="user" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="状态：">
+          <el-select v-model="form.status" placeholder="全部" clearable class="!w-[120px]" @change="onSearch">
+            <el-option label="启用" value="1" />
+            <el-option label="停用" value="0" />
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" :icon="useRenderIcon('ri/search-line')" :loading="loading" @click="onSearch">
+            搜索
+          </el-button>
+          <el-button :icon="useRenderIcon(Refresh)" @click="resetForm">重置</el-button>
+        </el-form-item>
+      </el-form>
     </div>
 
-    <!-- 搜索与筛选 -->
-    <div class="flex items-center gap-3 bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/60 dark:border-slate-800/60 shadow-sm">
-      <el-input
-        v-model="userKeyword"
-        placeholder="搜索用户名 / 昵称"
-        size="default"
-        clearable
-        class="!w-[240px]"
-        @keyup.enter="loadUsers"
-        @clear="loadUsers"
-      >
-        <template #prefix>
-          <span class="text-slate-400">🔍</span>
-        </template>
-      </el-input>
-      <el-select v-model="userRoleFilter" size="default" class="!w-[120px]" clearable placeholder="全部角色" @change="loadUsers">
-        <el-option label="管理员" value="admin" />
-        <el-option label="普通用户" value="user" />
-      </el-select>
-      <el-button size="default" @click="loadUsers">搜索</el-button>
-    </div>
-
-    <!-- 用户表格 -->
+    <!-- 表格卡片 -->
     <el-card shadow="never" class="!border-slate-200/60 dark:!border-slate-800/60 rounded-xl">
-      <el-table :data="userList" v-loading="userLoading" stripe size="default">
-        <el-table-column type="index" label="#" width="50" />
-        <el-table-column prop="username" label="用户名" min-width="120" />
-        <el-table-column prop="nickname" label="昵称" min-width="120" />
-        <el-table-column prop="role" label="角色" width="100">
+      <template #header>
+        <div class="flex justify-between items-center">
+          <span class="font-bold text-slate-800 dark:text-slate-100">用户列表</span>
+          <div class="flex items-center gap-2">
+            <el-button type="primary" :icon="useRenderIcon(AddFill)" @click="openDialog()">
+              新增用户
+            </el-button>
+            <el-button :icon="useRenderIcon(Refresh)" @click="loadUsers">刷新</el-button>
+          </div>
+        </div>
+      </template>
+
+      <!-- 批量操作栏 -->
+      <div
+        v-if="selectedIds.length > 0"
+        class="bg-slate-50 dark:bg-slate-800 w-full h-10 mb-3 px-4 flex items-center rounded-lg text-sm"
+      >
+        <span class="flex-auto text-slate-500 dark:text-slate-400">
+          已选 {{ selectedIds.length }} 项
+        </span>
+        <el-button type="primary" text size="small" @click="selectedIds = []">取消选择</el-button>
+        <el-popconfirm title="是否确认批量删除?" @confirm="onBatchDel">
+          <template #reference>
+            <el-button type="danger" text size="small">批量删除</el-button>
+          </template>
+        </el-popconfirm>
+      </div>
+
+      <el-table
+        ref="tableRef"
+        :data="dataList"
+        stripe
+        size="default"
+        v-loading="loading"
+        @selection-change="onSelectionChange"
+      >
+        <el-table-column type="selection" width="45" />
+        <el-table-column prop="id" label="编号" width="70" align="center" />
+        <el-table-column prop="username" label="用户名" min-width="110" />
+        <el-table-column prop="nickname" label="昵称" min-width="110" />
+        <el-table-column prop="role" label="角色" width="100" align="center">
           <template #default="{ row }">
-            <el-tag :type="row.role === 'admin' ? 'danger' : 'info'" size="small" effect="light">
+            <el-tag :type="row.role === 'admin' ? 'danger' : ''" size="small" effect="light">
               {{ row.role === 'admin' ? '管理员' : '普通用户' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="status" label="状态" width="80">
+        <el-table-column prop="status" label="状态" width="80" align="center">
           <template #default="{ row }">
             <el-tag :type="row.status === 0 ? 'danger' : 'success'" size="small" effect="dark">
               {{ row.status === 0 ? '停用' : '启用' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="last_login_at" label="最后登录" width="160">
+        <el-table-column prop="last_login_at" label="最后登录" min-width="150">
           <template #default="{ row }">
             <span class="text-xs text-slate-500 dark:text-slate-400">{{ row.last_login_at || '从未登录' }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="created_at" label="创建时间" width="160" />
-        <el-table-column label="操作" width="240" fixed="right">
+        <el-table-column prop="created_at" label="创建时间" width="110" />
+        <el-table-column label="操作" width="220" fixed="right">
           <template #default="{ row }">
-            <el-button type="primary" link size="small" @click="openEditUser(row)">编辑</el-button>
-            <el-button type="warning" link size="small" @click="openResetPwd(row)">重置密码</el-button>
-            <el-button type="danger" link size="small" @click="handleDeleteUser(row)">删除</el-button>
+            <el-button link type="primary" size="small" :icon="useRenderIcon(EditPen)" @click="openDialog('修改', row)">
+              修改
+            </el-button>
+            <el-popconfirm title="是否确认删除?" @confirm="handleDelete(row)">
+              <template #reference>
+                <el-button link type="danger" size="small" :icon="useRenderIcon(Delete)">删除</el-button>
+              </template>
+            </el-popconfirm>
+            <el-dropdown>
+              <el-button link type="primary" size="small" :icon="useRenderIcon(More)" class="ml-1!" />
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item @click="handleResetPwd(row)">
+                    <el-button link type="warning" size="small" :icon="useRenderIcon(Password)">
+                      重置密码
+                    </el-button>
+                  </el-dropdown-item>
+                  <el-dropdown-item @click="handleToggleStatus(row)">
+                    <el-button link type="info" size="small" :icon="useRenderIcon('ri:toggle-line')">
+                      {{ row.status === 1 ? '停用账号' : '启用账号' }}
+                    </el-button>
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
           </template>
         </el-table-column>
       </el-table>
 
       <div class="flex justify-end mt-4">
         <el-pagination
-          v-model:current-page="userPage"
-          v-model:page-size="userPageSize"
-          :total="userTotal"
+          v-model:current-page="pagination.currentPage"
+          v-model:page-size="pagination.pageSize"
+          :total="pagination.total"
           :page-sizes="[10, 20, 50]"
           layout="total, sizes, prev, pager, next"
           small
-          @current-change="loadUsers"
+          background
           @size-change="loadUsers"
+          @current-change="loadUsers"
         />
       </div>
     </el-card>
 
-    <!-- 新增/编辑用户弹窗 -->
-    <el-dialog v-model="userDialogVisible" :title="userDialogTitle" width="420px" destroy-on-close>
-      <el-form :model="userForm" label-width="80px" size="default">
+    <!-- 新增/编辑弹窗 -->
+    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="440px" destroy-on-close>
+      <el-form ref="userFormRef" :model="userForm" label-width="80px" size="default">
         <el-form-item label="用户名" required>
-          <el-input v-model="userForm.username" :disabled="!!userForm.id" placeholder="请输入用户名" />
+          <el-input v-model="userForm.username" :disabled="isEdit" placeholder="请输入用户名" />
         </el-form-item>
-        <el-form-item v-if="!userForm.id" label="密码" required>
+        <el-form-item v-if="!isEdit" label="密码" required>
           <el-input v-model="userForm.password" type="password" placeholder="请输入密码" show-password />
         </el-form-item>
         <el-form-item label="昵称">
@@ -104,157 +155,201 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="userDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleUserSubmit">确定</el-button>
+        <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="handleSubmit">确定</el-button>
       </template>
     </el-dialog>
 
     <!-- 重置密码弹窗 -->
-    <el-dialog v-model="resetPwdDialogVisible" title="重置密码" width="360px" destroy-on-close>
+    <el-dialog v-model="resetPwdVisible" title="重置密码" width="360px" destroy-on-close>
       <el-form label-width="80px">
         <el-form-item label="新密码" required>
-          <el-input v-model="resetPwdNew" type="password" placeholder="请输入新密码" show-password />
+          <el-input v-model="resetPwdValue" type="password" placeholder="请输入新密码" show-password />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="resetPwdDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleResetPwd">确定</el-button>
+        <el-button @click="resetPwdVisible = false">取消</el-button>
+        <el-button type="primary" @click="doResetPwd">确定</el-button>
       </template>
     </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, reactive } from "vue";
-import {
-  getUserList,
-  createUser,
-  updateUser,
-  resetUserPassword,
-  deleteUser,
-  type AdminUser,
-  type UserFormData
-} from "@/api/admin";
+import { onMounted, ref, reactive, computed } from "vue";
+import { useRenderIcon } from "@/components/ReIcon/src/hooks";
 import { message } from "@/utils/message";
+import type { AdminUser } from "@/api/admin";
 
-defineOptions({
-  name: "AdminUsers"
-});
+import Refresh from "~icons/ep/refresh";
+import AddFill from "~icons/ri/add-circle-line";
+import EditPen from "~icons/ep/edit-pen";
+import Delete from "~icons/ep/delete";
+import More from "~icons/ep/more-filled";
+import Password from "~icons/ri/lock-password-line";
 
-// 列表状态
-const userLoading = ref(false);
-const userList = ref<AdminUser[]>([]);
-const userTotal = ref(0);
-const userPage = ref(1);
-const userPageSize = ref(20);
-const userKeyword = ref("");
-const userRoleFilter = ref("");
+// 注意：mock 模式下 import 仅做类型标注，实际数据由 vite-plugin-fake-server 拦截
 
-// 弹窗状态
-const userDialogVisible = ref(false);
-const userDialogTitle = ref("新增用户");
-const userForm = reactive<UserFormData & { id?: number }>({
-  username: "",
-  password: "",
-  nickname: "",
-  role: "user"
-});
-const resetPwdDialogVisible = ref(false);
-const resetPwdUserId = ref(0);
-const resetPwdNew = ref("");
+defineOptions({ name: "AdminUsers" });
 
-onMounted(() => {
-  loadUsers();
-});
+const tableRef = ref();
+const loading = ref(false);
+const dataList = ref<AdminUser[]>([]);
+const selectedIds = ref<number[]>([]);
+const pagination = reactive({ total: 0, pageSize: 20, currentPage: 1 });
+
+const form = reactive({ username: "", role: "", status: "" });
+
+// 弹窗
+const dialogVisible = ref(false);
+const dialogTitle = ref("新增用户");
+const isEdit = ref(false);
+const userForm = reactive({ id: 0, username: "", password: "", nickname: "", role: "user" });
+const resetPwdVisible = ref(false);
+const resetPwdId = ref(0);
+const resetPwdValue = ref("");
+
+onMounted(() => loadUsers());
 
 async function loadUsers() {
-  userLoading.value = true;
+  loading.value = true;
   try {
-    const res = await getUserList({
-      page: userPage.value,
-      size: userPageSize.value,
-      keyword: userKeyword.value || undefined,
-      role: userRoleFilter.value || undefined
+    const query = new URLSearchParams({
+      page: String(pagination.currentPage),
+      size: String(pagination.pageSize),
     });
-    if (res.code === 200) {
-      userList.value = res.data.users;
-      userTotal.value = res.data.total;
+    if (form.username) query.set("keyword", form.username);
+    if (form.role) query.set("role", form.role);
+    if (form.status) query.set("status", form.status);
+
+    const res = await fetch(`/api/admin/users?${query.toString()}`);
+    const json = await res.json();
+    if (json.code === 200) {
+      dataList.value = json.data.users;
+      pagination.total = json.data.total;
     }
   } catch {
-    userList.value = [];
-    userTotal.value = 0;
+    dataList.value = [];
   } finally {
-    userLoading.value = false;
+    loading.value = false;
   }
 }
 
-function openCreateUser() {
-  userDialogTitle.value = "新增用户";
-  userForm.id = undefined;
-  userForm.username = "";
-  userForm.password = "";
-  userForm.nickname = "";
-  userForm.role = "user";
-  userDialogVisible.value = true;
+function onSearch() {
+  pagination.currentPage = 1;
+  loadUsers();
 }
 
-function openEditUser(row: AdminUser) {
-  userDialogTitle.value = "编辑用户";
-  userForm.id = row.id;
-  userForm.username = row.username;
-  userForm.password = "";
-  userForm.nickname = row.nickname;
-  userForm.role = row.role;
-  userDialogVisible.value = true;
+function resetForm() {
+  form.username = "";
+  form.role = "";
+  form.status = "";
+  onSearch();
 }
 
-async function handleUserSubmit() {
+function onSelectionChange(selection: AdminUser[]) {
+  selectedIds.value = selection.map((r: AdminUser) => r.id);
+}
+
+async function onBatchDel() {
   try {
-    if (userForm.id) {
-      await updateUser(userForm.id, {
-        nickname: userForm.nickname,
-        role: userForm.role
-      });
-      message("用户更新成功", { type: "success" });
-    } else {
-      await createUser({
-        username: userForm.username,
-        password: userForm.password || "123456",
-        nickname: userForm.nickname,
-        role: userForm.role
-      });
-      message("用户创建成功", { type: "success" });
+    for (const id of selectedIds.value) {
+      await fetch(`/api/admin/users/${id}`, { method: "DELETE" });
     }
-    userDialogVisible.value = false;
+    message("批量删除成功", { type: "success" });
+    selectedIds.value = [];
     loadUsers();
   } catch {
-    message("操作失败，请确认后端接口已部署", { type: "error" });
+    message("删除失败", { type: "error" });
   }
 }
 
-function openResetPwd(row: AdminUser) {
-  resetPwdUserId.value = row.id;
-  resetPwdNew.value = "";
-  resetPwdDialogVisible.value = true;
+function openDialog(title = "新增用户", row?: AdminUser) {
+  dialogTitle.value = title;
+  if (row) {
+    isEdit.value = true;
+    userForm.id = row.id;
+    userForm.username = row.username;
+    userForm.password = "";
+    userForm.nickname = row.nickname;
+    userForm.role = row.role;
+  } else {
+    isEdit.value = false;
+    userForm.id = 0;
+    userForm.username = "";
+    userForm.password = "";
+    userForm.nickname = "";
+    userForm.role = "user";
+  }
+  dialogVisible.value = true;
 }
 
-async function handleResetPwd() {
+async function handleSubmit() {
   try {
-    await resetUserPassword(resetPwdUserId.value, resetPwdNew.value || "123456");
-    message("密码重置成功", { type: "success" });
-    resetPwdDialogVisible.value = false;
+    if (isEdit.value) {
+      await fetch(`/api/admin/users/${userForm.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nickname: userForm.nickname, role: userForm.role })
+      });
+      message("修改成功", { type: "success" });
+    } else {
+      await fetch("/api/admin/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: userForm.username, password: userForm.password || "123456", nickname: userForm.nickname, role: userForm.role })
+      });
+      message("新增成功", { type: "success" });
+    }
+    dialogVisible.value = false;
+    loadUsers();
   } catch {
     message("操作失败", { type: "error" });
   }
 }
 
-async function handleDeleteUser(row: AdminUser) {
+async function handleDelete(row: AdminUser) {
   try {
-    await deleteUser(row.id);
-    message("用户已删除", { type: "success" });
+    await fetch(`/api/admin/users/${row.id}`, { method: "DELETE" });
+    message("删除成功", { type: "success" });
     loadUsers();
   } catch {
     message("删除失败", { type: "error" });
+  }
+}
+
+function handleResetPwd(row: AdminUser) {
+  resetPwdId.value = row.id;
+  resetPwdValue.value = "";
+  resetPwdVisible.value = true;
+}
+
+async function doResetPwd() {
+  try {
+    await fetch(`/api/admin/users/${resetPwdId.value}/password`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: resetPwdValue.value || "123456" })
+    });
+    message("密码重置成功", { type: "success" });
+    resetPwdVisible.value = false;
+  } catch {
+    message("操作失败", { type: "error" });
+  }
+}
+
+async function handleToggleStatus(row: AdminUser) {
+  try {
+    const newStatus = row.status === 1 ? 0 : 1;
+    await fetch(`/api/admin/users/${row.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: newStatus })
+    });
+    message(newStatus === 1 ? "已启用" : "已停用", { type: "success" });
+    loadUsers();
+  } catch {
+    message("操作失败", { type: "error" });
   }
 }
 </script>
@@ -262,5 +357,14 @@ async function handleDeleteUser(row: AdminUser) {
 <style scoped>
 .users-container {
   min-height: calc(100vh - 120px);
+}
+
+.search-form :deep(.el-form-item) {
+  margin-bottom: 0;
+}
+
+:deep(.el-dropdown-menu__item .el-button) {
+  justify-content: flex-start;
+  width: 100%;
 }
 </style>

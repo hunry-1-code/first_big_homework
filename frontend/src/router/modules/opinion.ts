@@ -54,20 +54,32 @@ export default [
         component: () => import("@/views/admin/index.vue"),
         meta: {
           icon: "ep:setting",
-          title: "系统管理",
+          title: "运维管理",
           rank: 99,
           roles: ["admin"]
         }
-      },
+      }
+    ]
+  },
+  {
+    path: "/system",
+    name: "System",
+    component: Layout,
+    redirect: "/system/users",
+    meta: {
+      icon: "ri:settings-3-line",
+      title: "系统管理",
+      rank: 99,
+      roles: ["admin"]
+    },
+    children: [
       {
-        path: "/admin/users",
-        name: "AdminUsers",
+        path: "/system/users",
+        name: "SystemUsers",
         component: () => import("@/views/admin/users.vue"),
         meta: {
-          icon: "ep:user-filled",
-          title: "用户管理",
-          rank: 100,
-          roles: ["admin"]
+          icon: "ri:admin-line",
+          title: "用户管理"
         }
       }
     ]
