@@ -12,6 +12,14 @@ import EpLollipop from "~icons/ep/lollipop?raw";
 import EpHistogram from "~icons/ep/histogram?raw";
 import EpHomeFilled from "~icons/ep/home-filled?raw";
 
+// https://icon-sets.iconify.design/ant-design/?keyword=ant-design
+import AntWeiboCircleFilled from "~icons/ant-design/weibo-circle-filled?raw";
+import AntZhihuCircleFilled from "~icons/ant-design/zhihu-circle-filled?raw";
+import AntBilibiliFilled from "~icons/ant-design/bilibili-filled?raw";
+import AntBaiduOutlined from "~icons/ant-design/baidu-outlined?raw";
+// https://icon-sets.iconify.design/simple-icons/?keyword=simple-icons
+import SiXiaohongshu from "~icons/simple-icons/xiaohongshu?raw";
+
 // https://icon-sets.iconify.design/ri/?keyword=ri
 import RiMindMap from "~icons/ri/mind-map?raw";
 import RiAdminFill from "~icons/ri/admin-fill?raw";
@@ -42,6 +50,12 @@ import RiCheckboxCircleLine from "~icons/ri/checkbox-circle-line?raw";
 import RiBarChartHorizontalLine from "~icons/ri/bar-chart-horizontal-line?raw";
 
 const icons = [
+  // Platform logos (ant-design + simple-icons)
+  ["ant-design:weibo-circle-filled", AntWeiboCircleFilled],
+  ["ant-design:zhihu-circle-filled", AntZhihuCircleFilled],
+  ["ant-design:bilibili-filled", AntBilibiliFilled],
+  ["ant-design:baidu-outlined", AntBaiduOutlined],
+  ["simple-icons:xiaohongshu", SiXiaohongshu],
   // Element Plus Icon: https://github.com/element-plus/element-plus-icons
   ["ep/menu", EpMenu],
   ["ep/edit", EpEdit],

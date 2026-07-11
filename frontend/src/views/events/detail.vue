@@ -519,18 +519,10 @@ function initPlatformChart() {
   articles.forEach((a: any) => { countMap[a.platform] = (countMap[a.platform] || 0) + 1; });
   const list = platforms.map(p => ({ ...p, count: countMap[p.name] || 1 }));
 
-  // 构建 y 轴 rich text 标签：● 平台名
   const yData = [...list].reverse();
-  const richLabels: Record<string, any> = {};
-  yData.forEach(p => {
-    richLabels[p.name] = {
-      color: p.color, fontSize: 14, fontWeight: "bold",
-      padding: [0, 6, 0, 0], verticalAlign: "middle"
-    };
-  });
 
   platformChart.setOption({
-    grid: { top: 10, right: 55, bottom: 20, left: 95 },
+    grid: { top: 10, right: 55, bottom: 20, left: 85 },
     tooltip: {
       trigger: "axis",
       axisPointer: { type: "shadow" },
@@ -539,7 +531,7 @@ function initPlatformChart() {
       textStyle: { color: dark ? "#e2e8f0" : "#1e293b" },
       formatter: (params: any) => {
         const p = list.find(x => x.name === params[0]?.name);
-        return p ? `<b>${p.name}</b><br/>报道量: <b>${p.count} 篇</b><br/>接入方式: ${p.api}` : "";
+        return p ? `<b>${p.name}</b><br/>报道量: <b>${p.count} 篇</b><br/>接入方式: ${p.api}</b>` : "";
       }
     },
     xAxis: {
@@ -550,11 +542,7 @@ function initPlatformChart() {
     yAxis: {
       type: "category",
       data: yData.map(p => p.name),
-      axisLabel: {
-        color: c.textColor, fontSize: 12,
-        formatter: (name: string) => `{${name}|●} ${name}`,
-        rich: richLabels
-      },
+      axisLabel: { color: c.textColor, fontSize: 12 },
       axisLine: { lineStyle: { color: c.splitLineColor } }
     },
     series: [{
