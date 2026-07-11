@@ -56,9 +56,10 @@
       <span class="text-[10px] text-slate-400 dark:text-slate-500 shrink-0">信源:</span>
       <span
         v-for="p in getPlatformBadges(event.id)"
-        :key="p"
-        class="text-[10px] px-1.5 py-px rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400"
-      >{{ p }}</span>
+        :key="p.name"
+        class="text-[10px] px-1.5 py-px rounded font-medium"
+        :style="{ color: p.color, background: p.bg }"
+      >{{ p.name }}</span>
     </div>
 
     <div class="flex justify-end pt-2 border-t border-slate-100 dark:border-slate-800/60">
@@ -75,6 +76,8 @@
 </template>
 
 <script setup lang="ts">
+import { PLATFORMS, type PlatformInfo } from "@/constants/platforms";
+
 defineProps<{
   event: {
     id: number;
@@ -105,13 +108,12 @@ function getProgressColor(heat: number) {
   return "#3b82f6";
 }
 
-const ALL_PLATFORMS = ["微博热搜", "知乎", "B站", "百度热搜", "小红书", "微博搜索", "百度搜索"];
-function getPlatformBadges(eventId: number): string[] {
+function getPlatformBadges(eventId: number): PlatformInfo[] {
   const count = 2 + (eventId % 3);
-  const start = (eventId * 3) % ALL_PLATFORMS.length;
-  const result: string[] = [];
+  const start = (eventId * 3) % PLATFORMS.length;
+  const result: PlatformInfo[] = [];
   for (let i = 0; i < count; i++) {
-    result.push(ALL_PLATFORMS[(start + i) % ALL_PLATFORMS.length]);
+    result.push(PLATFORMS[(start + i) % PLATFORMS.length]);
   }
   return result;
 }

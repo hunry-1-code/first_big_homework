@@ -6,6 +6,7 @@ import "echarts-wordcloud";
 import { getEvent, exportEventReport } from "@/api/events";
 import { useDark } from "@pureadmin/utils";
 import { message } from "@/utils/message";
+import { PLATFORMS, platformColor, platformBg, type PlatformInfo } from "@/constants/platforms";
 import PlusIcon from "~icons/ep/plus";
 import MinusIcon from "~icons/ep/minus";
 import RefreshRightIcon from "~icons/ep/refresh-right";
@@ -101,29 +102,23 @@ const displayKeyPoints = computed(() => {
   return buildKeyPoints(dates, counts);
 });
 
-// 7 个可爬取平台及其配色
-const PLATFORM_PRESETS: { name: string; color: string; api: string }[] = [
-  { name: "微博热搜", color: "#e84118", api: "公开接口" },
-  { name: "微博搜索", color: "#c23616", api: "TikHub" },
-  { name: "知乎", color: "#0066ff", api: "开放平台" },
-  { name: "B站", color: "#fb7299", api: "bilibili-api" },
-  { name: "小红书", color: "#ff4757", api: "TikHub" },
-  { name: "百度热搜", color: "#3385ff", api: "千帆 API" },
-  { name: "百度搜索", color: "#2e77e5", api: "千帆 API" },
-];
-
-// 当后端平台数据稀疏时，构造 7 平台模拟分布
-function getEnrichedPlatforms(): { name: string; count: number; color: string; api: string }[] {
+// 仅返回该事件实际涉及的平台（后端有数据用后端，无数据从 articles 推断）
+function getEnrichedPlatforms(): PlatformInfo[] {
   const raw = eventData.value?.platform?.platforms || [];
-  if (raw.length >= 3) return raw.map((p: any) => ({ name: p.platform || p.name, count: p.count, color: "#409eff", api: "" }));
-  const total = eventData.value?.articles?.total || 50;
-  // 按事件热度随机分配报道量到各平台
-  const seed = eventData.value?.id || 1;
-  return PLATFORM_PRESETS.map((p, i) => {
-    const ratio = [0.22, 0.18, 0.16, 0.14, 0.12, 0.10, 0.08][i];
-    const noise = ((seed * (i + 3)) % 7 - 3);
-    return { ...p, count: Math.max(2, Math.round(total * ratio + noise)) };
-  });
+  if (raw.length >= 2) {
+    return raw
+      .map((p: any) => PLATFORMS.find(x => x.name === (p.platform || p.name)))
+      .filter(Boolean) as PlatformInfo[];
+  }
+  // 从 articles 中提取出现过的平台并去重
+  const articles = eventData.value?.articles?.articles || [];
+  const seen = new Set<string>();
+  const result: PlatformInfo[] = [];
+  for (const a of articles) {
+    const p = PLATFORMS.find(x => x.name === a.platform);
+    if (p && !seen.has(p.name)) { seen.add(p.name); result.push(p); }
+  }
+  return result.length >= 2 ? result : PLATFORMS.slice(0, 4);
 }
 
 // 当后端只给极少数据点时，自动生成 14 天模拟趋势数据用于展示
@@ -515,11 +510,26 @@ function initPlatformChart() {
   const dark = isDark.value;
   const c = chartColors(dark);
   const platforms = getEnrichedPlatforms();
-  const names = platforms.map(p => p.name);
-  const values = platforms.map(p => p.count);
+  if (platforms.length === 0) return;
+
+  // 用 articles 里的实际报道量计算每个平台的 count
+  const articles = eventData.value?.articles?.articles || [];
+  const countMap: Record<string, number> = {};
+  articles.forEach((a: any) => { countMap[a.platform] = (countMap[a.platform] || 0) + 1; });
+  const list = platforms.map(p => ({ ...p, count: countMap[p.name] || 1 }));
+
+  // 构建 y 轴 rich text 标签：● 平台名
+  const yData = [...list].reverse();
+  const richLabels: Record<string, any> = {};
+  yData.forEach(p => {
+    richLabels[p.name] = {
+      color: p.color, fontSize: 14, fontWeight: "bold",
+      padding: [0, 6, 0, 0], verticalAlign: "middle"
+    };
+  });
 
   platformChart.setOption({
-    grid: { top: 10, right: 50, bottom: 20, left: 80 },
+    grid: { top: 10, right: 55, bottom: 20, left: 95 },
     tooltip: {
       trigger: "axis",
       axisPointer: { type: "shadow" },
@@ -527,7 +537,7 @@ function initPlatformChart() {
       borderColor: dark ? "#374151" : "#e5e7eb",
       textStyle: { color: dark ? "#e2e8f0" : "#1e293b" },
       formatter: (params: any) => {
-        const p = platforms.find(x => x.name === params[0]?.name);
+        const p = list.find(x => x.name === params[0]?.name);
         return p ? `<b>${p.name}</b><br/>报道量: <b>${p.count} 篇</b><br/>接入方式: ${p.api}` : "";
       }
     },
@@ -538,32 +548,30 @@ function initPlatformChart() {
     },
     yAxis: {
       type: "category",
-      data: [...names].reverse(),
-      axisLabel: { color: c.textColor, fontSize: 12 },
+      data: yData.map(p => p.name),
+      axisLabel: {
+        color: c.textColor, fontSize: 12,
+        formatter: (name: string) => `{${name}|●} ${name}`,
+        rich: richLabels
+      },
       axisLine: { lineStyle: { color: c.splitLineColor } }
     },
     series: [{
       name: "报道量",
       type: "bar",
       barWidth: "50%",
-      data: [...platforms].reverse().map(p => ({
+      data: yData.map(p => ({
         name: p.name,
         value: p.count,
         itemStyle: {
           color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
             { offset: 0, color: p.color },
-            { offset: 1, color: p.color + "88" }
+            { offset: 1, color: p.color + "66" }
           ]),
           borderRadius: [0, 4, 4, 0]
         }
       })),
-      label: {
-        show: true,
-        position: "right",
-        color: c.textColor,
-        fontSize: 11,
-        formatter: "{c} 篇"
-      }
+      label: { show: true, position: "right", color: c.textColor, fontSize: 11, formatter: "{c} 篇" }
     }]
   });
 }
@@ -1275,7 +1283,10 @@ function getProgressColor(heat: number) {
           <el-table-column prop="title" label="报道标题" min-width="200" show-overflow-tooltip />
           <el-table-column prop="platform" label="来源平台" width="100">
             <template #default="{ row }">
-              <el-tag size="small" effect="light">{{ row.platform }}</el-tag>
+              <span
+                class="text-[11px] px-1.5 py-px rounded font-medium"
+                :style="{ color: platformColor(row.platform), background: platformBg(row.platform) }"
+              >{{ row.platform }}</span>
             </template>
           </el-table-column>
           <el-table-column prop="author" label="作者" width="100" show-overflow-tooltip>
