@@ -58,6 +58,17 @@ export default [
           rank: 99,
           roles: ["admin"]
         }
+      },
+      {
+        path: "/admin/users",
+        name: "AdminUsers",
+        component: () => import("@/views/admin/users.vue"),
+        meta: {
+          icon: "ep:user-filled",
+          title: "用户管理",
+          rank: 100,
+          roles: ["admin"]
+        }
       }
     ]
   }
