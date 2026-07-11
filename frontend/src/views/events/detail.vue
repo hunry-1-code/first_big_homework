@@ -22,9 +22,21 @@ const loading = ref(true);
 const { isDark } = useDark();
 const currentZoom = ref(1.0);
 const initialZoom = ref(1.0);
+const currentShape = ref("circle");
 const ZOOM_STEP = 0.12;
 const ZOOM_MIN = 0.4;
 const ZOOM_MAX = 2.5;
+
+const shapeOptions = [
+  { label: "圆形", value: "circle" },
+  { label: "心形", value: "cardioid" },
+  { label: "菱形", value: "diamond" },
+  { label: "方形", value: "square" },
+  { label: "三角", value: "triangle" },
+  { label: "倒三角", value: "triangle-forward" },
+  { label: "五边形", value: "pentagon" },
+  { label: "星形", value: "star" }
+];
 
 const trendRef = ref<HTMLDivElement>();
 const sentimentRef = ref<HTMLDivElement>();
@@ -281,7 +293,7 @@ function initBubbleChart() {
     series: [
       {
         type: "wordCloud",
-        shape: "circle",
+        shape: currentShape.value,
         keepAspect: false,
         width: "100%",
         height: "100%",
@@ -348,6 +360,10 @@ function zoomOut() {
 function resetZoom() {
   currentZoom.value = initialZoom.value;
   updateZoom();
+}
+
+function changeShape() {
+  initBubbleChart();
 }
 </script>
 
@@ -508,8 +524,11 @@ function resetZoom() {
             <template #header>
               <div class="flex justify-between items-center w-full">
                 <div class="font-bold">热点关键词云 (Word Cloud)</div>
-                <div class="flex items-center gap-1.5">
-                  <span class="text-[11px] text-slate-400 mr-1">{{ Math.round(currentZoom * 100) }}%</span>
+                <div class="flex items-center gap-2">
+                  <el-select v-model="currentShape" size="small" class="!w-[90px]" @change="changeShape">
+                    <el-option v-for="s in shapeOptions" :key="s.value" :label="s.label" :value="s.value" />
+                  </el-select>
+                  <span class="text-[11px] text-slate-400">{{ Math.round(currentZoom * 100) }}%</span>
                   <el-button-group size="small">
                     <el-button @click="zoomIn" title="放大">
                       <el-icon><PlusIcon /></el-icon>
