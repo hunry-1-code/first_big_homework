@@ -22,6 +22,7 @@ const loading = ref(true);
 const { isDark } = useDark();
 const currentZoom = ref(1.0);
 const initialZoom = ref(1.0);
+const propagationZoom = ref(1.0);
 const currentShape = ref("circle");
 const ZOOM_STEP = 0.12;
 const ZOOM_MIN = 0.4;
@@ -863,6 +864,30 @@ function changeShape() {
   initBubbleChart();
 }
 
+// 传播图缩放
+function applyPropagationZoom() {
+  if (propagationRef.value) {
+    propagationRef.value.style.transform = `scale(${propagationZoom.value})`;
+    propagationRef.value.style.transformOrigin = "center center";
+    propagationRef.value.style.transition = "transform 0.2s ease-out";
+  }
+}
+
+function propagationZoomIn() {
+  propagationZoom.value = Math.min(ZOOM_MAX, +(propagationZoom.value + ZOOM_STEP).toFixed(2));
+  applyPropagationZoom();
+}
+
+function propagationZoomOut() {
+  propagationZoom.value = Math.max(ZOOM_MIN, +(propagationZoom.value - ZOOM_STEP).toFixed(2));
+  applyPropagationZoom();
+}
+
+function propagationResetZoom() {
+  propagationZoom.value = 1.0;
+  applyPropagationZoom();
+}
+
 // ==================== 暗黑模式监听 ====================
 watch(isDark, () => {
   nextTick(() => initCharts());
@@ -1117,14 +1142,22 @@ function getProgressColor(heat: number) {
         </el-col>
       </el-row>
 
-      <!-- ===== 传播路径网络图（需求明确要求的高级功能） ===== -->
+      <!-- ===== 传播路径网络图 ===== -->
       <el-card shadow="never" class="!border-slate-200/60 dark:!border-slate-800/60 rounded-xl mb-6">
         <template #header>
-          <div class="flex justify-between items-center">
+          <div class="flex justify-between items-center w-full">
             <div class="font-bold text-slate-800 dark:text-slate-100">
-              🔗 事件溯源与关键传播路径 (Propagation Network)
+              🔗 事件溯源与关键传播路径
             </div>
-            <span class="text-[11px] text-slate-400 dark:text-slate-500">左→右: 源头 → 传播者 → 平台 → 官媒 → 公众</span>
+            <div class="flex items-center gap-3">
+              <span class="text-[11px] text-slate-400 dark:text-slate-500 hidden sm:inline">左→右: 源头 → 传播者 → 平台 → 官媒 → 公众</span>
+              <span class="text-[11px] text-slate-400">{{ Math.round(propagationZoom * 100) }}%</span>
+              <el-button-group size="small">
+                <el-button @click="propagationZoomIn" title="放大"><el-icon><PlusIcon /></el-icon></el-button>
+                <el-button @click="propagationZoomOut" title="缩小"><el-icon><MinusIcon /></el-icon></el-button>
+                <el-button @click="propagationResetZoom" title="重置"><el-icon><RefreshRightIcon /></el-icon></el-button>
+              </el-button-group>
+            </div>
           </div>
         </template>
         <div class="flex gap-3 mb-3">
@@ -1144,7 +1177,9 @@ function getProgressColor(heat: number) {
             <span class="w-2.5 h-2.5 rounded-full bg-slate-400" /> 公众讨论
           </div>
         </div>
-        <div ref="propagationRef" class="w-full h-[380px]" />
+        <div class="w-full h-[480px] overflow-hidden flex items-center justify-center bg-slate-50/30 dark:bg-slate-950/30 rounded-lg">
+          <div ref="propagationRef" class="w-full h-full" />
+        </div>
       </el-card>
 
       <!-- ===== 关键事件时间轴 + 报道影响力排行榜 ===== -->
