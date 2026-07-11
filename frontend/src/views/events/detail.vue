@@ -836,7 +836,7 @@ function getProgressColor(heat: number) {
       <!-- ===== 指标数据卡片组 ===== -->
       <el-row :gutter="20" class="mb-6">
         <el-col :xs="24" :sm="12" :md="6" class="mb-4">
-          <el-card shadow="never" class="!border-none">
+          <el-card shadow="never" class="!border-none h-full flex flex-col">
             <div class="text-xs text-gray-400 mb-1">综合热度指数</div>
             <div class="text-2xl font-bold mb-2" :style="{ color: getProgressColor(eventData.heat_index) }">
               {{ Math.round(eventData.heat_index) }}
@@ -850,7 +850,7 @@ function getProgressColor(heat: number) {
           </el-card>
         </el-col>
         <el-col :xs="24" :sm="12" :md="6" class="mb-4">
-          <el-card shadow="never" class="!border-none">
+          <el-card shadow="never" class="!border-none h-full flex flex-col">
             <div class="text-xs text-gray-400 mb-1">风险评估等级</div>
             <div
               :class="[
@@ -870,7 +870,7 @@ function getProgressColor(heat: number) {
           </el-card>
         </el-col>
         <el-col :xs="24" :sm="12" :md="6" class="mb-4">
-          <el-card shadow="never" class="!border-none">
+          <el-card shadow="never" class="!border-none h-full flex flex-col">
             <div class="text-xs text-gray-400 mb-1">核心情感倾向</div>
             <div class="text-2xl font-bold text-red-500 mb-2">
               负面率 {{ percent(eventData.sentiment_negative) }}
@@ -881,7 +881,7 @@ function getProgressColor(heat: number) {
           </el-card>
         </el-col>
         <el-col :xs="24" :sm="12" :md="6" class="mb-4">
-          <el-card shadow="never" class="!border-none">
+          <el-card shadow="never" class="!border-none h-full flex flex-col">
             <div class="text-xs text-gray-400 mb-1">关联报道总数</div>
             <div class="text-2xl font-bold text-gray-700 dark:text-gray-300 mb-2">
               {{ eventData.articles?.total || 0 }} 篇
