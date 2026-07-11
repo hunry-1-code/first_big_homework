@@ -299,9 +299,15 @@ function initTrendChart() {
         type: "bar",
         stack: "sentiment",
         yAxisIndex: 1,
-        barWidth: "50%",
-        itemStyle: { color: "#22c55e" },
-        emphasis: { itemStyle: { color: "#16a34a" } }
+        barWidth: "32%",
+        barGap: "30%",
+        itemStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: "rgba(16,185,129,0.85)" },
+            { offset: 1, color: "rgba(16,185,129,0.55)" }
+          ]),
+          borderRadius: [0, 0, 0, 0]
+        }
       },
       {
         name: "中性",
@@ -309,9 +315,13 @@ function initTrendChart() {
         type: "bar",
         stack: "sentiment",
         yAxisIndex: 1,
-        barWidth: "50%",
-        itemStyle: { color: "#f59e0b" },
-        emphasis: { itemStyle: { color: "#d97706" } }
+        barWidth: "32%",
+        itemStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: "rgba(148,163,184,0.7)" },
+            { offset: 1, color: "rgba(148,163,184,0.35)" }
+          ])
+        }
       },
       {
         name: "负面",
@@ -319,9 +329,13 @@ function initTrendChart() {
         type: "bar",
         stack: "sentiment",
         yAxisIndex: 1,
-        barWidth: "50%",
-        itemStyle: { color: "#ef4444" },
-        emphasis: { itemStyle: { color: "#dc2626" } }
+        barWidth: "32%",
+        itemStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: "rgba(239,68,68,0.75)" },
+            { offset: 1, color: "rgba(239,68,68,0.4)" }
+          ])
+        }
       }
     ]
   });
