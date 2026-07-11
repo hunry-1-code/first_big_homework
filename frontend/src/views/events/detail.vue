@@ -207,11 +207,12 @@ function initBubbleChart() {
 
   // 词数较多时自动缩小，防止拥堵溢出
   const count = list.length;
-  const initialZoomVal = count > 20 ? 0.75 : count > 12 ? 0.95 : 1.25;
+  // 🌟 使用平滑缩放公式，自动根据关键词数量按比例推导最合宜的视口大小，杜绝大图溢出
+  const initialZoomVal = Math.min(1.2, Math.max(0.55, 12 / count));
   initialZoom.value = initialZoomVal;
   currentZoom.value = initialZoomVal;
-  const minSize = count > 15 ? 38 : 55;
-  const maxSize = count > 15 ? 70 : 100;
+  const minSize = count > 15 ? 32 : 55;
+  const maxSize = count > 15 ? 65 : 100;
 
   const bubbleData = list.map((kw: any, idx: number) => {
     // 线性归一化映射
@@ -297,10 +298,10 @@ function initBubbleChart() {
         type: "graph",
         layout: "force",
         force: {
-          repulsion: count > 15 ? 100 : 160, // 动态调节排斥距离，防重叠
-          gravity: 0.045, // 向中心收拢的重力
+          repulsion: count > 15 ? 70 : 110, // 减弱排斥力，让节点能够更加亲密地发生碰撞贴合
+          gravity: 0.11, // 增加向中心收拢的重力，形成紧凑的“云状星团”分布
           edgeLength: 10,
-          friction: 0.6
+          friction: 0.45 // 增加运动阻尼（摩擦力），防止气泡无休止晃动
         },
         roam: "move", // 仅拖拽平移，关闭滚轮缩放，防止阻碍页面滚动
         zoom: currentZoom.value,
