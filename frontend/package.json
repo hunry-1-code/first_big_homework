@@ -12,6 +12,7 @@
     "preview": "vite preview",
     "preview:build": "npm run build && vite preview",
     "typecheck": "vue-tsc --noEmit --skipLibCheck",
+    "postinstall": "patch-package --patch-dir node_modules/../patches",
     "svgo": "svgo -f . -r",
     "clean:cache": "rimraf .eslintcache && rimraf package-lock.json && rimraf node_modules && npm run install",
     "lint:eslint": "eslint --cache --max-warnings 0 src mock build --fix",
@@ -145,6 +146,7 @@
     "gradient-string": "^3.0.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.4.0",
+    "patch-package": "^8.0.1",
     "postcss": "^8.5.8",
     "postcss-html": "^1.8.1",
     "postcss-load-config": "^6.0.1",
@@ -200,6 +202,9 @@
       "typeit",
       "vue-demi"
     ],
-    "ignoredBuiltDependencies": ["@tailwindcss/oxide", "vue3-danmaku"]
+    "ignoredBuiltDependencies": [
+      "@tailwindcss/oxide",
+      "vue3-danmaku"
+    ]
   }
 }

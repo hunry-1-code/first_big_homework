@@ -1,0 +1,30 @@
+diff --git a/node_modules/echarts-wordcloud/src/WordCloudSeries.js b/node_modules/echarts-wordcloud/src/WordCloudSeries.js
+index a561a1c..f2b056a 100644
+--- a/node_modules/echarts-wordcloud/src/WordCloudSeries.js
++++ b/node_modules/echarts-wordcloud/src/WordCloudSeries.js
+@@ -1,4 +1,4 @@
+-import * as echarts from 'echarts/lib/echarts';
++import * as echarts from 'echarts';
+ 
+ echarts.extendSeriesModel({
+   type: 'series.wordCloud',
+diff --git a/node_modules/echarts-wordcloud/src/WordCloudView.js b/node_modules/echarts-wordcloud/src/WordCloudView.js
+index d63232a..4fd122b 100644
+--- a/node_modules/echarts-wordcloud/src/WordCloudView.js
++++ b/node_modules/echarts-wordcloud/src/WordCloudView.js
+@@ -1,4 +1,4 @@
+-import * as echarts from 'echarts/lib/echarts';
++import * as echarts from 'echarts';
+ 
+ echarts.extendChartView({
+   type: 'wordCloud',
+diff --git a/node_modules/echarts-wordcloud/src/wordCloud.js b/node_modules/echarts-wordcloud/src/wordCloud.js
+index fbdf574..869bcba 100644
+--- a/node_modules/echarts-wordcloud/src/wordCloud.js
++++ b/node_modules/echarts-wordcloud/src/wordCloud.js
+@@ -1,4 +1,4 @@
+-import * as echarts from 'echarts/lib/echarts';
++import * as echarts from 'echarts';
+ 
+ import './WordCloudSeries';
+ import './WordCloudView';

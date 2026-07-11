@@ -2,6 +2,7 @@
 import { onMounted, ref, watch, nextTick, onBeforeUnmount } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import * as echarts from "echarts";
+import "echarts-wordcloud";
 import { getEvent, exportEventReport } from "@/api/events";
 import { useDark } from "@pureadmin/utils";
 import { message } from "@/utils/message";
@@ -21,6 +22,9 @@ const loading = ref(true);
 const { isDark } = useDark();
 const currentZoom = ref(1.0);
 const initialZoom = ref(1.0);
+const ZOOM_STEP = 0.12;
+const ZOOM_MIN = 0.4;
+const ZOOM_MAX = 2.5;
 
 const trendRef = ref<HTMLDivElement>();
 const sentimentRef = ref<HTMLDivElement>();
@@ -192,6 +196,21 @@ function percent(value: number) {
   return `${Math.round((value || 0) * 100)}%`;
 }
 
+function getWordColor(t: number): string {
+  // 根据归一化权重 t (0~1) 分配四档色温梯度
+  if (t >= 0.8)  return "rgba(79, 70, 229, 1.0)";   // 核心高热: 深邃靛蓝
+  if (t >= 0.55) return "rgba(59, 130, 246, 1.0)";  // 中高热度: 标准科技蓝
+  if (t >= 0.3)  return "rgba(6, 182, 212, 1.0)";   // 中等热度: 冰川青绿
+  return "rgba(148, 163, 184, 1.0)";                  // 低热: 温和灰蓝
+}
+
+function getWordEmphasisColor(t: number): string {
+  if (t >= 0.8)  return "rgba(99, 90, 249, 1.0)";
+  if (t >= 0.55) return "rgba(79, 150, 255, 1.0)";
+  if (t >= 0.3)  return "rgba(26, 202, 232, 1.0)";
+  return "rgba(168, 183, 204, 1.0)";
+}
+
 function initBubbleChart() {
   if (!eventData.value || !bubbleRef.value) return;
 
@@ -199,82 +218,46 @@ function initBubbleChart() {
   const list = eventData.value.keywords?.keywords || [];
   if (list.length === 0) return;
 
-  // 1. 动态归一化算法，自适应词数规模
+  const count = list.length;
   const weights = list.map((kw: any) => kw.weight || 0);
   const maxW = Math.max(...weights, 1);
   const minW = Math.min(...weights, 0);
   const range = maxW - minW || 1;
 
-  // 词数较多时自动缩小，防止拥堵溢出
-  const count = list.length;
-  // 🌟 使用平滑缩放公式，自动根据关键词数量按比例推导最合宜的视口大小，杜绝大图溢出
-  const initialZoomVal = Math.min(1.2, Math.max(0.55, 12 / count));
-  initialZoom.value = initialZoomVal;
-  currentZoom.value = initialZoomVal;
-  const minSize = count > 15 ? 32 : 55;
-  const maxSize = count > 15 ? 65 : 100;
+  // 动态字号范围: 词多时收窄，词少时放大
+  const fontSizeMin = count > 20 ? 10 : count > 12 ? 12 : 14;
+  const fontSizeMax = count > 20 ? 48 : count > 12 ? 56 : 64;
 
-  const bubbleData = list.map((kw: any, idx: number) => {
-    // 线性归一化映射
+  // 排序: 大权重优先放置，布局更稳定
+  const sorted = [...list]
+    .map((kw: any) => ({ ...kw }))
+    .sort((a: any, b: any) => (b.weight || 0) - (a.weight || 0));
+
+  const wordData = sorted.map((kw: any) => {
     const t = ((kw.weight || 0) - minW) / range;
-    const size = Math.round(minSize + t * (maxSize - minSize));
-
-    // 🌟 根据归一化热度 t 动态分配色温梯度（大词靛蓝耀眼，中等科技蓝，小词灰蓝温和，完美契合冷调科技背景）
-    let color;
-    if (t >= 0.8) {
-      color = { light: "rgba(79, 70, 229, 0.08)", main: "rgba(79, 70, 229, 0.65)", border: "rgba(79, 70, 229, 0.95)", shadow: "rgba(79, 70, 229, 0.2)" }; // 核心超高热度：深邃靛蓝
-    } else if (t >= 0.55) {
-      color = { light: "rgba(59, 130, 246, 0.08)", main: "rgba(59, 130, 246, 0.65)", border: "rgba(59, 130, 246, 0.95)", shadow: "rgba(59, 130, 246, 0.15)" }; // 中高热度：标准科技蓝
-    } else if (t >= 0.3) {
-      color = { light: "rgba(6, 182, 212, 0.08)", main: "rgba(6, 182, 212, 0.65)", border: "rgba(6, 182, 212, 0.95)", shadow: "rgba(6, 182, 212, 0.12)" };  // 中等热度：冰川青绿
-    } else {
-      color = { light: "rgba(148, 163, 184, 0.06)", main: "rgba(148, 163, 184, 0.55)", border: "rgba(148, 163, 184, 0.85)", shadow: "rgba(148, 163, 184, 0.1)" }; // 低热度：温和灰蓝色
-    }
-
-    // 3. 造型多样化设计 (100% 全云朵气泡图，交替使用三种不同轮廓的云朵造型)
-    let symbol = "";
-    const cloudStyles = [
-      "path://M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z", // 经典云
-      "path://M12 6c-2.62 0-4.88 1.86-5.39 4.43C4.3 10.74 2.5 12.89 2.5 15.5c0 3.04 2.46 5.5 5.5 5.5h11c2.48 0 4.5-2.02 4.5-4.5 0-2.31-1.74-4.22-4.03-4.47C18.89 8.61 15.74 6 12 6z",  // 扁平宽云
-      "path://M12 6c-3 0-5.5 2.24-5.92 5.15C4.28 11.53 2.5 13.56 2.5 16c0 2.76 2.24 5 5 5h12c2.21 0 4-1.79 4-4 0-2.05-1.54-3.74-3.53-3.97C19.46 8.91 16.08 6 12 6z"   // 紧凑圆云
-    ];
-    symbol = cloudStyles[idx % cloudStyles.length];
-    const symbolSize: [number, number] = [size * 1.5, size * 1.05];
-
-    // 4. 文字辨识度与描边优化 (浅色底用深色字，深色底用白字，描边厚度调为 1.0px 防发虚锯齿)
-    const labelColor = dark ? "#ffffff" : "#1e293b";
-    const labelBorder = dark ? color.border : "#ffffff";
-    const labelBorderWidth = 1.0;
-
+    const fontSize = Math.round(fontSizeMin + t * (fontSizeMax - fontSizeMin));
     return {
       name: kw.word,
       value: kw.weight,
-      symbol: symbol,
-      symbolSize: symbolSize,
-      draggable: true,
-      itemStyle: {
-        color: new echarts.graphic.RadialGradient(0.4, 0.3, 0.9, [
-          { offset: 0, color: color.light },
-          { offset: 0.8, color: color.main },
-          { offset: 1, color: color.border }
-        ]),
-        borderColor: color.border,
-        borderWidth: 1.2,
-        shadowBlur: dark ? 12 : 6,
-        shadowColor: color.shadow
+      textStyle: {
+        color: getWordColor(t),
+        fontSize,
+        fontWeight: t >= 0.55 ? "bold" : "normal",
+        fontFamily:
+          "PingFang SC, Hiragino Sans GB, Microsoft YaHei, Noto Sans SC, sans-serif"
       },
-      label: {
-        show: true,
-        formatter: kw.word,
-        fontSize: Math.round(14 + t * 7), // 🌟 字号调大：范围扩大到 14px - 21px
-        fontWeight: 600, // 🌟 中粗体呈现设计感
-        fontFamily: '"Outfit", "Cabinet Grotesk", "Inter", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif', // 🌟 高质感科技感无衬线字体栈
-        color: labelColor,
-        textBorderColor: labelBorder,
-        textBorderWidth: labelBorderWidth
+      emphasis: {
+        textStyle: {
+          color: getWordEmphasisColor(t),
+          textShadowBlur: 8,
+          textShadowColor: dark ? "rgba(0,0,0,0.6)" : "rgba(0,0,0,0.15)"
+        }
       }
     };
   });
+
+  // 自适应 gridSize: 词越少、网格越细，堆积越密
+  const gridSize = count > 20 ? 8 : count > 12 ? 6 : 4;
 
   if (bubbleChart) bubbleChart.dispose();
   bubbleChart = echarts.init(bubbleRef.value);
@@ -289,48 +272,76 @@ function initBubbleChart() {
           <span class="font-bold text-blue-500">${Math.round((params.value || 0) * 100)}</span>
         </div>`;
       },
-      backgroundColor: dark ? "rgba(17, 24, 39, 0.95)" : "rgba(255, 255, 255, 0.95)",
+      backgroundColor: dark
+        ? "rgba(17, 24, 39, 0.95)"
+        : "rgba(255, 255, 255, 0.95)",
       borderColor: dark ? "#374151" : "#e5e7eb",
       borderWidth: 1
     },
     series: [
       {
-        type: "graph",
-        layout: "force",
-        force: {
-          repulsion: count > 15 ? 70 : 110, // 减弱排斥力，让节点能够更加亲密地发生碰撞贴合
-          gravity: 0.11, // 增加向中心收拢的重力，形成紧凑的“云状星团”分布
-          edgeLength: 10,
-          friction: 0.45 // 增加运动阻尼（摩擦力），防止气泡无休止晃动
+        type: "wordCloud",
+        shape: "circle",
+        keepAspect: false,
+        width: "100%",
+        height: "100%",
+        left: "center",
+        top: "center",
+        sizeRange: [fontSizeMin, fontSizeMax],
+        rotationRange: [-45, 45],
+        rotationStep: 45,
+        gridSize,
+        drawOutOfBound: false,
+        shrinkToFit: true,
+        layoutAnimation: true,
+        textStyle: {
+          fontFamily:
+            "PingFang SC, Hiragino Sans GB, Microsoft YaHei, Noto Sans SC, sans-serif",
+          fontWeight: "normal",
+          color: (v: any) => {
+            const t = ((v.value || 0) - minW) / range;
+            return getWordColor(t);
+          }
         },
-        roam: "move", // 仅拖拽平移，关闭滚轮缩放，防止阻碍页面滚动
-        zoom: currentZoom.value,
-        draggable: true,
-        data: bubbleData,
-        links: [],
-        lineStyle: {
-          width: 0
-        }
+        emphasis: {
+          focus: "self",
+          textStyle: {
+            textShadowBlur: 10,
+            textShadowColor: dark
+              ? "rgba(0,0,0,0.7)"
+              : "rgba(0,0,0,0.2)"
+          }
+        },
+        data: wordData
       }
     ]
   });
+
+  // 重置缩放
+  initialZoom.value = 1.0;
+  currentZoom.value = 1.0;
+  applyZoom();
 }
 
-function updateZoom() {
-  if (bubbleChart) {
-    bubbleChart.setOption({
-      series: [{ zoom: currentZoom.value }]
-    });
+function applyZoom() {
+  if (bubbleRef.value) {
+    bubbleRef.value.style.transform = `scale(${currentZoom.value})`;
+    bubbleRef.value.style.transformOrigin = "center center";
+    bubbleRef.value.style.transition = "transform 0.2s ease-out";
   }
 }
 
+function updateZoom() {
+  applyZoom();
+}
+
 function zoomIn() {
-  currentZoom.value = Math.min(3.0, currentZoom.value + 0.15);
+  currentZoom.value = Math.min(ZOOM_MAX, +(currentZoom.value + ZOOM_STEP).toFixed(2));
   updateZoom();
 }
 
 function zoomOut() {
-  currentZoom.value = Math.max(0.3, currentZoom.value - 0.15);
+  currentZoom.value = Math.max(ZOOM_MIN, +(currentZoom.value - ZOOM_STEP).toFixed(2));
   updateZoom();
 }
 
@@ -490,28 +501,32 @@ function resetZoom() {
         </el-col>
       </el-row>
 
-      <!-- 中间内容区域：物理力导向气泡词云 (满宽) -->
+      <!-- 底部：热点词云图 (满宽) -->
       <el-row class="mb-6">
         <el-col :span="24">
           <el-card shadow="never" class="!border-none">
             <template #header>
               <div class="flex justify-between items-center w-full">
-                <div class="font-bold">热点舆情气泡词云堆积图 (Force Bubble Cloud)</div>
-                <!-- 放大缩小重置按钮组 (右上角，保证清晰显示) -->
-                <el-button-group>
-                  <el-button size="small" @click="zoomIn" title="放大">
-                    <el-icon><PlusIcon /></el-icon>
-                  </el-button>
-                  <el-button size="small" @click="zoomOut" title="缩小">
-                    <el-icon><MinusIcon /></el-icon>
-                  </el-button>
-                  <el-button size="small" @click="resetZoom" title="重置">
-                    <el-icon><RefreshRightIcon /></el-icon>
-                  </el-button>
-                </el-button-group>
+                <div class="font-bold">热点关键词云 (Word Cloud)</div>
+                <div class="flex items-center gap-1.5">
+                  <span class="text-[11px] text-slate-400 mr-1">{{ Math.round(currentZoom * 100) }}%</span>
+                  <el-button-group size="small">
+                    <el-button @click="zoomIn" title="放大">
+                      <el-icon><PlusIcon /></el-icon>
+                    </el-button>
+                    <el-button @click="zoomOut" title="缩小">
+                      <el-icon><MinusIcon /></el-icon>
+                    </el-button>
+                    <el-button @click="resetZoom" title="重置">
+                      <el-icon><RefreshRightIcon /></el-icon>
+                    </el-button>
+                  </el-button-group>
+                </div>
               </div>
             </template>
-            <div ref="bubbleRef" class="w-full h-[360px]" />
+            <div class="w-full h-[440px] overflow-hidden flex items-center justify-center bg-slate-50/30 dark:bg-slate-950/30 rounded-lg">
+              <div ref="bubbleRef" class="w-full h-full" />
+            </div>
           </el-card>
         </el-col>
       </el-row>
