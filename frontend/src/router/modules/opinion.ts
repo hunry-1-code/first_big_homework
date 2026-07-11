@@ -5,16 +5,16 @@ export default [
     path: "/",
     name: "Home",
     component: Layout,
-    redirect: "/opinion/welcome",
+    redirect: "/dashboard",
     meta: {
-      icon: "ep:menu",
+      icon: "ep:monitor",
       title: "舆情分析系统",
       rank: 1
     },
     children: [
       {
-        path: "/opinion/welcome",
-        name: "OpinionBoard",
+        path: "/dashboard",
+        name: "Dashboard",
         component: () => import("@/views/welcome/index.vue"),
         meta: {
           icon: "ep:trend-charts",
@@ -22,8 +22,8 @@ export default [
         }
       },
       {
-        path: "/opinion/detail/:id",
-        name: "OpinionDetail",
+        path: "/events/:id",
+        name: "EventDetail",
         component: () => import("@/views/events/detail.vue"),
         meta: {
           title: "事件详情",
@@ -31,35 +31,34 @@ export default [
         }
       },
       {
-        path: "/opinion/qa",
-        name: "OpinionQa",
+        path: "/qa",
+        name: "Qa",
         component: () => import("@/views/qa/index.vue"),
         meta: {
           icon: "ep:chat-dot-round",
           title: "智能问答"
         }
+      },
+      {
+        path: "/user",
+        name: "UserCenter",
+        component: () => import("@/views/user/index.vue"),
+        meta: {
+          icon: "ep:user",
+          title: "个人中心"
+        }
+      },
+      {
+        path: "/admin",
+        name: "Admin",
+        component: () => import("@/views/admin/index.vue"),
+        meta: {
+          icon: "ep:setting",
+          title: "系统管理",
+          rank: 99,
+          roles: ["admin"]
+        }
       }
     ]
-  },
-  {
-    path: "/opinion/user",
-    name: "OpinionUser",
-    component: () => import("@/views/user/index.vue"),
-    meta: {
-      icon: "ep:user",
-      title: "个人中心",
-      rank: 2
-    }
-  },
-  {
-    path: "/opinion/admin",
-    name: "OpinionAdmin",
-    component: () => import("@/views/admin/index.vue"),
-    meta: {
-      icon: "ep:setting",
-      title: "系统管理",
-      rank: 3,
-      roles: ["admin"]
-    }
   }
 ] satisfies Array<RouteConfigsTable>;

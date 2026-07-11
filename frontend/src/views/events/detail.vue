@@ -1225,7 +1225,7 @@ function getProgressColor(heat: number) {
         <template #header>
           <div class="flex justify-between items-center">
             <span class="font-bold text-slate-800 dark:text-slate-100">📰 关联舆情报道列表</span>
-            <el-button type="primary" link @click="router.push(`/opinion/qa?event_id=${route.params.id}`)">
+            <el-button type="primary" link @click="router.push(`/qa?event_id=${route.params.id}`)">
               💬 就该事件进行智能提问
             </el-button>
           </div>

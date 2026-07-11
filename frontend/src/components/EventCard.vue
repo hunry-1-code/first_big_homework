@@ -56,7 +56,7 @@
         type="primary"
         link
         class="!text-blue-500 hover:!text-blue-600 dark:hover:!text-blue-400 font-semibold"
-        @click="$router.push(`/opinion/detail/${event.id}`)"
+        @click="$router.push(`/events/${event.id}`)"
       >
         分析报告 ➔
       </el-button>

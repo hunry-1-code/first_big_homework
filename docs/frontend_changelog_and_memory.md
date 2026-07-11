@@ -230,3 +230,39 @@
 * **[Feat]** 增加卡片高度 380→480px，布局不再拥挤
 * **[Feat]** 新增与词云同款的 `+ / - / 重置` 缩放按钮组，CSS `transform: scale()` 缩放 + `overflow: hidden` 裁剪
 
+---
+
+## 7. 更新日志 (Changelog - 2026-07-12 第二版) — 路由重构与死代码清理
+
+### 7.1 路由层次重构
+
+* **[Refactor]** 路由结构重组，所有业务页面统一纳入 Layout 壳（确保侧边栏/导航栏一致显示）：
+  - `/opinion/welcome` → `/dashboard`（舆情看板）
+  - `/opinion/detail/:id` → `/events/:id`（事件详情）
+  - `/opinion/qa` → `/qa`（智能问答）
+  - `/opinion/user` → `/user`（个人中心，从无 Layout 顶层路由改为 Layout 子路由）
+  - `/opinion/admin` → `/admin`（系统管理，从无 Layout 顶层路由改为 Layout 子路由）
+* **[Fix]** 更新 `EventCard.vue` 和 `events/detail.vue` 中 2 处硬编码旧路径引用
+
+### 7.2 死代码清理
+
+* **[Clean]** 删除 21 个无活跃路由引用的模板 demo views 目录（~170 个 .vue 文件）：able, about, chatai, codemirror, components, editor, flow-chart, ganttastic, guide, list, markdown, menuoverflow, monitor, nested, permission, result, schema-form, system, table, tabs, vue-flow
+* **[Clean]** 删除 `router/modules_backup/` 目录（24 个已禁用的模板路由备份文件）
+* **[Clean]** 删除 19 个未被业务代码或 Layout 引用的 Re* 组件目录：ReAnimateSelector, ReAuth, ReBarcode, ReCol, ReCountTo, ReCropper, ReDialog, ReDrawer, ReFlicker, ReFlop, ReFlowChart, ReMap, RePerms, RePureTableBar, ReSeamlessScroll, ReSelector, ReSplitPane, ReTreeLine, ReVxeTableBar
+* **[Clean]** 删除 2 个模板专用 API 文件：`api/list.ts`, `api/system.ts`
+* **[Revert]** 恢复被误删的 6 个仍被引用的文件：ReDialog, ReDrawer, ReAuth, RePerms（App.vue/main.ts 全局注册）、ReCropper（ReCropperPreview 依赖）、api/mock.ts（account-settings 头像上传）
+
+### 7.3 保留的组件清单
+
+清理后保留的 Re* 组件（均有实际引用）：
+* **Layout 引用**：ReIcon (useRenderIcon)、ReSegmented、ReText
+* **业务页引用**：ReTypeit (登录页打字机)、ReImageVerify (登录验证码)、ReCropper + ReCropperPreview (个人中心头像裁剪)、ReQrcode (登录二维码)
+* **全局基础设施**：ReDialog、ReDrawer（App.vue 全局对话框/抽屉管理）、ReAuth、RePerms（main.ts 全局注册）
+
+### 7.4 清理效果
+
+* **包体积**：25 MB → 15.7 MB（减少 37%）
+* **源码文件数**：大幅精简，仅保留舆情系统业务代码和必要的模板基础设施
+* **views 目录**：30 个目录 → 9 个（welcome, events, qa, user, admin, login, error, empty, account-settings）
+* **构建时间**：无影响，保持 ~11-30 秒
+
