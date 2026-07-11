@@ -182,7 +182,7 @@ function chartColors(dark: boolean) {
   };
 }
 
-// ==================== 1. 舆情传播趋势图（增强版：双轴 + 关键节点标注） ====================
+// ==================== 1. 舆情传播趋势图（报道量折线 + 情感分层堆叠柱状图） ====================
 function initTrendChart() {
   if (!trendRef.value) return;
   if (trendChart) trendChart.dispose();
@@ -194,12 +194,24 @@ function initTrendChart() {
   const counts = eventData.value.trend?.counts || [];
   const keyPoints = buildKeyPoints();
 
-  // 构造模拟情感趋势线（后端暂无 sentiment.daily，前端构造演示数据）
-  const negRatios = counts.map((v: number, i: number) => {
-    const base = (eventData.value.sentiment_negative || 0.3) * 100;
-    const noise = (Math.sin(i * 0.8) * 8) + (Math.random() - 0.5) * 4;
-    return Math.max(0, Math.min(100, base + noise));
+  // 构造每日情感三分层模拟数据（后端暂无 sentiment.daily，前端构造演示数据）
+  const posBase = (eventData.value.sentiment_positive || 0.25);
+  const neuBase = (eventData.value.sentiment_neutral || 0.25);
+  const negBase = (eventData.value.sentiment_negative || 0.50);
+
+  const raw = counts.map((_: number, i: number) => {
+    const p = Math.max(0, posBase * 100 + Math.sin(i * 0.5 + 1) * 8 + (Math.random() - 0.5) * 4);
+    const n = Math.max(0, neuBase * 100 + Math.cos(i * 0.6) * 6 + (Math.random() - 0.5) * 3);
+    const g = Math.max(0, negBase * 100 + Math.sin(i * 0.8) * 10 + (Math.random() - 0.5) * 5);
+    const total = p + n + g || 1;
+    return {
+      pos: Math.round(p / total * 100),
+      neu: Math.round(n / total * 100),
+      neg: 100 - Math.round(p / total * 100) - Math.round(n / total * 100)
+    };
   });
+  // 修正最后一组使总和恰好 100
+  raw.forEach(r => { if (r.neg < 0) { r.neg = 0; r.neu = 100 - r.pos - r.neg; } });
 
   trendChart.setOption({
     grid: { top: 50, right: 60, bottom: 40, left: 50 },
@@ -208,10 +220,22 @@ function initTrendChart() {
       axisPointer: { type: "cross", crossStyle: { color: "#999" } },
       backgroundColor: dark ? "rgba(17,24,39,0.95)" : "rgba(255,255,255,0.95)",
       borderColor: dark ? "#374151" : "#e5e7eb",
-      textStyle: { color: dark ? "#e2e8f0" : "#1e293b", fontSize: 12 }
+      textStyle: { color: dark ? "#e2e8f0" : "#1e293b", fontSize: 12 },
+      formatter: (params: any) => {
+        const date = params[0]?.axisValue || "";
+        const vol = params.find((p: any) => p.seriesName === "报道量");
+        const pos = params.find((p: any) => p.seriesName === "正面");
+        const neu = params.find((p: any) => p.seriesName === "中性");
+        const neg = params.find((p: any) => p.seriesName === "负面");
+        return `<b>${date}</b><br/>
+          报道量: <b style="color:#409eff">${vol?.value ?? "-"} 篇</b><br/>
+          <span style="color:#22c55e">●</span> 正面: <b>${pos?.value ?? 0}%</b>&nbsp;
+          <span style="color:#f59e0b">●</span> 中性: <b>${neu?.value ?? 0}%</b>&nbsp;
+          <span style="color:#ef4444">●</span> 负面: <b>${neg?.value ?? 0}%</b>`;
+      }
     },
     legend: {
-      data: ["报道量", "负面情感占比"],
+      data: ["报道量", "正面", "中性", "负面"],
       top: 6,
       textStyle: { color: c.textColor, fontSize: 12 }
     },
@@ -232,7 +256,7 @@ function initTrendChart() {
       },
       {
         type: "value",
-        name: "负面占比(%)",
+        name: "情感占比(%)",
         nameTextStyle: { color: c.textColor, fontSize: 11 },
         axisLabel: { color: c.textColor, formatter: "{value}%" },
         splitLine: { show: false },
@@ -244,14 +268,17 @@ function initTrendChart() {
       {
         name: "报道量",
         data: counts,
-        type: "bar",
-        barWidth: "40%",
-        itemStyle: {
+        type: "line",
+        smooth: true,
+        symbol: "circle",
+        symbolSize: 6,
+        lineStyle: { width: 3, color: "#409eff" },
+        itemStyle: { color: "#409eff" },
+        areaStyle: {
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: "#409eff" },
-            { offset: 1, color: "#79bbff" }
-          ]),
-          borderRadius: [4, 4, 0, 0]
+            { offset: 0, color: "rgba(64,158,255,0.3)" },
+            { offset: 1, color: "rgba(64,158,255,0)" }
+          ])
         },
         markPoint: keyPoints.length > 0 ? {
           data: keyPoints.map((kp: any) => ({
@@ -259,7 +286,7 @@ function initTrendChart() {
             coord: kp.coord,
             value: kp.name,
             symbol: "pin",
-            symbolSize: 38,
+            symbolSize: 42,
             itemStyle: { color: "#f97316" },
             label: { fontSize: 11, color: "#fff" }
           })),
@@ -267,15 +294,34 @@ function initTrendChart() {
         } : undefined
       },
       {
-        name: "负面情感占比",
-        data: negRatios,
-        type: "line",
+        name: "正面",
+        data: raw.map(r => r.pos),
+        type: "bar",
+        stack: "sentiment",
         yAxisIndex: 1,
-        smooth: true,
-        lineStyle: { width: 2.5, color: "#ef4444", type: "dashed" },
+        barWidth: "50%",
+        itemStyle: { color: "#22c55e" },
+        emphasis: { itemStyle: { color: "#16a34a" } }
+      },
+      {
+        name: "中性",
+        data: raw.map(r => r.neu),
+        type: "bar",
+        stack: "sentiment",
+        yAxisIndex: 1,
+        barWidth: "50%",
+        itemStyle: { color: "#f59e0b" },
+        emphasis: { itemStyle: { color: "#d97706" } }
+      },
+      {
+        name: "负面",
+        data: raw.map(r => r.neg),
+        type: "bar",
+        stack: "sentiment",
+        yAxisIndex: 1,
+        barWidth: "50%",
         itemStyle: { color: "#ef4444" },
-        symbol: "circle",
-        symbolSize: 6
+        emphasis: { itemStyle: { color: "#dc2626" } }
       }
     ]
   });
