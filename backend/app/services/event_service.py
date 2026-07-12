@@ -39,20 +39,31 @@ def _event_keywords(event: Event) -> dict:
     rows = AnalysisRunArticle.query.filter(
         AnalysisRunArticle.article_id.in_(article_ids)
     ).all()
-    keyword_scores: dict[str, float] = {}
+    # 用文档频率（出现次数）作为权重，天然产生梯度
+    keyword_counts: dict[str, int] = {}
+    keyword_best_score: dict[str, float] = {}
     for row in rows:
+        seen: set[str] = set()
         for kw in row.keywords or []:
             if isinstance(kw, dict) and kw.get("term"):
                 term = kw["term"].strip()
                 score = float(kw.get("score", kw.get("weight", 0)))
-                if term not in keyword_scores or score > keyword_scores[term]:
-                    keyword_scores[term] = score
-    sorted_keywords = sorted(keyword_scores.items(), key=lambda x: -x[1])[:30]
-    max_score = max(score for _, score in sorted_keywords) if sorted_keywords else 1
+                if term not in seen:
+                    keyword_counts[term] = keyword_counts.get(term, 0) + 1
+                    seen.add(term)
+                keyword_best_score[term] = max(keyword_best_score.get(term, 0), score)
+    # 综合排序：出现次数 × 最高分
+    total_articles = len(set(row.article_id for row in rows)) or 1
+    sorted_keywords = sorted(
+        keyword_counts.items(),
+        key=lambda x: (keyword_counts[x[0]] * keyword_best_score.get(x[0], 0), keyword_counts[x[0]]),
+        reverse=True
+    )[:30]
+    max_count = max(count for _, count in sorted_keywords) if sorted_keywords else 1
     return {
         "keywords": [
-            {"word": term, "weight": score / max_score}
-            for term, score in sorted_keywords
+            {"word": term, "weight": round(count / max_count, 3)}
+            for term, count in sorted_keywords
         ]
     }
 
