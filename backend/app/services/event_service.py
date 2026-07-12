@@ -24,7 +24,7 @@ def _title_bigrams(title: str | None) -> list[str]:
     return [text[i:i + 2] for i in range(len(text) - 1)]
 
 
-_SIMILARITY_MIN = 0.12   # 标题相似度最低阈值
+_SIMILARITY_MIN = 0.05   # 标题相似度最低阈值
 _MAX_EDGES = 50          # 最大边数，防止 O(n²) 爆炸
 
 
@@ -55,6 +55,56 @@ def _event_keywords(event: Event) -> dict:
             for term, score in sorted_keywords
         ]
     }
+
+
+_CHINA_LOCATIONS = {
+    "北京", "上海", "天津", "重庆", "广东", "广州", "深圳",
+    "浙江", "杭州", "宁波", "温州", "台州", "乐清", "玉环", "舟山",
+    "江苏", "南京", "苏州", "福建", "福州", "厦门", "泉州", "漳州",
+    "山东", "济南", "青岛", "辽宁", "沈阳", "大连",
+    "湖北", "武汉", "湖南", "长沙", "四川", "成都",
+    "河南", "郑州", "河北", "石家庄", "山西", "太原",
+    "安徽", "合肥", "江西", "南昌", "陕西", "西安",
+    "海南", "海口", "三亚", "广西", "南宁", "云南", "昆明",
+    "贵州", "贵阳", "甘肃", "兰州", "吉林", "长春", "黑龙江", "哈尔滨",
+    "西藏", "拉萨", "新疆", "乌鲁木齐", "内蒙古", "呼和浩特",
+    "香港", "澳门", "台湾",
+}
+
+
+def _extract_location(articles) -> str:
+    found = []
+    for a in articles[:50]:
+        title = str(a.title or "")
+        for loc in _CHINA_LOCATIONS:
+            if loc in title and loc not in found:
+                found.append(loc)
+                if len(found) >= 5:
+                    break
+    return "、".join(found[:5]) if found else ""
+
+
+def _extract_key_figures(articles) -> str:
+    authors = []
+    skip = {"匿名用户", "系统样例", "示例新闻", "示例晚报",
+            "样例用户A", "样例用户B", "", "-"}
+    for a in articles[:50]:
+        author = str(a.author or "").strip()
+        if author and author not in skip and author not in authors:
+            authors.append(author)
+            if len(authors) >= 8:
+                break
+    return "、".join(authors[:8]) if authors else ""
+
+
+def _extract_cause(event, report, articles) -> str:
+    if report and report.overview_text:
+        text = report.overview_text
+        return text[:100] + ("..." if len(text) > 100 else "")
+    if event.summary:
+        return event.summary[:100] + ("..." if len(event.summary) > 100 else "")
+    titles = [a.title for a in articles[:3] if a.title]
+    return "、".join(titles[:3])[:100] if titles else ""
 
 
 def _event_item(event: Event, snapshot: EventHeatSnapshot | None = None, platforms: list[str] | None = None) -> dict:
@@ -219,6 +269,15 @@ def get_event_detail(event_id: int) -> dict | None:
 
     # 覆写 lifecycle_stage 为根据实时趋势数据计算的结果
     data["lifecycle_stage"] = api_lifecycle_stage(current_lifecycle)
+
+    # ── AI 元数据：从 articles 聚合 ──
+    data["time_code"] = (
+        event.first_publish_time.strftime("%Y年%m月%d日 %H:%M")
+        if event.first_publish_time else ""
+    )
+    data["location"] = event.location or _extract_location(articles)
+    data["key_figures"] = event.key_figures or _extract_key_figures(articles)
+    data["cause"] = event.cause or _extract_cause(event, report, articles)
 
     data.update(
         report={

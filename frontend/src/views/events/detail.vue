@@ -1020,7 +1020,7 @@ function getProgressColor(heat: number) {
           <el-card shadow="never" class="!border-none">
             <div class="text-xs text-gray-400 mb-1">综合热度指数</div>
             <div class="text-2xl font-bold mb-2" :style="{ color: getProgressColor(eventData.heat_index) }">
-              {{ Math.round(eventData.heat_index) }}
+              {{ eventData.heat_index > 0 ? Math.round(eventData.heat_index) : '--' }}
             </div>
             <div class="h-5 flex items-center">
               <el-progress
