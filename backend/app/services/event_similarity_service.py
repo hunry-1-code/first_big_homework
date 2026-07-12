@@ -72,18 +72,30 @@ def find_similar_events(
         item.source_event_id
         for item in EventMergeRecord.query.filter_by(status="confirmed").all()
     }
+    max_candidates = current_app.config.get("EVENT_SIMILARITY_MAX_CANDIDATES", 500)
     query = Event.query.filter(Event.id != source.id)
     if before is not None:
         query = query.filter(Event.first_publish_time < before)
     if after is not None:
         query = query.filter(Event.first_publish_time >= after)
+    query = query.order_by(Event.id.desc()).limit(max_candidates)
+    candidates = [c for c in query.all() if c.id not in merged_alias_ids]
+    # 批量预加载 representations，避免 N+1 查询
+    candidate_ids = [c.id for c in candidates]
+    representation_rows = EventRepresentation.query.filter(
+        EventRepresentation.event_id.in_(candidate_ids),
+        EventRepresentation.model_name == current_app.config.get("BGE_MODEL", "BAAI/bge-small-zh-v1.5"),
+    ).all()
+    representation_map = {r.event_id: r for r in representation_rows}
     rows = []
-    for candidate in query.all():
-        if candidate.id in merged_alias_ids:
-            continue
-        representation = _compatible_representation(candidate.id)
+    for candidate in candidates:
+        representation = representation_map.get(candidate.id)
         if representation is None:
-            continue
+            # 降级：尝试模糊版本匹配
+            fallback = EventRepresentation.query.filter_by(event_id=candidate.id).first()
+            if fallback is None:
+                continue
+            representation = fallback
         score, signals, reasons = _related_score(
             source, source_representation, candidate, representation
         )
@@ -139,8 +151,9 @@ def search_historical_events(keyword: str, *, limit: int = 20) -> list[dict]:
         item.source_event_id
         for item in EventMergeRecord.query.filter_by(status="confirmed").all()
     }
+    max_candidates = current_app.config.get("EVENT_SEARCH_MAX_CANDIDATES", 500)
     rows = []
-    for event in Event.query.all():
+    for event in Event.query.order_by(Event.id.desc()).limit(max_candidates).all():
         if event.id in merged_alias_ids:
             continue
         representation = _compatible_representation(event.id)

@@ -2,7 +2,7 @@ from flask import Blueprint, request
 
 from app.core.response import fail, ok
 from app.core.security import login_required
-from app.services.event_service import get_event_detail, list_events, search_events
+from app.services.event_service import get_event_detail, get_propagation_data, list_events, search_events
 from app.services.event_similarity_service import find_similar_events
 from app.services.sentiment_analysis_service import get_event_sentiment
 
@@ -77,6 +77,15 @@ def event_articles(event_id: int):
     if detail is None:
         return fail("事件不存在", 404)
     return ok(detail["articles"])
+
+
+@events_bp.get("/<int:event_id>/propagation")
+@login_required
+def event_propagation(event_id: int):
+    data = get_propagation_data(event_id)
+    if data is None:
+        return fail("事件不存在", 404)
+    return ok(data)
 
 
 @events_bp.get("/<int:event_id>/similar")

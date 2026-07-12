@@ -160,32 +160,26 @@ def crawl_job(task_id: int, registry: CrawlerRegistry | None = None) -> dict:
                     expansion_platform_counts[platform] = (
                         expansion_platform_counts.get(platform, 0) + count
                     )
+                # 批量收集扩展映射，减少逐条查询
+                pending_expansions = []
                 for document in expanded_batch.documents:
                     try:
                         article, _output = persist_raw_document(document, task_id)
                         expanded_ids.append(article.id)
                         discovered_at = datetime.now(timezone.utc).replace(tzinfo=None)
                         for seed_article_id in seed.source_seed_ids:
-                            mapping = HotSeedExpansion.query.filter_by(
-                                seed_article_id=seed_article_id,
-                                search_query=seed.query,
-                                article_id=article.id,
-                            ).first()
-                            if mapping is None:
-                                db.session.add(
-                                    HotSeedExpansion(
-                                        seed_article_id=seed_article_id,
-                                        search_query=seed.query,
-                                        crawl_task_id=task_id,
-                                        platform=document.platform,
-                                        article_id=article.id,
-                                        source_rank=seed.best_rank,
-                                        discovered_at=discovered_at,
-                                    )
-                                )
-                        db.session.commit()
+                            pending_expansions.append(
+                                {
+                                    "seed_article_id": seed_article_id,
+                                    "search_query": seed.query,
+                                    "crawl_task_id": task_id,
+                                    "platform": document.platform,
+                                    "article_id": article.id,
+                                    "source_rank": seed.best_rank,
+                                    "discovered_at": discovered_at,
+                                }
+                            )
                     except Exception as exc:
-                        db.session.rollback()
                         expansion_errors.append(
                             {
                                 "seed": seed.query,
@@ -195,6 +189,21 @@ def crawl_job(task_id: int, registry: CrawlerRegistry | None = None) -> dict:
                                 "retryable": True,
                             }
                         )
+                if pending_expansions:
+                    existing_keys = set()
+                    for exp in pending_expansions:
+                        existing = HotSeedExpansion.query.filter_by(
+                            seed_article_id=exp["seed_article_id"],
+                            search_query=exp["search_query"],
+                            article_id=exp["article_id"],
+                        ).first()
+                        if existing is not None:
+                            existing_keys.add((exp["seed_article_id"], exp["search_query"], exp["article_id"]))
+                    for exp in pending_expansions:
+                        key = (exp["seed_article_id"], exp["search_query"], exp["article_id"])
+                        if key not in existing_keys:
+                            db.session.add(HotSeedExpansion(**exp))
+                    db.session.commit()
         summary.update(
             seed_count=len(seeds),
             expansion_queries=[seed.query for seed in seeds],
