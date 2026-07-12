@@ -778,11 +778,18 @@ function getWordEmphasisColor(t: number): string {
 }
 
 function initBubbleChart() {
-  if (!eventData.value || !bubbleRef.value) return;
+  if (!eventData.value || !bubbleRef.value) {
+    console.warn('[wordcloud] container not ready');
+    return;
+  }
 
   const dark = isDark.value;
   const list = eventData.value.keywords?.keywords || [];
-  if (list.length === 0) return;
+  if (list.length === 0) {
+    console.warn('[wordcloud] no keywords');
+    return;
+  }
+  console.log('[wordcloud] rendering', list.length, 'keywords', list.slice(0,3));
 
   const count = list.length;
   const weights = list.map((kw: any) => kw.weight || 0);
@@ -822,7 +829,12 @@ function initBubbleChart() {
   const gridSize = count > 20 ? 8 : count > 12 ? 6 : 4;
 
   if (bubbleChart) bubbleChart.dispose();
-  bubbleChart = echarts.init(bubbleRef.value);
+  try {
+    bubbleChart = echarts.init(bubbleRef.value);
+  } catch(e) {
+    console.error('[wordcloud] init failed:', e);
+    return;
+  }
   bubbleChart.setOption({
     backgroundColor: "transparent",
     tooltip: {
