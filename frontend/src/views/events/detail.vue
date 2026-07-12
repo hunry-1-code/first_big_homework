@@ -808,22 +808,22 @@ function initBubbleChart() {
     const isTop = idx < Math.min(6, sorted.length * 0.2);
     const isMid = !isTop && idx < Math.min(15, sorted.length * 0.5);
 
-    // 颜色纵深：顶部浓烈 → 中部分明 → 底部淡出
+    // 情感着色：负面红、正面绿、中性灰蓝，透明度随字号衰减
+    const sentiment = kw.sentiment || "neutral";
     let color: string;
-    if (isTop) {
-      // 深靛蓝/深蓝，大字醒目
-      color = dark ? "#93c5fd" : "#1e40af";
-    } else if (isMid) {
-      const midT = (idx - (isTop ? 6 : 0)) / 10;
-      const r = Math.round(59 + midT * 37);
-      const g = Math.round(130 + midT * 45);
-      const b = Math.round(246 - midT * 50);
+    const alpha = isTop ? 1.0 : isMid ? 0.75 : 0.45;
+    if (sentiment === "negative") {
       color = dark
-        ? `rgba(148,${163 + Math.round(midT * 20)},${220 - Math.round(midT * 20)},${(0.85 - midT * 0.3).toFixed(2)})`
-        : `rgba(${r},${g},${b},${(0.95 - midT * 0.25).toFixed(2)})`;
+        ? `rgba(252,165,165,${alpha})`
+        : `rgba(220,38,38,${(alpha * 0.9).toFixed(2)})`;
+    } else if (sentiment === "positive") {
+      color = dark
+        ? `rgba(134,239,172,${alpha})`
+        : `rgba(5,150,105,${(alpha * 0.9).toFixed(2)})`;
     } else {
-      // 极淡灰蓝，小词退到背景
-      color = dark ? "rgba(148,163,184,0.35)" : "rgba(148,163,184,0.5)";
+      color = dark
+        ? `rgba(148,163,184,${(alpha * 0.7).toFixed(2)})`
+        : `rgba(30,64,175,${(alpha * 0.8).toFixed(2)})`;
     }
 
     return {

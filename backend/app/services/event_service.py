@@ -55,50 +55,59 @@ def _event_keywords(event: Event) -> dict:
     unique_articles = len(article_ids)
     query_terms = {t for t, c in query_candidates.items() if c >= unique_articles * 0.5}
 
-    # 聚合：每篇文章取 top-3 非查询词，计算平均分和出现次数
-    term_scores: dict[str, list[float]] = {}
+    # 聚合：每篇文章取 top-3 非查询词，收集 score/sentiment/entity_type
+    from collections import Counter as _Cnt
+    term_data: dict[str, dict] = {}
     for row in rows:
         seen: set[str] = set()
-        count = 0
+        take = 0
         for kw in (row.keywords or []):
             if not isinstance(kw, dict):
                 continue
             term = kw["term"].strip()
             if term in query_terms or term in seen:
                 continue
-            # 过滤乱码和纯数字/符号
             if len(term) <= 1 or not any('一' <= c <= '鿿' for c in term):
                 continue
-                continue
             seen.add(term)
-            score = float(kw.get("score", 0))
-            term_scores.setdefault(term, []).append(score)
-            count += 1
-            if count >= 3:
+            if term not in term_data:
+                term_data[term] = {"scores": [], "sentiments": [], "types": []}
+            term_data[term]["scores"].append(float(kw.get("score", 0)))
+            term_data[term]["sentiments"].append(str(kw.get("sentiment", "neutral")))
+            term_data[term]["types"].append(str(kw.get("type", kw.get("entity_type", "concept"))))
+            take += 1
+            if take >= 3:
                 break
 
-    # 排序：对数文档频率。出现次数越多权重越高，但不线性
+    # 排序：log 频率 + 排名衰减权重
     ranked = []
-    for term, scores in term_scores.items():
-        count = len(scores)
-        avg_score = sum(scores) / count
-        # 用 log 频率作为主排序，avg_score 打破平局
-        freq_log = math.log(1 + count)
-        ranked.append((term, freq_log, avg_score, count))
+    for term, data in term_data.items():
+        cnt = len(data["scores"])
+        avg_score = sum(data["scores"]) / cnt
+        freq_log = math.log(1 + cnt)
+        dom_s = _Cnt(data["sentiments"]).most_common(1)[0][0]
+        dom_t = _Cnt(data["types"]).most_common(1)[0][0]
+        ranked.append((term, freq_log, avg_score, cnt, dom_s, dom_t))
 
     ranked.sort(key=lambda x: (x[1], x[2], x[3]), reverse=True)
     ranked = ranked[:30]
-
     if not ranked:
         return {"keywords": []}
 
     total = len(ranked)
     return {
         "keywords": [
-            {"word": term, "weight": round(1.0 - (idx / total) * 0.85, 4)}
-            for idx, (term, freq_log, avg_score, count) in enumerate(ranked)
+            {
+                "word": term,
+                "weight": round(1.0 - (idx / total) * 0.85, 4),
+                "sentiment": sentiment,
+                "entity_type": etype,
+            }
+            for idx, (term, freq_log, avg_score, cnt, sentiment, etype) in enumerate(ranked)
         ]
     }
+
+
 
 
 def _extract_event_metadata(event, articles) -> dict:
