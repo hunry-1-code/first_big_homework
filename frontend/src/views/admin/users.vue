@@ -34,7 +34,7 @@
           <span class="font-bold text-slate-800 dark:text-slate-100">用户列表</span>
           <div class="flex items-center gap-2">
             <el-button type="primary" :icon="useRenderIcon(AddFill)" @click="openDialog()">
-              新增用户
+              新建用户
             </el-button>
             <el-button :icon="useRenderIcon(Refresh)" @click="loadUsers">刷新</el-button>
           </div>
@@ -135,19 +135,30 @@
       </div>
     </el-card>
 
-    <!-- 新增/编辑弹窗 -->
-    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="440px" destroy-on-close>
-      <el-form ref="userFormRef" :model="userForm" label-width="80px" size="default">
-        <el-form-item label="用户名" required>
-          <el-input v-model="userForm.username" :disabled="isEdit" placeholder="请输入用户名" />
+    <!-- 新建/编辑用户弹窗 -->
+    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="460px" destroy-on-close>
+      <el-form ref="userFormRef" :model="userForm" :rules="formRules" label-width="80px" size="default" @submit.prevent>
+        <el-form-item label="用户名" prop="username">
+          <el-input
+            v-model="userForm.username"
+            :disabled="isEdit"
+            placeholder="3-50位字母、数字、下划线或短横线"
+            maxlength="50"
+          />
+          <template v-if="!isEdit" #extra>
+            <span class="text-[11px] text-slate-400">允许字母、数字、下划线(_)和短横线(-)，3-50位</span>
+          </template>
         </el-form-item>
-        <el-form-item v-if="!isEdit" label="密码" required>
-          <el-input v-model="userForm.password" type="password" placeholder="请输入密码" show-password />
+        <el-form-item v-if="!isEdit" label="登录密码" prop="password">
+          <el-input v-model="userForm.password" type="password" placeholder="6-128位字符" show-password maxlength="128" />
+          <template #extra>
+            <span class="text-[11px] text-slate-400">长度 6-128 位，建议包含字母和数字</span>
+          </template>
         </el-form-item>
-        <el-form-item label="昵称">
-          <el-input v-model="userForm.nickname" placeholder="请输入昵称" />
+        <el-form-item label="昵称" prop="nickname">
+          <el-input v-model="userForm.nickname" placeholder="可选，留空则使用用户名" maxlength="50" />
         </el-form-item>
-        <el-form-item label="角色" required>
+        <el-form-item label="角色" prop="role">
           <el-select v-model="userForm.role" class="w-full">
             <el-option label="管理员 (admin)" value="admin" />
             <el-option label="普通用户 (user)" value="user" />
@@ -177,6 +188,7 @@
 
 <script setup lang="ts">
 import { onMounted, ref, reactive } from "vue";
+import type { FormInstance, FormRules } from "element-plus";
 import { useRenderIcon } from "@/components/ReIcon/src/hooks";
 import { message } from "@/utils/message";
 import {
@@ -206,8 +218,20 @@ const pagination = reactive({ total: 0, pageSize: 20, currentPage: 1 });
 const form = reactive({ username: "", role: "", status: "" });
 
 // 弹窗
+const userFormRef = ref<FormInstance>();
 const dialogVisible = ref(false);
-const dialogTitle = ref("新增用户");
+const dialogTitle = ref("新建用户");
+
+const formRules: FormRules = {
+  username: [
+    { required: true, message: "请输入用户名", trigger: "blur" },
+    { pattern: /^[A-Za-z0-9_-]{3,50}$/, message: "3-50位字母、数字、下划线或短横线", trigger: "blur" }
+  ],
+  password: [
+    { required: true, message: "请输入密码", trigger: "blur" },
+    { min: 6, max: 128, message: "密码长度 6-128 位", trigger: "blur" }
+  ]
+};
 const isEdit = ref(false);
 const userForm = reactive({ id: 0, username: "", password: "", nickname: "", role: "user" });
 const resetPwdVisible = ref(false);
@@ -264,7 +288,7 @@ async function onBatchDel() {
   }
 }
 
-function openDialog(title = "新增用户", row?: AdminUser) {
+function openDialog(title = "新建用户", row?: AdminUser) {
   dialogTitle.value = title;
   if (row) {
     isEdit.value = true;
@@ -285,6 +309,8 @@ function openDialog(title = "新增用户", row?: AdminUser) {
 }
 
 async function handleSubmit() {
+  const valid = await userFormRef.value?.validate().catch(() => false);
+  if (!valid) return;
   try {
     if (isEdit.value) {
       await updateUser(userForm.id, { nickname: userForm.nickname, role: userForm.role });
