@@ -1,208 +1,407 @@
 from __future__ import annotations
 
+from collections import Counter
+from datetime import datetime
 
-SAMPLE_EVENTS = [
-    {
-        "id": 1,
-        "title": "某知名互联网企业疑似发生大规模用户数据泄露事件",
-        "summary": "近日有网民爆料称某头部互联网公司发生用户隐私数据泄露，涉及数千万用户信息，包括手机号、身份证等敏感字段已在暗网流传，引发广泛关注。",
-        "heat_index": 92.3,
-        "lifecycle_stage": "高潮期",
-        "sentiment_positive": 0.05,
-        "sentiment_negative": 0.82,
-        "sentiment_neutral": 0.13,
-    },
-    {
-        "id": 2,
-        "title": "新能源汽车品牌发布新款自动驾驶系统引发热议",
-        "summary": "某国产新能源汽车品牌召开发布会，宣布旗下全系车型将搭载新一代L3级自动驾驶系统，部分网友质疑其技术成熟度与安全性。",
-        "heat_index": 78.6,
-        "lifecycle_stage": "成长期",
-        "sentiment_positive": 0.48,
-        "sentiment_negative": 0.29,
-        "sentiment_neutral": 0.23,
-    },
-    {
-        "id": 3,
-        "title": "某地发生食品安全事件相关部门介入调查",
-        "summary": "有消费者在社交平台发布视频称在某连锁餐饮品牌就餐后出现集体腹泻症状，当地市场监管局已成立专项调查组开展核查。",
-        "heat_index": 65.2,
-        "lifecycle_stage": "成长期",
-        "sentiment_positive": 0.08,
-        "sentiment_negative": 0.74,
-        "sentiment_neutral": 0.18,
-    },
-    {
-        "id": 4,
-        "title": "全国铁路暑运首周客流量创历史新高",
-        "summary": "中国国家铁路集团发布数据，2026年暑运首周全国铁路累计发送旅客突破1.2亿人次，同比增长15.3%，多条热门线路加开临时列车。",
-        "heat_index": 41.8,
-        "lifecycle_stage": "潜伏期",
-        "sentiment_positive": 0.65,
-        "sentiment_negative": 0.07,
-        "sentiment_neutral": 0.28,
-    },
-    {
-        "id": 5,
-        "title": "某流量明星被曝税务问题已持续发酵一周",
-        "summary": "娱乐媒体连续追踪报道某顶流艺人涉嫌偷逃税款事件，粉丝群体内部出现分裂，品牌方陆续宣布暂停合作，事件热度趋于平稳回落。",
-        "heat_index": 33.5,
-        "lifecycle_stage": "消退期",
-        "sentiment_positive": 0.15,
-        "sentiment_negative": 0.61,
-        "sentiment_neutral": 0.24,
-    },
-    {
-        "id": 6,
-        "title": "多地暴雨引发洪涝灾害应急响应升至二级",
-        "summary": "受持续强降雨影响，长江中下游多地出现严重城市内涝和山体滑坡，国家防总已将防汛应急响应提升至二级，救援力量全面投入一线。",
-        "heat_index": 88.9,
-        "lifecycle_stage": "高潮期",
-        "sentiment_positive": 0.12,
-        "sentiment_negative": 0.56,
-        "sentiment_neutral": 0.32,
-    },
-    {
-        "id": 7,
-        "title": "AI生成内容标识新规正式施行引发产学研热议",
-        "summary": "国家网信办发布的《人工智能生成内容标识管理办法》今日起正式施行，要求所有AI生成内容必须添加显式标识，学术界与产业界对此展开激烈讨论。",
-        "heat_index": 55.7,
-        "lifecycle_stage": "成长期",
-        "sentiment_positive": 0.42,
-        "sentiment_negative": 0.22,
-        "sentiment_neutral": 0.36,
-    },
-    {
-        "id": 8,
-        "title": "某城市推出数字人民币试点全民消费补贴活动",
-        "summary": "某一线城市联合六大银行推出数字人民币消费红包发放活动，市民可通过指定APP领取最高500元数字人民币红包，引发市民排队体验。",
-        "heat_index": 28.4,
-        "lifecycle_stage": "潜伏期",
-        "sentiment_positive": 0.71,
-        "sentiment_negative": 0.04,
-        "sentiment_neutral": 0.25,
-    },
-    {
-        "id": 9,
-        "title": "某上市公司财务造假丑闻被做空机构曝光",
-        "summary": "国际知名做空机构发布长篇调查报告，指控某A股上市公司存在系统性财务造假行为，该公司股价当日跌停，证监会表示已启动核查程序。",
-        "heat_index": 85.1,
-        "lifecycle_stage": "高潮期",
-        "sentiment_positive": 0.03,
-        "sentiment_negative": 0.89,
-        "sentiment_neutral": 0.08,
-    },
-    {
-        "id": 10,
-        "title": "国产大型客机成功完成首次跨洋商业航线飞行",
-        "summary": "国产C919大型客机首次执飞上海至新加坡国际商业航线并顺利抵达，标志着国产大飞机在国际化运营道路上迈出关键一步。",
-        "heat_index": 52.3,
-        "lifecycle_stage": "成长期",
-        "sentiment_positive": 0.78,
-        "sentiment_negative": 0.03,
-        "sentiment_neutral": 0.19,
-    },
-]
+from sqlalchemy import or_
+
+from app.analysis.event_similarity import set_similarity
+from app.analysis.fake_detector import _build_context, batch_assess_articles
+from app.analysis.trend_predictor import get_lifecycle_change_points, predict_lifecycle_stage
+from app.extensions import db
+from app.models import Article, Event, EventHeatSnapshot, Report
+from app.services.event_similarity_service import search_historical_events
+from app.services.api_contract_service import api_platform_name,api_lifecycle_stage,normalized_sentiment,api_sentiment_label,clamp_heat,clamp_ratio,short_date,trend_key_points
+
+
+def _title_bigrams(title: str | None) -> list[str]:
+    """提取标题的字符级 bigram（适用于中文文本相似度比较）。"""
+    if not title:
+        return []
+    text = str(title).strip()
+    if len(text) < 2:
+        return [text]
+    return [text[i:i + 2] for i in range(len(text) - 1)]
+
+
+_SIMILARITY_MIN = 0.12   # 标题相似度最低阈值
+_MAX_EDGES = 50          # 最大边数，防止 O(n²) 爆炸
+
+
+def _event_item(event: Event, snapshot: EventHeatSnapshot | None = None) -> dict:
+    if snapshot is None and event.current_heat_snapshot_id:
+        snapshot = db.session.get(EventHeatSnapshot, event.current_heat_snapshot_id)
+    positive,negative,neutral=normalized_sentiment(event.sentiment_positive,event.sentiment_negative,event.sentiment_neutral)
+    return {
+        "id": event.id,
+        "title": event.title,
+        "summary": event.summary,
+        "topic_category": event.topic_category,
+        "topic_name": event.topic_name,
+        "heat_index": clamp_heat(event.heat_index),
+        "core_heat": float(event.core_heat or 0),
+        "spread_heat": event.spread_heat,
+        "is_hot": bool(event.is_hot),
+        "hot_rank": event.hot_rank,
+        "lifecycle_stage": api_lifecycle_stage(event.lifecycle_stage),
+        "sentiment_positive": positive,
+        "sentiment_negative": negative,
+        "sentiment_neutral": neutral,
+        "independent_report_count": int(event.independent_report_count or 0),
+        "platform_count": int(event.platform_count or 0),
+        "time_confidence": event.time_confidence,
+        "first_publish_time": event.first_publish_time.isoformat()
+        if event.first_publish_time
+        else None,
+        "last_activity_time": event.last_activity_time.isoformat()
+        if event.last_activity_time
+        else None,
+        "calculated_at": snapshot.calculated_at.isoformat() if snapshot else None,
+        "formula_version": snapshot.formula_version if snapshot else None,
+        "warnings": (snapshot.calculation_details or {}).get("warnings", [])
+        if snapshot
+        else ["HEAT_SNAPSHOT_UNAVAILABLE"],
+    }
 
 
 def list_events(args) -> dict:
-    page = int(args.get("page", 1))
-    size = int(args.get("size", 20))
-    keyword = args.get("keyword", "").strip()
+    page = max(1, int(args.get("page", 1)))
+    size = max(1, min(100, int(args.get("size", 20))))
+    query = Event.query
+    keyword = str(args.get("keyword") or "").strip()
     if keyword:
-        filtered = [e for e in SAMPLE_EVENTS if keyword in e["title"]]
-    else:
-        filtered = list(SAMPLE_EVENTS)
-    total = len(filtered)
-    start = (page - 1) * size
-    paged = filtered[start : start + size]
-    return {"events": paged, "total": total, "page": page, "size": size}
-
-
-def get_event_detail(event_id: int) -> dict:
-    event = next((e for e in SAMPLE_EVENTS if e["id"] == event_id), SAMPLE_EVENTS[0])
-    event = {**event, "id": event_id}
+        pattern = f"%{keyword}%"
+        query = query.filter(
+            or_(
+                Event.title.like(pattern),
+                Event.topic_name.like(pattern),
+                Event.summary.like(pattern),
+            )
+        )
+    hot_value = str(args.get("hot") or "").strip().casefold()
+    if hot_value in {"1", "true", "yes"}:
+        query = query.filter(Event.is_hot.is_(True))
+    total = query.count()
+    events = (
+        query.order_by(Event.is_hot.desc(), Event.hot_rank.asc(), Event.heat_index.desc(), Event.id.desc())
+        .offset((page - 1) * size)
+        .limit(size)
+        .all()
+    )
+    # 批量预加载 heat snapshots，避免 N+1 查询
+    snapshot_ids = [e.current_heat_snapshot_id for e in events if e.current_heat_snapshot_id]
+    snapshots_map = {}
+    if snapshot_ids:
+        snapshots = EventHeatSnapshot.query.filter(EventHeatSnapshot.id.in_(snapshot_ids)).all()
+        snapshots_map = {s.id: s for s in snapshots}
     return {
-        **event,
-        "report": {
-            "overview_text": "报告内容由后台 report 任务生成，这里是接口占位。",
-            "risk_data": {"level": "中风险", "score": 55},
+        "events": [_event_item(event, snapshots_map.get(event.current_heat_snapshot_id)) for event in events],
+        "total": total,
+        "page": page,
+        "size": size,
+    }
+
+
+def get_event_detail(event_id: int) -> dict | None:
+    event = Event.query.get(event_id)
+    if event is None:
+        return None
+    articles = (
+        Article.query.filter_by(event_id=event.id)
+        .order_by(Article.publish_time.desc())
+        .limit(200)
+        .all()
+    )
+    snapshots = (
+        EventHeatSnapshot.query.filter_by(event_id=event.id)
+        .order_by(EventHeatSnapshot.calculated_at)
+        .all()
+    )
+    platform_counts = Counter(article.platform for article in articles)
+    total_articles = sum(platform_counts.values())
+    report = Report.query.filter_by(event_id=event.id).order_by(Report.id.desc()).first()
+    from app.services.sentiment_analysis_service import get_event_sentiment
+
+    sentiment = get_event_sentiment(event.id)
+    data = _event_item(event)
+    if snapshots:
+        trend_dates = [item.calculated_at.isoformat() for item in snapshots]
+        trend_counts = [
+            (item.raw_statistics or {}).get("independent_report_count_7d", 0)
+            for item in snapshots
+        ]
+        trend_heat = [item.final_heat for item in snapshots]
+    else:
+        # 无快照时从 article.publish_time 实时聚合
+        from collections import OrderedDict
+
+        daily = OrderedDict()
+        for a in sorted(articles, key=lambda x: x.publish_time or datetime.min):
+            if a.publish_time:
+                day = a.publish_time.strftime("%Y-%m-%d")
+                daily[day] = daily.get(day, 0) + 1
+        trend_dates = list(daily.keys())
+        trend_counts = list(daily.values())
+        trend_heat = trend_counts  # fallback: 热度=报道量
+    lifecycle_points = get_lifecycle_change_points(trend_counts, trend_dates)
+    # 根据实际趋势数据计算并持久化生命周期阶段
+    current_lifecycle = predict_lifecycle_stage(trend_counts)
+    if current_lifecycle != event.lifecycle_stage:
+        event.lifecycle_stage = current_lifecycle
+        db.session.commit()
+    # 计算事件级风险摘要
+    ctx = _build_context(event.id, articles)
+    article_risks = batch_assess_articles(articles, ctx)
+    # 将评估结果持久化到 Article 模型
+    for article, risk in zip(articles, article_risks):
+        if getattr(article, "is_suspicious", None) != risk["is_suspicious"] or \
+           getattr(article, "suspicious_score", None) != risk["score"]:
+            article.is_suspicious = risk["is_suspicious"]
+            article.suspicious_score = risk["score"]
+            article.suspicious_reason = risk["reason"]
+            article.suspicious_method = risk["method"]
+    db.session.commit()
+    suspicious_articles = [r for r in article_risks if r["is_suspicious"]]
+    avg_risk = sum(r["score"] for r in article_risks) / len(article_risks) if article_risks else 0
+    risk_data = {
+        "score": round(avg_risk, 1),
+        "level": "高风险" if avg_risk >= 70 else "中风险" if avg_risk >= 40 else "低风险",
+        "suspicious_count": len(suspicious_articles),
+        "total_count": len(article_risks),
+        "factors": list(set(
+            reason for r in article_risks
+            for reason in r["reason"].split("; ")
+            if reason and "未发现" not in reason
+        ))[:5],
+    }
+
+    # 覆写 lifecycle_stage 为根据实时趋势数据计算的结果
+    data["lifecycle_stage"] = api_lifecycle_stage(current_lifecycle)
+
+    data.update(
+        report={
+            "overview_text": report.overview_text if report else event.summary,
+            "risk_data": report.risk_data if (report and report.risk_data) else risk_data,
         },
-        "trend": {"dates": ["2026-07-08", "2026-07-09"], "counts": [12, 35], "key_points": []},
-        "sentiment": {
-            "positive": event["sentiment_positive"],
-            "negative": event["sentiment_negative"],
-            "neutral": event["sentiment_neutral"],
-            "daily": [],
+        trend={
+            "dates": [short_date(value) for value in trend_dates[-14:]],
+            "counts": trend_counts[-14:],
+            "heat": trend_heat,
+            "key_points": trend_key_points([short_date(value) for value in trend_dates[-14:]],trend_counts[-14:]),
         },
-        "platform": {"platforms": [{"name": "样例数据", "count": 47, "percentage": 1.0}]},
-        "keywords": {
-            "keywords": [
-                {"word": "舆情", "weight": 0.95},
-                {"word": "安全", "weight": 0.88},
-                {"word": "网络", "weight": 0.82},
-                {"word": "监测", "weight": 0.76},
-                {"word": "热点", "weight": 0.71},
-                {"word": "传播", "weight": 0.65},
-                {"word": "大V转发", "weight": 0.58},
-                {"word": "评论区", "weight": 0.53},
-                {"word": "热度指数", "weight": 0.49},
-                {"word": "负面情感", "weight": 0.44},
-                {"word": "研判报告", "weight": 0.39},
-                {"word": "谣言检测", "weight": 0.34},
-                {"word": "置信度", "weight": 0.30},
-                {"word": "数据清洗", "weight": 0.26},
-                {"word": "博主", "weight": 0.22},
-                {"word": "系统预警", "weight": 0.18},
-                {"word": "敏感词", "weight": 0.15},
-                {"word": "公关", "weight": 0.12}
+        sentiment=sentiment,
+        platform={
+            "platforms": [
+                {
+                    "platform": api_platform_name(platform),
+                    "count": count,
+                    "percentage": count / total_articles if total_articles else 0,
+                }
+                for platform, count in sorted(platform_counts.items()) if api_platform_name(platform)
             ]
         },
-        "articles": {
+        keywords={"keywords": []},
+        articles={
             "articles": [
                 {
-                    "id": 1, "platform": "微博热搜", "title": "网传某平台用户数据遭泄露，官方尚未回应",
-                    "author": "科技圈那些事", "publish_time": "2026-07-11 14:20",
-                    "reposts_count": 4521, "comments_count": 2830, "likes_count": 12056,
-                    "clean_content": "近日有网友爆料称某大型互联网平台发生用户数据泄露事件，涉及数千万用户信息。截至目前官方尚未发布正式声明，引发广泛关注。",
-                    "sentiment_label": "负面", "is_suspicious": False, "suspicious_score": 0
-                },
-                {
-                    "id": 2, "platform": "知乎", "title": "如何看待某平台疑似数据泄露？技术层面分析可能原因",
-                    "author": "后端工程师小王", "publish_time": "2026-07-11 16:45",
-                    "reposts_count": 892, "comments_count": 1560, "likes_count": 3420,
-                    "clean_content": "从技术角度来看，大规模数据泄露通常与以下几个方面有关：数据库配置不当、API权限控制缺失、内部人员操作等。需要等待官方调查结果。",
-                    "sentiment_label": "中立", "is_suspicious": False, "suspicious_score": 0
-                },
-                {
-                    "id": 3, "platform": "B站", "title": "【速报】某平台千万用户数据疑在暗网出售",
-                    "author": "科技观察猿", "publish_time": "2026-07-11 12:10",
-                    "reposts_count": 2300, "comments_count": 4200, "likes_count": 18900,
-                    "clean_content": "据暗网监测账号消息，有人声称持有某平台完整用户数据库并在暗网论坛挂牌出售。安全研究人员正在进行验证，提醒用户及时修改密码。",
-                    "sentiment_label": "负面", "is_suspicious": True, "suspicious_score": 0.65
-                },
-                {
-                    "id": 4, "platform": "百度热搜", "title": "某平台数据安全事件持续发酵，相关部门已介入",
-                    "author": "新华网", "publish_time": "2026-07-11 18:00",
-                    "reposts_count": 6700, "comments_count": 3210, "likes_count": 8500,
-                    "clean_content": "记者今日从有关部门获悉，针对近期网络上关于某互联网平台用户数据泄露的相关报道，监管部门已经启动调查程序，后续结果将及时向社会公布。",
-                    "sentiment_label": "中立", "is_suspicious": False, "suspicious_score": 0
-                },
-                {
-                    "id": 5, "platform": "小红书", "title": "教大家自查账号是否在这次泄露事件中受影响",
-                    "author": "数码生活家", "publish_time": "2026-07-11 15:30",
-                    "reposts_count": 5600, "comments_count": 7800, "likes_count": 22300,
-                    "clean_content": "今天看到新闻说某平台数据疑似泄露，整理了几个自查方法分享给大家，可以确认自己的信息是否在泄露范围内。",
-                    "sentiment_label": "中立", "is_suspicious": False, "suspicious_score": 0
-                },
+                    "id": article.id,
+                    "platform": api_platform_name(article.platform) or "百度搜索",
+                    "title": article.title,
+                    "clean_content": article.clean_content,
+                    "author": article.author,
+                    "reposts_count": int(article.reposts_count or 0),
+                    "comments_count": int(article.comments_count or 0),
+                    "likes_count": int(article.likes_count or 0),
+                    "sentiment_label": api_sentiment_label(article.sentiment_label),
+                    "is_suspicious": bool(article.is_suspicious),
+                    "suspicious_score": clamp_ratio((article.suspicious_score or 0)/100 if (article.suspicious_score or 0)>1 else article.suspicious_score),
+                    "publish_time": article.publish_time.isoformat()
+                    if article.publish_time
+                    else None,
+                }
+                for article in articles
             ],
-            "total": 5,
+            "total": len(articles),
+        },
+    )
+    return data
+
+
+def get_propagation_data(event_id: int) -> dict | None:
+    """获取事件传播路径数据，包含关键节点和图结构。
+
+    规格依据：项目需求规格说明书 §6.2 事件溯源与关键传播路径
+    """
+    from app.analysis.fake_detector import _match_official_media
+
+    event = Event.query.get(event_id)
+    if event is None:
+        return None
+
+    articles = Article.query.filter_by(event_id=event.id)\
+        .order_by(Article.publish_time.asc()).all()
+
+    from app.propagation import build_propagation_graph
+    from app.services.api_contract_service import api_platform_name
+    return build_propagation_graph(articles, platform_mapper=api_platform_name)
+
+    if not articles:
+        return {"key_nodes": [], "graph": {"nodes": [], "links": []}}
+
+    # ── 关键节点识别 ──────────────────────────────
+    key_nodes = []
+
+    # 1. 初始爆料：发布时间最早的报道
+    origin = articles[0]
+    key_nodes.append({
+        "type": "origin",
+        "type_label": "初始爆料",
+        "article_id": origin.id,
+        "author": origin.author or "匿名用户",
+        "platform": origin.platform,
+        "title": origin.title,
+        "publish_time": origin.publish_time.isoformat() if origin.publish_time else None,
+    })
+
+    # 2. 首次大V转发：followers >= 500k 且非官媒，最早发布
+    big_v_articles = [
+        a for a in articles
+        if (a.author_followers or 0) >= 500000
+        and not _match_official_media(a.author or "")
+    ]
+    if big_v_articles:
+        bv = big_v_articles[0]
+        key_nodes.append({
+            "type": "influencer",
+            "type_label": "首次大V转发",
+            "article_id": bv.id,
+            "author": bv.author,
+            "platform": bv.platform,
+            "title": bv.title,
+            "followers": bv.author_followers,
+            "publish_time": bv.publish_time.isoformat() if bv.publish_time else None,
+        })
+
+    # 3. 首次官方媒体介入：匹配白名单，最早发布
+    official_articles = [
+        a for a in articles
+        if _match_official_media(a.author or "")
+    ]
+    if official_articles:
+        off = official_articles[0]
+        key_nodes.append({
+            "type": "official_media",
+            "type_label": "首次官方媒体介入",
+            "article_id": off.id,
+            "author": off.author,
+            "platform": off.platform,
+            "title": off.title,
+            "publish_time": off.publish_time.isoformat() if off.publish_time else None,
+        })
+
+    # ── 构建图结构 ──────────────────────────────
+    # 节点：每篇报道为一个节点
+    nodes = []
+    for a in articles:
+        author = a.author or "匿名用户"
+        followers = a.author_followers or 0
+        is_official = _match_official_media(author)
+
+        # 分类：0=初始爆料, 1=大V, 2=官方媒体, 3=普通
+        if a.id == origin.id:
+            category = 0
+            symbol_size = 35
+        elif is_official:
+            category = 2
+            symbol_size = 30
+        elif followers >= 500000:
+            category = 1
+            symbol_size = 25
+        else:
+            category = 3
+            symbol_size = 15
+
+        interactions = (a.comments_count or 0) + (a.reposts_count or 0) + (a.likes_count or 0)
+        size = symbol_size + min(20, interactions // 50)
+
+        nodes.append({
+            "id": a.id,
+            "name": author,
+            "category": category,
+            "symbolSize": size,
+            "platform": a.platform,
+            "followers": followers,
+            "publish_time": a.publish_time.isoformat() if a.publish_time else None,
+            "title": a.title,
+        })
+
+    # 边：基于标题相似度构建传播关系
+    links = []
+    # 预计算所有标题的 bigram 集合
+    bigram_sets = {a.id: set(_title_bigrams(a.title)) for a in articles}
+    origin_id = origin.id
+
+    for i in range(len(articles)):
+        for j in range(i + 1, len(articles)):
+            if len(links) >= _MAX_EDGES:
+                break
+            sim = set_similarity(
+                list(bigram_sets[articles[i].id]),
+                list(bigram_sets[articles[j].id]),
+            )
+            if sim is None or sim < _SIMILARITY_MIN:
+                continue
+            links.append({
+                "source": articles[i].id,
+                "target": articles[j].id,
+                "relation": "inferred",
+                "confidence": round(float(sim), 2),
+                "evidence": f"标题关键词重叠（相似度 {sim:.0%}）",
+            })
+
+    # 确保 origin 至少有一条出边，避免传播图孤立
+    if not any(l["source"] == origin_id for l in links):
+        # 找到与 origin 最近似的文章，否则连接到第二篇
+        target = articles[1].id if len(articles) > 1 else None
+        best_sim = 0.0
+        if target:
+            for a in articles[1:]:
+                sim = set_similarity(
+                    list(bigram_sets[origin_id]),
+                    list(bigram_sets[a.id]),
+                )
+                if sim is not None and sim > best_sim:
+                    best_sim = sim
+                    target = a.id
+        if target:
+            links.insert(0, {
+                "source": origin_id,
+                "target": target,
+                "relation": "inferred",
+                "confidence": round(best_sim, 2) if best_sim > 0 else 0.1,
+                "evidence": "基于时间先后推测" if best_sim <= 0 else f"标题相似度 {best_sim:.0%}",
+            })
+
+    return {
+        "key_nodes": key_nodes,
+        "graph": {
+            "nodes": nodes,
+            "links": links,
         },
     }
 
 
 def search_events(keyword: str) -> list[dict]:
-    if not keyword:
-        return SAMPLE_EVENTS
-    return [e for e in SAMPLE_EVENTS if keyword in e["title"]]
-
+    semantic = search_historical_events(keyword, limit=20)
+    if not semantic:
+        return list_events({"keyword": keyword, "page": 1, "size": 20})["events"]
+    output = []
+    for item in semantic:
+        event = db.session.get(Event, item["event_id"])
+        if event is None:
+            continue
+        value = _event_item(event)
+        value["similarity"] = item["similarity"]
+        value["match_reasons"] = item["match_reasons"]
+        output.append(value)
+    return output

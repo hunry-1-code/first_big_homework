@@ -14,6 +14,44 @@ from app.services.task_service import (
     reset_task_store,
     update_task,
 )
+from app.core.config import Config
+from app.services.api_contract_service import api_platform_name, api_lifecycle_stage, normalized_sentiment, api_sentiment_label, clamp_heat, trend_key_points
+
+class ApiOutputContractTest(unittest.TestCase):
+    def test_maps_contract_enums_and_values(self):
+        self.assertEqual(api_platform_name('weibo_hot'),'微博热搜')
+        self.assertEqual(api_lifecycle_stage('高潮期'),'爆发期')
+        self.assertEqual(api_sentiment_label('中立'),'中性')
+        self.assertEqual(clamp_heat(120),100.0)
+        self.assertEqual(sum(normalized_sentiment(2,1,1)),1.0)
+    def test_builds_trend_key_points(self):
+        self.assertEqual(len(trend_key_points(['7/1','7/2','7/3'],[1,5,2])),3)
+
+
+class QianfanConfigContractTest(unittest.TestCase):
+    def test_qianfan_api_configuration_is_available(self):
+        self.assertTrue(hasattr(Config, "QIANFAN_API_KEY"))
+        self.assertEqual(
+            Config.QIANFAN_API_BASE_URL, "https://qianfan.baidubce.com"
+        )
+        self.assertEqual(
+            Config.QIANFAN_WEB_SEARCH_PATH, "/v2/ai_search/web_search"
+        )
+        self.assertEqual(
+            Config.QIANFAN_TRENDING_PATH, "/v2/tools/baidu_trending"
+        )
+        self.assertEqual(Config.QIANFAN_WEB_SEARCH_TOP_K, 50)
+        self.assertEqual(Config.QIANFAN_REQUEST_TIMEOUT, 30)
+
+
+class SentimentConfigContractTest(unittest.TestCase):
+    def test_sentiment_configuration_is_available(self):
+        self.assertEqual(Config.SENTIMENT_TEXT_LIMIT, 500)
+        self.assertEqual(Config.SENTIMENT_ALGORITHM_VERSION, "sentiment-v1")
+        self.assertEqual(Config.SENTIMENT_PROMPT_VERSION, "sentiment-prompt-v1")
+        self.assertEqual(Config.SENTIMENT_PLATFORM_MIN_ARTICLES, 3)
+        self.assertEqual(Config.SNOWNLP_POSITIVE_THRESHOLD, 0.60)
+        self.assertEqual(Config.SNOWNLP_NEGATIVE_THRESHOLD, 0.40)
 
 
 class ImportServiceContractTest(unittest.TestCase):

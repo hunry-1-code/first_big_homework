@@ -11,3 +11,4 @@ data/*
 !data/samples/
 !data/samples/**
 models/checkpoints/
+.worktrees/

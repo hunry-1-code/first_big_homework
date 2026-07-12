@@ -1,0 +1,69 @@
+{
+  "keyword": "人工智能",
+  "results": [
+    {
+      "platform": "weibo_hot",
+      "status": "SUCCESS",
+      "document_count": 1,
+      "preprocessing_status": "success",
+      "message": "",
+      "contract_errors": []
+    },
+    {
+      "platform": "weibo",
+      "status": "SUCCESS",
+      "document_count": 1,
+      "preprocessing_status": "success",
+      "message": "",
+      "contract_errors": []
+    },
+    {
+      "platform": "zhihu_hot",
+      "status": "SUCCESS",
+      "document_count": 1,
+      "preprocessing_status": "success",
+      "message": "",
+      "contract_errors": []
+    },
+    {
+      "platform": "zhihu",
+      "status": "SUCCESS",
+      "document_count": 1,
+      "preprocessing_status": "success",
+      "message": "",
+      "contract_errors": []
+    },
+    {
+      "platform": "bilibili",
+      "status": "SUCCESS",
+      "document_count": 1,
+      "preprocessing_status": "success",
+      "message": "",
+      "contract_errors": []
+    },
+    {
+      "platform": "xiaohongshu",
+      "status": "AUTH_ERROR",
+      "document_count": 0,
+      "preprocessing_status": null,
+      "message": "CrawlerError: request rejected with HTTP 403",
+      "contract_errors": []
+    },
+    {
+      "platform": "baidu_hot",
+      "status": "SUCCESS",
+      "document_count": 1,
+      "preprocessing_status": "success",
+      "message": "",
+      "contract_errors": []
+    },
+    {
+      "platform": "baidu",
+      "status": "SUCCESS",
+      "document_count": 1,
+      "preprocessing_status": "success",
+      "message": "",
+      "contract_errors": []
+    }
+  ]
+}
