@@ -82,6 +82,18 @@ class CrawlerCoreTest(unittest.TestCase):
         self.assertEqual(len(session.calls), 2)
         self.assertEqual(delays, [1])
 
+    def test_http_client_preserves_https_hostname_after_dns_validation(self):
+        session = FakeSession([FakeResponse(200, {"ok": True})])
+        client = HttpClient(
+            session=session,
+            allowed_hosts={"example.com"},
+            resolver=lambda _: ["93.184.216.34"],
+        )
+
+        client.get_json("https://example.com/data")
+
+        self.assertEqual(session.calls[0][1], "https://example.com/data")
+
     def test_http_client_rejects_host_outside_allowlist(self):
         client = HttpClient(
             session=FakeSession([]),

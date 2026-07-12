@@ -63,6 +63,9 @@ class LifecycleStageTest(unittest.TestCase):
     def test_empty_returns_latent(self):
         self.assertEqual(predict_lifecycle_stage([]), "潜伏期")
 
+    def test_negative_counts_are_treated_as_zero(self):
+        self.assertEqual(predict_lifecycle_stage([-5, -1, 0]), "潜伏期")
+
     def test_latent_low_counts(self):
         counts = [3, 4, 5, 3, 5]
         self.assertEqual(predict_lifecycle_stage(counts), "潜伏期")
@@ -98,6 +101,10 @@ class LifecycleChangePointsTest(unittest.TestCase):
         dates = ["d1", "d2", "d3", "d4", "d5", "d6"]
         points = get_lifecycle_change_points(counts, dates)
         self.assertGreater(len(points), 0)
+
+    def test_extra_dates_are_ignored(self):
+        points = get_lifecycle_change_points([3, 4], ["d1", "d2", "d3"])
+        self.assertIsInstance(points, list)
 
 
 class ConfigThresholdsTest(unittest.TestCase):

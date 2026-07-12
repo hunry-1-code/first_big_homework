@@ -75,10 +75,25 @@ class TikHubCrawler:
 
     def _items(self, payload: dict[str, Any]) -> list[dict[str, Any]]:
         if self.platform == "weibo":
-            return _first_list(
+            items = _first_list(
                 payload,
                 [("data", "data", "statuses"), ("data", "statuses"), ("data", "data", "cards")],
             )
+            flattened = []
+            for item in items:
+                if isinstance(item.get("mblog"), dict):
+                    flattened.append(item["mblog"])
+                    continue
+                card_group = item.get("card_group")
+                if isinstance(card_group, list):
+                    flattened.extend(
+                        entry["mblog"]
+                        for entry in card_group
+                        if isinstance(entry, dict) and isinstance(entry.get("mblog"), dict)
+                    )
+                    continue
+                flattened.append(item)
+            return flattened
         if self.platform == "xiaohongshu":
             return _first_list(
                 payload,

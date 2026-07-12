@@ -6,11 +6,9 @@ import socket
 import time
 from collections.abc import Callable
 from typing import Any
-from urllib.parse import urlparse, urlunparse
+from urllib.parse import urlparse
 
 import requests
-from requests_toolbelt.adapters.host_header_ssl import HostHeaderSSLAdapter
-
 from app.crawler.errors import CrawlerError
 
 
@@ -35,8 +33,6 @@ class HttpClient:
         platform: str = "http",
     ) -> None:
         self.session = session or requests.Session()
-        if session is None:
-            self.session.mount("https://", HostHeaderSSLAdapter())
         self.allowed_hosts = {host.lower() for host in (allowed_hosts or set())}
         self.timeout = max(1, int(timeout))
         self.max_attempts = max(1, int(max_attempts))
@@ -78,23 +74,15 @@ class HttpClient:
         return payload
 
     def _request(self, method: str, url: str, **kwargs: Any):
-        host, address = self._validate_url(url)
-        parsed = urlparse(url)
-        pinned_host = f"[{address}]" if ":" in address else address
-        if parsed.port:
-            pinned_host = f"{pinned_host}:{parsed.port}"
-        request_url = urlunparse(parsed._replace(netloc=pinned_host))
+        self._validate_url(url)
         kwargs.setdefault("timeout", self.timeout)
         kwargs.setdefault("allow_redirects", False)
         kwargs.setdefault("stream", True)
-        headers = dict(kwargs.get("headers") or {})
-        headers.setdefault("Host", parsed.netloc or host)
-        kwargs["headers"] = headers
         last_error: CrawlerError | None = None
 
         for attempt in range(self.max_attempts):
             try:
-                response = self.session.request(method, request_url, **kwargs)
+                response = self.session.request(method, url, **kwargs)
             except requests.Timeout as exc:
                 last_error = CrawlerError(
                     self.platform, "CRAWL_TIMEOUT", str(exc) or "request timed out", True

@@ -110,6 +110,34 @@ class CrawlerAdapterTest(unittest.TestCase):
         self.assertEqual(result[0].source_article_id, "answer-1")
         self.assertEqual(result[0].author, "作者")
 
+    def test_zhihu_search_maps_official_uppercase_response(self):
+        payload = {
+            "Code": 0,
+            "Message": "Success",
+            "Data": {
+                "Items": [
+                    {
+                        "Title": "知乎回答",
+                        "ContentID": "answer-2",
+                        "ContentText": "回答正文",
+                        "Url": "https://www.zhihu.com/question/2/answer/2",
+                        "AuthorName": "作者",
+                        "EditTime": 1720579200,
+                        "VoteUpCount": 12,
+                        "CommentCount": 3,
+                    }
+                ]
+            },
+        }
+
+        result = ZhihuSearchCrawler(StubClient(payload), "secret").crawl(
+            CrawlRequest("zhihu", "测试", 1)
+        )
+
+        self.assertEqual(result[0].source_article_id, "answer-2")
+        self.assertEqual(result[0].title, "知乎回答")
+        self.assertEqual(result[0].author, "作者")
+
     def test_zhihu_hot_maps_list(self):
         payload = {
             "data": [
@@ -127,6 +155,29 @@ class CrawlerAdapterTest(unittest.TestCase):
 
         self.assertEqual(result[0].source_type, "hotlist")
         self.assertEqual(result[0].source_article_id, "7")
+
+    def test_zhihu_hot_maps_official_uppercase_response(self):
+        payload = {
+            "Code": 0,
+            "Message": "Success",
+            "Data": {
+                "Items": [
+                    {
+                        "Title": "知乎热榜",
+                        "Url": "https://www.zhihu.com/question/8",
+                        "Summary": "热榜摘要",
+                    }
+                ]
+            },
+        }
+
+        result = ZhihuHotCrawler(StubClient(payload), "secret").crawl(
+            CrawlRequest("zhihu_hot", limit=1, mode="hot")
+        )
+
+        self.assertEqual(result[0].title, "知乎热榜")
+        self.assertEqual(result[0].raw_content, "热榜摘要")
+        self.assertEqual(result[0].source_article_id, "https://www.zhihu.com/question/8")
 
     def test_bilibili_maps_video_result(self):
         payload = {
@@ -239,6 +290,36 @@ class CrawlerAdapterTest(unittest.TestCase):
         self.assertEqual(result[0].source_article_id, "123")
         self.assertEqual(result[0].author, "用户")
         self.assertEqual(result[0].likes_count, 10)
+
+    def test_tikhub_weibo_flattens_web_search_card_groups(self):
+        payload = {
+            "code": 200,
+            "data": {
+                "data": {
+                    "cards": [
+                        {
+                            "card_type": 11,
+                            "card_group": [
+                                {
+                                    "mblog": {
+                                        "id": "456",
+                                        "text_raw": "人工智能微博正文",
+                                        "created_at": "Fri Jul 10 08:00:00 +0800 2026",
+                                        "user": {"screen_name": "用户", "id": "10"},
+                                    }
+                                }
+                            ],
+                        }
+                    ]
+                }
+            },
+        }
+        crawler = TikHubCrawler(StubClient(payload), "key", platform="weibo")
+
+        result = crawler.crawl(CrawlRequest("weibo", "人工智能", 1))
+
+        self.assertEqual(result[0].source_article_id, "456")
+        self.assertEqual(result[0].raw_content, "人工智能微博正文")
 
     def test_rss_maps_atom_entry(self):
         xml = """<?xml version='1.0' encoding='utf-8'?>

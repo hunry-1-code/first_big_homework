@@ -14,12 +14,17 @@ class CrawlerError(RuntimeError):
 
 
 def raise_for_api_error(payload: dict, platform: str) -> None:
-    code = payload.get("code")
+    code = payload.get("code", payload.get("Code"))
     if code is None:
         return
     if str(code).lower() in {"0", "200", "ok", "success"}:
         return
-    message = payload.get("message") or payload.get("msg") or f"API returned code {code}"
+    message = (
+        payload.get("message")
+        or payload.get("Message")
+        or payload.get("msg")
+        or f"API returned code {code}"
+    )
     raise CrawlerError(platform, f"CRAWL_API_{code}", str(message), False)
 
 

@@ -385,16 +385,24 @@ def run_sentiment_analysis(
                         "article_title": article.title,
                     }
                     text = f"{article.title or ''}\n{article.clean_content or ''}"
-                    try:
-                        if llm_analyzer is analyze_sentiment:
-                            client = client or _default_client()
-                            result = llm_analyzer(
-                                text, context=context, client=client, config=config
-                            )
-                        else:
-                            result = llm_analyzer(text, context=context, config=config)
-                        counters["llm_count"] += 1
-                    except Exception as exc:
+                    llm_error = None
+                    result = None
+                    for _attempt in range(config.llm_retry_count + 1):
+                        try:
+                            if llm_analyzer is analyze_sentiment:
+                                client = client or _default_client()
+                                result = llm_analyzer(
+                                    text, context=context, client=client, config=config
+                                )
+                            else:
+                                result = llm_analyzer(text, context=context, config=config)
+                            counters["llm_count"] += 1
+                            llm_error = None
+                            break
+                        except Exception as exc:
+                            llm_error = exc
+                    if llm_error is not None:
+                        exc = llm_error
                         run_warnings.add(type(exc).__name__.upper())
                         try:
                             result = fallback_analyzer(
@@ -456,7 +464,24 @@ def run_sentiment_analysis(
             successful = len(created_by_article)
             if not analyzable or successful / analyzable < config.minimum_success_ratio:
                 raise ValueError("SENTIMENT_SUCCESS_RATIO_TOO_LOW")
+            summary_targets = []
+            event_targets = {}
             for target in targets:
+                event = target["event"]
+                if event is None:
+                    summary_targets.append(target)
+                    continue
+                existing = event_targets.get(event.id)
+                if existing is None:
+                    existing = {**target, "rows": list(target["rows"])}
+                    event_targets[event.id] = existing
+                    summary_targets.append(existing)
+                else:
+                    known_ids = {row["article"].id for row in existing["rows"]}
+                    existing["rows"].extend(
+                        row for row in target["rows"] if row["article"].id not in known_ids
+                    )
+            for target in summary_targets:
                 items = []
                 target_results = []
                 max_heat = max(
@@ -548,7 +573,7 @@ def run_sentiment_analysis(
                     event.sentiment_updated_at = now
             counters["input_count"] = analyzable
             counters["result_count"] = successful
-            counters["snapshot_count"] = len(targets)
+            counters["snapshot_count"] = len(summary_targets)
             run.statistics = dict(counters)
             run.warnings = sorted(run_warnings)
             run.status = "success"

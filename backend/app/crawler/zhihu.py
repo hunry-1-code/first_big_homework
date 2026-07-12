@@ -8,6 +8,9 @@ from app.crawler.errors import raise_for_api_error
 
 
 def _find_items(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    official_data = payload.get("Data")
+    if isinstance(official_data, dict) and isinstance(official_data.get("Items"), list):
+        return [item for item in official_data["Items"] if isinstance(item, dict)]
     current: Any = payload
     for key in ("data", "data"):
         if isinstance(current, dict) and key in current:
@@ -44,18 +47,39 @@ class ZhihuSearchCrawler:
         }
 
     def _map_item(self, item: dict[str, Any], source_type: str) -> RawDocument:
-        url = item.get("url") or item.get("link") or ""
+        url = item.get("url") or item.get("Url") or item.get("link") or ""
         return RawDocument(
             platform=self.platform,
             source_url=url,
-            source_article_id=str(item.get("id") or item.get("content_id") or url),
-            title=item.get("title") or item.get("question_title") or "",
-            raw_content=item.get("summary") or item.get("excerpt") or item.get("content") or "",
+            source_article_id=str(
+                item.get("id")
+                or item.get("content_id")
+                or item.get("ContentID")
+                or url
+            ),
+            title=item.get("title") or item.get("Title") or item.get("question_title") or "",
+            raw_content=(
+                item.get("summary")
+                or item.get("Summary")
+                or item.get("excerpt")
+                or item.get("content")
+                or item.get("ContentText")
+                or ""
+            ),
             source_type=source_type,
-            author=item.get("author_name") or (item.get("author") or {}).get("name") if isinstance(item.get("author"), dict) else item.get("author_name"),
-            publish_time=item.get("edit_time") or item.get("updated_time") or item.get("created_time"),
-            likes_count=item.get("vote_up_count"),
-            comments_count=item.get("comment_count"),
+            author=(
+                item.get("author_name")
+                or item.get("AuthorName")
+                or ((item.get("author") or {}).get("name") if isinstance(item.get("author"), dict) else None)
+            ),
+            publish_time=(
+                item.get("edit_time")
+                or item.get("EditTime")
+                or item.get("updated_time")
+                or item.get("created_time")
+            ),
+            likes_count=item.get("vote_up_count", item.get("VoteUpCount")),
+            comments_count=item.get("comment_count", item.get("CommentCount")),
             content_type="text",
             raw_json=item,
         )

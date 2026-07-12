@@ -26,12 +26,23 @@ _OFFICIAL_MEDIA_PATTERNS = [
     "通讯社", "政府", "公安", "法院", "检察院",
 ]
 
+_DEFAULT_OFFICIAL_MEDIA = {
+    "人民日报",
+    "新华社",
+    "央视新闻",
+    "中央广播电视总台",
+    "中国新闻网",
+    "中国日报",
+    "光明日报",
+    "经济日报",
+}
+
 
 def _load_official_media(path: str | None = None) -> set[str]:
     """加载官方媒体白名单。"""
     if path is None:
         path = Path(__file__).resolve().parents[3] / "data" / "official_media.txt"
-    media = set()
+    media = set(_DEFAULT_OFFICIAL_MEDIA)
     try:
         with open(path, encoding="utf-8") as f:
             for line in f:
