@@ -515,3 +515,28 @@ idle → startAnalysis() → running (2s 轮询 GET /api/tasks/:id)
 
 ---
 
+## 十九、开发日志（2026-07-13）
+
+| # | Commit | 时间 | 内容 |
+|:---:|--------|------|------|
+| 1 | `5292627` | 01:40 | **feat**: 新增事件定向分析页 `/analysis`。修复 crawl_service 空平台 Bug、tasks/jobs 平台传递链路、event_service keywords 硬编码空数组。前端 SEARCH_PLATFORMS 常量 + el-steps 进度 + 2s 轮询。 |
+| 2 | `28738a5` | 02:30 | **debug**: 全链路端到端测试脚本。59 篇真实数据从百度/B站/微博/知乎爬取。BGE 向量失败（`sentence-transformers` 未安装 + HuggingFace 被墙）。 |
+| 3 | `d7f4b1e` | 02:55 | **fix**: 聚合阈值调优。`attach_threshold 0.72→0.55`、`bge_weight 0.45→0.55`。40 个孤簇 → 3 个事件（34+13+1 篇）。`.env` 加 `HF_ENDPOINT` 镜像。 |
+| 4 | `ace41cb` | 03:10 | **fix**: 清理前端 6 处 Mock。传播图 API+force 布局、情感趋势 `daily_trend`、平台 Badge 读 API、影响排行去噪声、趋势不模拟。tikhub 爬虫加 `_strip_html()`。config.py 阈值默认值更新。 |
+| 5 | `a6f2792` | 03:12 | **fix**: EventCard 缺 `getPlatform`/`resolvePlatformName` import，页面崩溃。 |
+| 6 | `87a0f66` | 03:15 | **fix**: `getSentimentAreaOption` 提取时残留 `});` → 编译错误。 |
+| 7 | `fef3b26` | 03:25 | **feat**: AI 元数据全补全（`_extract_location`/`_extract_key_figures`/`_extract_cause`）。publish 后加基础热度公式。传播阈值 `_SIMILARITY_MIN 0.12→0.05`。 |
+| 8 | `0565b83` | 03:45 | **fix**: 传播图 category 字符串→数字映射。词云权重 max-normalize。`_cluster_title()` 标题截断 ≤80 字。文章正文 tooltip 截断 150 字。 |
+| 9 | `0ce0ca6` | 03:50 | **docs**: 本文档新增第十八章。 |
+| 10 | `22ca38b` | 03:55 | **docs**: `.agents/AGENTS.md` 更新规则和状态。 |
+
+### 最终状态
+
+- **全链路打通**：爬虫→预处理→TF-IDF+BGE→聚类→LLM情感→看板
+- **事件数**：3 个（34+13+1 篇），覆盖百度/B站/微博/知乎 4 平台
+- **API 字段**：30/30 全部对齐
+- **前端 Mock**：0 处残留
+- **待解决**：搜索模式不触发热点计算、`analysis/index.vue` 未上线验证
+
+---
+
