@@ -389,7 +389,15 @@ def _formal_candidate(cluster, config, versions):
 
 
 def _cluster_title(cluster) -> str:
-    return max(cluster.documents, key=lambda item: (len(item.title), -item.article_id)).title or "未命名事件"
+    raw = max(cluster.documents, key=lambda item: (len(item.title), -item.article_id)).title or "未命名事件"
+    if len(raw) > 80:
+        # 找最后一个完整句子边界截断
+        for sep in ("。", "！", "？", "；", "，", " ", "\n"):
+            idx = raw.rfind(sep, 0, 80)
+            if idx > 40:
+                return raw[:idx + 1]
+        return raw[:77] + "..."
+    return raw
 
 
 def _ensure_membership(article, event, run, confidence, method, now):

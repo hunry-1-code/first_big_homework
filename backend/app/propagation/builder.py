@@ -12,7 +12,7 @@ def build_propagation_graph(articles,platform_mapper=lambda x:x,max_nodes=40):
         candidates=[]
         for parent in rows[:index]:
             score=inferred_score(parent,child)
-            if score>=.38:candidates.append((score,parent))
+            if score>=.15:candidates.append((score,parent))
         if candidates:
             score,parent=max(candidates,key=lambda x:(x[0],_time(x[1]) or 0))
             links.append({'source':parent.id,'target':child.id,'relation_type':'cross_platform_followup' if parent.platform!=child.platform else 'content_followup','evidence_type':'inferred','confidence':round(score,3),'evidence':[f'综合证据得分 {score:.2f}'],'time_gap_hours':round((_time(child)-_time(parent)).total_seconds()/3600,2) if _time(child) and _time(parent) else None});incoming.add(child.id)

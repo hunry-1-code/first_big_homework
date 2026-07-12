@@ -145,25 +145,42 @@ function getEnrichedTrend(): { dates: string[]; counts: number[] } {
 function buildPropagationData() {
   const raw = propagationData.value;
   if (!raw || !raw.graph || !raw.graph.nodes || raw.graph.nodes.length === 0) {
-    // fallback: 无数据时返回空
     return { nodes: [], links: [], categories: [] };
   }
 
   const g = raw.graph;
-  const categorySet = new Set(g.nodes.map((n: any) => n.category ?? 3));
-  const categories = Array.from(categorySet).sort().map((c: any) => ({
-    name: ["信息源头", "关键传播者", "官方媒体", "普通讨论"][c] || `类别${c}`
-  }));
+  // 将后端字符串 category 映射为数字索引
+  const catMap: Record<string, number> = {
+    "origin_candidate": 0,
+    "influencer_amplification": 1,
+    "media_intervention": 2,
+    "official_response": 2,
+    "peak_content": 1,
+    "ordinary": 3
+  };
+  const catNames = ["信息源头", "关键传播者", "官方媒体", "普通讨论"];
+  const usedCats = new Set<number>();
+
+  const nodes = g.nodes.map((n: any) => {
+    const cat = catMap[n.category] ?? 3;
+    usedCats.add(cat);
+    return {
+      id: n.id,
+      name: (n.name || "匿名").slice(0, 8),
+      category: cat,
+      symbolSize: (n.symbolSize || 15) + 5,
+      platform: n.platform,
+      title: n.title
+    };
+  });
+
+  const categories = catNames.map((name, i) => ({ name })).filter((_, i) => usedCats.has(i));
 
   return {
-    nodes: g.nodes.map((n: any) => ({
-      ...n,
-      symbolSize: n.symbolSize || 15,
-      category: n.category ?? 3
-    })),
+    nodes,
     links: g.links.map((l: any) => ({
-      source: l.source,
-      target: l.target,
+      source: String(l.source),
+      target: String(l.target),
       value: l.confidence ? Math.round(l.confidence * 100) : 1
     })),
     categories
@@ -178,9 +195,9 @@ function buildInfluenceData() {
     name: a.title?.length > 20 ? a.title.slice(0, 20) + "..." : (a.title || `报道${i + 1}`),
     fullName: a.title || "",
     platform: a.platform || "未知",
-    reposts: a.reposts_count || 0,
-    comments: a.comments_count || 0,
-    likes: a.likes_count || 0
+    reposts: a.reposts_count ?? 0,
+    comments: a.comments_count ?? 0,
+    likes: a.likes_count ?? 0
   }));
 }
 
@@ -1343,7 +1360,11 @@ function getProgressColor(heat: number) {
               </div>
             </template>
           </el-table-column>
-          <el-table-column prop="clean_content" label="正文摘要" min-width="200" show-overflow-tooltip />
+          <el-table-column prop="clean_content" label="正文摘要" min-width="200" show-overflow-tooltip>
+            <template #default="{ row }">
+              <span class="line-clamp-2 text-xs text-slate-500 dark:text-slate-400">{{ (row.clean_content || '').slice(0, 150) }}</span>
+            </template>
+          </el-table-column>
         </el-table>
       </el-card>
     </div>

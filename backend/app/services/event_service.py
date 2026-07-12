@@ -48,10 +48,10 @@ def _event_keywords(event: Event) -> dict:
                 if term not in keyword_scores or score > keyword_scores[term]:
                     keyword_scores[term] = score
     sorted_keywords = sorted(keyword_scores.items(), key=lambda x: -x[1])[:30]
-    total = sum(score for _, score in sorted_keywords) or 1
+    max_score = max(score for _, score in sorted_keywords) if sorted_keywords else 1
     return {
         "keywords": [
-            {"word": term, "weight": score / total}
+            {"word": term, "weight": score / max_score}
             for term, score in sorted_keywords
         ]
     }
