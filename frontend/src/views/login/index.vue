@@ -10,6 +10,7 @@ import { initRouter, getTopMenu } from "@/router/utils";
 import { bg, avatar } from "./utils/static";
 import { ref, reactive } from "vue";
 import { useRenderIcon } from "@/components/ReIcon/src/hooks";
+import { useLayout } from "@/layout/hooks/useLayout";
 import { useDataThemeChange } from "@/layout/hooks/useDataThemeChange";
 
 import dayIcon from "@/assets/svg/day.svg?component";
