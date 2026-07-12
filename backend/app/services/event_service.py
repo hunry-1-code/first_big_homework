@@ -11,6 +11,7 @@ from app.analysis.trend_predictor import get_lifecycle_change_points, predict_li
 from app.extensions import db
 from app.models import Article, Event, EventHeatSnapshot, Report
 from app.services.event_similarity_service import search_historical_events
+from app.services.api_contract_service import api_platform_name,api_lifecycle_stage,normalized_sentiment,api_sentiment_label,clamp_heat,clamp_ratio,short_date,trend_key_points
 
 
 def _title_bigrams(title: str | None) -> list[str]:
@@ -30,21 +31,22 @@ _MAX_EDGES = 50          # 最大边数，防止 O(n²) 爆炸
 def _event_item(event: Event, snapshot: EventHeatSnapshot | None = None) -> dict:
     if snapshot is None and event.current_heat_snapshot_id:
         snapshot = db.session.get(EventHeatSnapshot, event.current_heat_snapshot_id)
+    positive,negative,neutral=normalized_sentiment(event.sentiment_positive,event.sentiment_negative,event.sentiment_neutral)
     return {
         "id": event.id,
         "title": event.title,
         "summary": event.summary,
         "topic_category": event.topic_category,
         "topic_name": event.topic_name,
-        "heat_index": float(event.heat_index or 0),
+        "heat_index": clamp_heat(event.heat_index),
         "core_heat": float(event.core_heat or 0),
         "spread_heat": event.spread_heat,
         "is_hot": bool(event.is_hot),
         "hot_rank": event.hot_rank,
-        "lifecycle_stage": event.lifecycle_stage,
-        "sentiment_positive": float(event.sentiment_positive or 0),
-        "sentiment_negative": float(event.sentiment_negative or 0),
-        "sentiment_neutral": float(event.sentiment_neutral or 0),
+        "lifecycle_stage": api_lifecycle_stage(event.lifecycle_stage),
+        "sentiment_positive": positive,
+        "sentiment_negative": negative,
+        "sentiment_neutral": neutral,
         "independent_report_count": int(event.independent_report_count or 0),
         "platform_count": int(event.platform_count or 0),
         "time_confidence": event.time_confidence,
@@ -174,7 +176,7 @@ def get_event_detail(event_id: int) -> dict | None:
     }
 
     # 覆写 lifecycle_stage 为根据实时趋势数据计算的结果
-    data["lifecycle_stage"] = current_lifecycle
+    data["lifecycle_stage"] = api_lifecycle_stage(current_lifecycle)
 
     data.update(
         report={
@@ -182,20 +184,20 @@ def get_event_detail(event_id: int) -> dict | None:
             "risk_data": report.risk_data if (report and report.risk_data) else risk_data,
         },
         trend={
-            "dates": trend_dates,
-            "counts": trend_counts,
+            "dates": [short_date(value) for value in trend_dates[-14:]],
+            "counts": trend_counts[-14:],
             "heat": trend_heat,
-            "key_points": lifecycle_points,
+            "key_points": trend_key_points([short_date(value) for value in trend_dates[-14:]],trend_counts[-14:]),
         },
         sentiment=sentiment,
         platform={
             "platforms": [
                 {
-                    "name": platform,
+                    "platform": api_platform_name(platform),
                     "count": count,
                     "percentage": count / total_articles if total_articles else 0,
                 }
-                for platform, count in sorted(platform_counts.items())
+                for platform, count in sorted(platform_counts.items()) if api_platform_name(platform)
             ]
         },
         keywords={"keywords": []},
@@ -203,10 +205,16 @@ def get_event_detail(event_id: int) -> dict | None:
             "articles": [
                 {
                     "id": article.id,
-                    "platform": article.platform,
+                    "platform": api_platform_name(article.platform) or "百度搜索",
                     "title": article.title,
                     "clean_content": article.clean_content,
-                    "sentiment_label": article.sentiment_label,
+                    "author": article.author,
+                    "reposts_count": int(article.reposts_count or 0),
+                    "comments_count": int(article.comments_count or 0),
+                    "likes_count": int(article.likes_count or 0),
+                    "sentiment_label": api_sentiment_label(article.sentiment_label),
+                    "is_suspicious": bool(article.is_suspicious),
+                    "suspicious_score": clamp_ratio((article.suspicious_score or 0)/100 if (article.suspicious_score or 0)>1 else article.suspicious_score),
                     "publish_time": article.publish_time.isoformat()
                     if article.publish_time
                     else None,

@@ -49,10 +49,21 @@ class TikHubCrawler:
         method, path = ENDPOINTS[self.platform]
         headers = {"Authorization": f"Bearer {self.api_key}"}
         if method == "GET":
+            params={"keyword": request.keyword or "", "page": request.extra.get("page", 1)}
+            if self.platform == "xiaohongshu":
+                params.update(
+                    sort_type=request.extra.get("sort_type", "general"),
+                    note_type=request.extra.get("note_type", "不限"),
+                    time_filter=request.extra.get("time_filter", "不限"),
+                    search_id=request.extra.get("search_id", ""),
+                    search_session_id=request.extra.get("search_session_id", ""),
+                    source=request.extra.get("source", "explore_feed"),
+                    ai_mode=request.extra.get("ai_mode", 0),
+                )
             payload = self.client.get_json(
                 f"{self.base_url}{path}",
                 headers=headers,
-                params={"keyword": request.keyword or "", "page": request.extra.get("page", 1)},
+                params=params,
             )
         else:
             payload = self.client.post_json(

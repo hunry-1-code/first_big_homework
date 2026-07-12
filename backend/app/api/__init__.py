@@ -12,9 +12,11 @@ from app.api.reports import reports_bp
 from app.api.sentiment import sentiment_bp
 from app.api.tasks import tasks_bp
 from app.api.user import user_bp
+from app.api.admin import admin_bp
 
 
 def register_blueprints(app: Flask) -> None:
+    app.register_blueprint(admin_bp, url_prefix="/api/admin")
     app.register_blueprint(aggregation_bp, url_prefix="/api/aggregation")
     app.register_blueprint(analysis_bp, url_prefix="/api/analysis")
     app.register_blueprint(auth_bp, url_prefix="/api/auth")

@@ -332,6 +332,16 @@ class CrawlerAdapterTest(unittest.TestCase):
 
         self.assertEqual(result, [])
 
+    def test_tikhub_xiaohongshu_uses_official_search_parameters(self):
+        client=StubClient({'code':200,'data':{'data':{'items':[]}}})
+        crawler=TikHubCrawler(client,'key',platform='xiaohongshu')
+        crawler.crawl(CrawlRequest('xiaohongshu','人工智能',1,extra={'search_id':'s1','search_session_id':'ss1'}))
+        params=client.calls[0][2]['params']
+        self.assertEqual(params['sort_type'],'general')
+        self.assertEqual(params['note_type'],'不限')
+        self.assertEqual(params['search_id'],'s1')
+        self.assertEqual(params['search_session_id'],'ss1')
+
     def test_rss_maps_atom_entry(self):
         xml = """<?xml version='1.0' encoding='utf-8'?>
         <feed xmlns='http://www.w3.org/2005/Atom'>

@@ -39,11 +39,21 @@ def login_required(view):
             return fail("登录已过期，请重新登录", 401)
         except jwt.PyJWTError:
             return fail("Token 校验失败", 401)
-
+        from app.extensions import db
+        from app.models import User
+        user = db.session.get(User, int(payload["sub"]))
+        if user is None and User.query.count() == 0:
+            g.current_user = {"id":int(payload["sub"]),"username":payload["username"],"role":payload.get("role","user"),"status":1}
+            return view(*args, **kwargs)
+        if user is None:return fail("用户不存在", 401)
+        if int(user.status or 0) != 1:
+            return fail("账号已停用", 403)
         g.current_user = {
-            "id": int(payload["sub"]),
-            "username": payload["username"],
-            "role": payload.get("role", "user"),
+            "id": user.id,
+            "username": user.username,
+            "nickname": user.nickname or user.username,
+            "role": user.role or "user",
+            "status": int(user.status),
         }
         return view(*args, **kwargs)
 

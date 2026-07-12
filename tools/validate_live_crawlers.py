@@ -149,7 +149,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Low-volume live crawler validator")
     parser.add_argument("--platform", action="append", choices=REQUIRED_PLATFORMS)
     parser.add_argument("--all", action="store_true")
-    parser.add_argument("--keyword", default="人工智能")
+    parser.add_argument("--keyword", default="\u4eba\u5de5\u667a\u80fd")
     parser.add_argument("--env-file", default="backend/.env")
     parser.add_argument("--output", default="crawl_live_validation_results.json")
     return parser.parse_args()

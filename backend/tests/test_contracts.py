@@ -15,6 +15,17 @@ from app.services.task_service import (
     update_task,
 )
 from app.core.config import Config
+from app.services.api_contract_service import api_platform_name, api_lifecycle_stage, normalized_sentiment, api_sentiment_label, clamp_heat, trend_key_points
+
+class ApiOutputContractTest(unittest.TestCase):
+    def test_maps_contract_enums_and_values(self):
+        self.assertEqual(api_platform_name('weibo_hot'),'微博热搜')
+        self.assertEqual(api_lifecycle_stage('高潮期'),'爆发期')
+        self.assertEqual(api_sentiment_label('中立'),'中性')
+        self.assertEqual(clamp_heat(120),100.0)
+        self.assertEqual(sum(normalized_sentiment(2,1,1)),1.0)
+    def test_builds_trend_key_points(self):
+        self.assertEqual(len(trend_key_points(['7/1','7/2','7/3'],[1,5,2])),3)
 
 
 class QianfanConfigContractTest(unittest.TestCase):

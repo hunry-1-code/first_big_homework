@@ -1,5 +1,6 @@
 import hashlib
 import os
+from datetime import datetime, timezone
 
 from flask import Blueprint, current_app, g, request
 
@@ -63,12 +64,17 @@ def login():
         user_model = User.query.filter_by(username=username).first()
         if user_model is None or not _verify_password(password, user_model.password_hash or ""):
             return fail("用户名或密码错误", 401)
+    if int(user_model.status or 0) != 1:
+        return fail("账号已停用", 403)
+    user_model.last_login_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    db.session.commit()
 
     user = {
         "id": user_model.id,
         "username": user_model.username,
         "nickname": user_model.nickname or user_model.username,
         "role": user_model.role or "user",
+        "status": int(user_model.status),
     }
     token, expires_in = create_token(user)
     return ok({"token": token, "expires_in": expires_in, "user": user})
