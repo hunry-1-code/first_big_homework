@@ -332,9 +332,17 @@ def run_content_analysis(
             config,
             query_terms=[run.keyword] if run.keyword else [],
         )
+        # LLM 关键词提取（优先，TF-IDF 回退）
+        try:
+            from app.analysis.llm_keywords import extract_keywords_llm, _merge_llm_keywords
+            llm_map = extract_keywords_llm(documents)
+            if llm_map:
+                keyword_map = _merge_llm_keywords(llm_map, keyword_map)
+        except Exception:
+            pass
         assert_task_lease(task_id)
         for row in representative_rows:
-            row.keywords = [item.as_dict() for item in keyword_map[row.article_id]]
+            row.keywords = keyword_map.get(row.article_id, [])
             row.feature_status = "success"
             row.warnings = list(
                 dict.fromkeys((row.warnings or []) + documents[representative_rows.index(row)].warnings)
