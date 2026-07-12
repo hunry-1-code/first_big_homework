@@ -31,6 +31,15 @@ export default [
         }
       },
       {
+        path: "/analysis",
+        name: "Analysis",
+        component: () => import("@/views/analysis/index.vue"),
+        meta: {
+          icon: "ep:search",
+          title: "事件分析"
+        }
+      },
+      {
         path: "/qa",
         name: "Qa",
         component: () => import("@/views/qa/index.vue"),

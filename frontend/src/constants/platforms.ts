@@ -51,3 +51,72 @@ export function platformColor(name: string): string {
 export function platformBg(name: string): string {
   return getPlatform(resolvePlatformName(name))?.bg || "#f1f5f9";
 }
+
+// ==================== 搜索平台配置 ====================
+
+/** 支持关键词搜索的爬虫平台映射（前端显示名 → 后端 platform ID） */
+export interface SearchPlatform {
+  name: string;
+  id: string;
+  always: boolean;
+  needKey?: string;
+  icon: string;
+  color: string;
+  bg: string;
+}
+
+export const SEARCH_PLATFORMS: SearchPlatform[] = [
+  {
+    name: "B站",
+    id: "bilibili",
+    always: true,
+    icon: "ant-design:bilibili-filled",
+    color: "#fb7299",
+    bg: "#fff0f5"
+  },
+  {
+    name: "百度搜索",
+    id: "baidu",
+    always: false,
+    needKey: "千帆 API Key",
+    icon: "ant-design:baidu-outlined",
+    color: "#3385ff",
+    bg: "#e8f0fe"
+  },
+  {
+    name: "知乎",
+    id: "zhihu",
+    always: false,
+    needKey: "知乎开放平台",
+    icon: "ant-design:zhihu-circle-filled",
+    color: "#0066ff",
+    bg: "#e8f0fe"
+  },
+  {
+    name: "微博搜索",
+    id: "weibo",
+    always: false,
+    needKey: "TikHub API Key",
+    icon: "ant-design:weibo-circle-filled",
+    color: "#e84118",
+    bg: "#ffeef0"
+  },
+  {
+    name: "小红书",
+    id: "xiaohongshu",
+    always: false,
+    needKey: "TikHub API Key",
+    icon: "simple-icons:xiaohongshu",
+    color: "#ff4757",
+    bg: "#ffeef0"
+  },
+  {
+    name: "抖音",
+    id: "douyin",
+    always: false,
+    needKey: "TikHub API Key",
+    icon: "ant-design:douyin-filled",
+    color: "#111111",
+    bg: "#f1f5f9"
+  }
+];

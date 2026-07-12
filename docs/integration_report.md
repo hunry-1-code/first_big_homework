@@ -349,3 +349,94 @@ VPN 断开后 DNS 残留 `10.3.9.x`：
 7. **生命周期四选一**：潜伏期/成长期/高潮期/消退期
 8. **情感标签**：正面/中立/负面（不是"中性"）
 9. **`python run.py` 用 `debug=False`** 避免 reloader 僵尸进程
+
+---
+
+## 十七、事件定向分析功能（2026-07-13）
+
+### 17.1 问题诊断
+
+前端看板搜索实际为**空操作**——`searchCrawler()` 只传 `keyword`，不传 `platforms`。后端 `crawl_service.py` 中 `if platforms is not None` 判断将空数组 `[]` 当作"用户显式指定空平台"而非"未指定"，导致搜索模式不调用任何爬虫，链路完全断裂。
+
+### 17.2 修复清单
+
+| # | 文件 | 类型 | 说明 |
+|---|------|:---:|------|
+| 1 | `backend/app/services/crawl_service.py:27` | 🔧 Bug 修复 | `if platforms is not None:` → `if platforms:`，空数组走默认选择全部搜索爬虫 |
+| 2 | `backend/app/tasks/jobs.py:290` | 🔧 Bug 修复 | 搜索模式下 `platforms=platforms or []` → `effective_platforms = platforms or list(batch.platform_counts.keys())`，将爬虫实际使用的平台传给下游分析 |
+| 3 | `backend/app/services/event_service.py` | 🔧 数据补全 | 新增 `_event_keywords()` 函数，从 `AnalysisRunArticle.keywords` 聚合事件关键词（之前硬编码空数组） |
+| 4 | `frontend/src/constants/platforms.ts` | ✨ 新增 | `SEARCH_PLATFORMS` 配置——6 个搜索平台映射（B站/百度/知乎/微博/小红书/抖音），含 `always` 标识和 `needKey` 提示 |
+| 5 | `frontend/src/api/crawler.ts` | ✨ 增强 | `searchCrawler(keyword, platforms?, targetCount?)` 支持可选平台和采集量参数 |
+| 6 | `frontend/src/views/analysis/index.vue` | ✨ 新页面 | **事件定向分析页**：平台卡片多选 + el-steps 进度 + el-result 结果 + el-descriptions 摘要 + 2s 轮询 |
+| 7 | `frontend/src/router/modules/opinion.ts` | ✨ 路由 | 注册 `/analysis` 路由，icon `ep:search`，标题"事件分析" |
+| 8 | `frontend/src/views/welcome/index.vue` | ✨ 入口 | 搜索栏旁增加"新建事件分析 →"引导按钮 |
+
+### 17.3 新页面架构
+
+```
+/analysis (EventAnalysis)
+├── ① 分析配置卡片
+│   ├── 关键词输入 (el-input)
+│   ├── 平台卡片选择 (SEARCH_PLATFORMS 网格, 点击切换)
+│   ├── 采集数量滑块 (el-slider, 10-200)
+│   └── 开始/重置按钮
+├── ② 分析进度卡片 (v-if="state==='running'")
+│   ├── el-steps (4阶段: 爬取→内容分析→事件聚合→情感分析)
+│   ├── el-progress (百分比)
+│   └── 状态消息
+├── ③ 分析结果卡片 (v-if="state==='completed'")
+│   ├── el-result (成功/失败图标+标题)
+│   └── el-descriptions (采集数/处理数/平台/状态)
+└── ④ 历史任务 (TaskList 组件)
+```
+
+### 17.4 状态机
+
+```
+idle → startAnalysis() → running (2s 轮询 GET /api/tasks/:id)
+  ├─ task.status=success → completed (el-result 成功)
+  ├─ task.status=failed  → failed (el-result 失败)
+  └─ 命中缓存           → completed (跳过采集)
+```
+
+### 17.5 模板资源复用
+
+| 组件 | 来源 | 用途 |
+|------|------|------|
+| `el-result` | Element Plus | 完成/失败结果展示（参照模板 `views/result/success.vue`） |
+| `el-steps` | Element Plus | 流水线阶段指示器 |
+| `el-descriptions` | Element Plus | 分析结果数据摘要 |
+| `PureDescriptions` | `@pureadmin/descriptions` | 已全局注册，备用 |
+| `PlusCheckCardGroup` | `plus-pro-components` | 已安装，备用平台选择方案 |
+| `TaskList` | 项目组件 | 历史任务表格 |
+
+### 17.6 全链路调试发现
+
+针对"台风巴威"关键词执行全链路真实采集+分析：
+
+| 阶段 | 结果 | 详情 |
+|------|:---:|------|
+| 爬虫 | ✅ 59篇 | 百度17 + B站17 + 微博15 + 知乎10（抖音403，小红书空响应） |
+| 预处理 | ✅ 46篇成功 | 78% 清洗成功率，13篇失败 |
+| 内容分析 | ✅ 运行 | TF-IDF + BGE embedding 完成 |
+| 事件聚合 | ⚠️ 待诊断 | 聚合运行成功但 Event 表暂未产出事件，需进一步排查 |
+| 情感分析 | ✅ 45篇 | LLM (DeepSeek) 成功标注情感标签 |
+
+### 17.7 前后端对齐差距
+
+| 前端详情页使用的数据 | 后端实际提供 | 差距 |
+|------|:---:|------|
+| 基础字段 (title/heat/lifecycle/sentiment) | ✅ | 完全对齐 |
+| trend.dates/counts/key_points | ✅ | 完全对齐 |
+| platform.platforms | ✅ | 完全对齐 |
+| articles.articles (含 sentiment_label) | ✅ | 完全对齐 |
+| report.overview_text | ✅ | 完全对齐 |
+| report.risk_data | ✅ | 完全对齐 |
+| keywords.keywords | ✅ (修复后) | 修复前为空数组 |
+| 传播图谱 (propagation) | ✅ | **前端未接入**，用硬编码假数据 |
+| 情感趋势 (sentiment.daily_trend) | ✅ | **前端未接入**，用 sin/cos 模拟 |
+| 情感堆叠面积图数据 | ✅ | **前端未接入**，全量模拟 |
+| AI 元数据 (time/location/figures/cause) | ❌ | Event 表缺字段，前端显示"待后端录入" |
+
+---
+

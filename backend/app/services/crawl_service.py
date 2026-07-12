@@ -24,7 +24,7 @@ class CrawlService:
         target_count: int | None = None,
         mode: str = "search",
     ) -> CrawlBatch:
-        if platforms is not None:
+        if platforms:
             selected = platforms
         elif mode == "hot":
             selected = [name for name in self.registry.platforms() if name.endswith("_hot")]

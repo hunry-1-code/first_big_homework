@@ -287,12 +287,13 @@ def crawl_job(task_id: int, registry: CrawlerRegistry | None = None) -> dict:
         )
 
         update_task(task_id, progress=96, message="正在执行搜索语料内容分析。")
+        effective_platforms = platforms or list(batch.platform_counts.keys())
         analysis_run, analysis_reused = create_analysis_run(
             list(dict.fromkeys(persisted_article_ids)),
             user_id=task.get("created_by"),
             mode="search",
             keyword=payload.get("keyword"),
-            platforms=platforms or [],
+            platforms=effective_platforms,
             source_task_id=task_id,
         )
         if not analysis_reused or analysis_run.status != "success":

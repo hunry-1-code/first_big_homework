@@ -9,7 +9,7 @@ from app.analysis.event_similarity import set_similarity
 from app.analysis.fake_detector import _build_context, batch_assess_articles
 from app.analysis.trend_predictor import get_lifecycle_change_points, predict_lifecycle_stage
 from app.extensions import db
-from app.models import Article, Event, EventHeatSnapshot, Report
+from app.models import AnalysisRunArticle, Article, Event, EventHeatSnapshot, Report
 from app.services.event_similarity_service import search_historical_events
 from app.services.api_contract_service import api_platform_name,api_lifecycle_stage,normalized_sentiment,api_sentiment_label,clamp_heat,clamp_ratio,short_date,trend_key_points
 
@@ -26,6 +26,35 @@ def _title_bigrams(title: str | None) -> list[str]:
 
 _SIMILARITY_MIN = 0.12   # 标题相似度最低阈值
 _MAX_EDGES = 50          # 最大边数，防止 O(n²) 爆炸
+
+
+def _event_keywords(event: Event) -> dict:
+    """从 AnalysisRunArticle 聚合事件的关键词列表。"""
+    article_ids = [
+        a.id for a in Article.query.filter_by(event_id=event.id)
+        .with_entities(Article.id).limit(200).all()
+    ]
+    if not article_ids:
+        return {"keywords": []}
+    rows = AnalysisRunArticle.query.filter(
+        AnalysisRunArticle.article_id.in_(article_ids)
+    ).all()
+    keyword_scores: dict[str, float] = {}
+    for row in rows:
+        for kw in row.keywords or []:
+            if isinstance(kw, dict) and kw.get("term"):
+                term = kw["term"].strip()
+                score = float(kw.get("score", kw.get("weight", 0)))
+                if term not in keyword_scores or score > keyword_scores[term]:
+                    keyword_scores[term] = score
+    sorted_keywords = sorted(keyword_scores.items(), key=lambda x: -x[1])[:30]
+    total = sum(score for _, score in sorted_keywords) or 1
+    return {
+        "keywords": [
+            {"word": term, "weight": score / total}
+            for term, score in sorted_keywords
+        ]
+    }
 
 
 def _event_item(event: Event, snapshot: EventHeatSnapshot | None = None) -> dict:
@@ -200,7 +229,7 @@ def get_event_detail(event_id: int) -> dict | None:
                 for platform, count in sorted(platform_counts.items()) if api_platform_name(platform)
             ]
         },
-        keywords={"keywords": []},
+        keywords=_event_keywords(event),
         articles={
             "articles": [
                 {

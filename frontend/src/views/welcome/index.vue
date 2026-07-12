@@ -41,6 +41,14 @@
         <el-button type="primary" size="large" @click="handleSearch">
           搜索 / 采集
         </el-button>
+        <el-button
+          type="primary"
+          size="large"
+          plain
+          @click="$router.push('/analysis')"
+        >
+          新建事件分析 →
+        </el-button>
       </div>
 
       <div class="flex items-center gap-2 shrink-0">
