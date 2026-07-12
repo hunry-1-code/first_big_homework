@@ -321,6 +321,17 @@ class CrawlerAdapterTest(unittest.TestCase):
         self.assertEqual(result[0].source_article_id, "456")
         self.assertEqual(result[0].raw_content, "人工智能微博正文")
 
+    def test_tikhub_xiaohongshu_skips_placeholder_items(self):
+        payload = {
+            "code": 200,
+            "data": {"data": {"items": [{"model_type": "hot_query"}]}},
+        }
+        crawler = TikHubCrawler(StubClient(payload), "key", platform="xiaohongshu")
+
+        result = crawler.crawl(CrawlRequest("xiaohongshu", "人工智能", 1))
+
+        self.assertEqual(result, [])
+
     def test_rss_maps_atom_entry(self):
         xml = """<?xml version='1.0' encoding='utf-8'?>
         <feed xmlns='http://www.w3.org/2005/Atom'>

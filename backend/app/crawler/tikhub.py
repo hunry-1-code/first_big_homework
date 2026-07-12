@@ -71,7 +71,8 @@ class TikHubCrawler:
             )
         raise_for_api_error(payload, self.platform)
         items = self._items(payload)
-        return [self._map_item(item) for item in items[: request.limit]]
+        documents = [self._map_item(item) for item in items[: request.limit]]
+        return [document for document in documents if document is not None]
 
     def _items(self, payload: dict[str, Any]) -> list[dict[str, Any]]:
         if self.platform == "weibo":
@@ -104,7 +105,7 @@ class TikHubCrawler:
             [("data", "data"), ("data", "data", "data"), ("data", "aweme_list")],
         )
 
-    def _map_item(self, item: dict[str, Any]) -> RawDocument:
+    def _map_item(self, item: dict[str, Any]) -> RawDocument | None:
         if self.platform == "weibo":
             user = item.get("user") or {}
             item_id = str(item.get("id") or item.get("mid") or "")
@@ -130,12 +131,16 @@ class TikHubCrawler:
             user = card.get("user") or item.get("user") or {}
             item_id = str(item.get("id") or card.get("note_id") or card.get("id") or "")
             interact = card.get("interact_info") or {}
+            title = card.get("display_title") or card.get("title") or ""
+            content = card.get("desc") or title
+            if not item_id and not content:
+                return None
             return RawDocument(
                 platform="xiaohongshu",
                 source_url=item.get("url") or f"https://www.xiaohongshu.com/explore/{item_id}",
                 source_article_id=item_id,
-                title=card.get("display_title") or card.get("title") or "小红书笔记",
-                raw_content=card.get("desc") or card.get("display_title") or "",
+                title=title or "小红书笔记",
+                raw_content=content,
                 source_type="social",
                 author=user.get("nickname"),
                 author_id=str(user.get("user_id")) if user.get("user_id") is not None else None,
