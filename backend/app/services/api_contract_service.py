@@ -1,7 +1,7 @@
 from datetime import date,datetime
 PLATFORMS={'weibo_hot':'微博热搜','weibo':'微博搜索','zhihu':'知乎','zhihu_hot':'知乎','bilibili':'B站','xiaohongshu':'小红书','baidu_hot':'百度热搜','baidu':'百度搜索'}
 def api_platform_name(v):return PLATFORMS.get(str(v or '').lower())
-def api_lifecycle_stage(v):return {'高潮期':'爆发期','衰退期':'消退期'}.get(v,v if v in {'潜伏期','成长期','爆发期','消退期'} else '潜伏期')
+def api_lifecycle_stage(v):return v if v in {'潜伏期','成长期','高潮期','消退期'} else '潜伏期'
 def clamp_ratio(v):return max(0.0,min(1.0,float(v or 0)))
 def normalized_sentiment(p,n,u):
     vals=[clamp_ratio(p),clamp_ratio(n),clamp_ratio(u)];s=sum(vals)
