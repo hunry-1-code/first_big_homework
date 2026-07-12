@@ -103,7 +103,13 @@ def _postprocess_published_event(event_id: int, publish_run_id: int, user_id: in
         event = db.session.get(Event, int(event_id))
         article_count = Article.query.filter_by(event_id=event.id).count()
         platforms = Article.query.with_entities(Article.platform).filter_by(event_id=event.id).distinct().count()
-        overview = event.summary or f"事件“{event.title or '未命名事件'}”已聚合 {article_count} 篇报道，覆盖 {platforms} 个平台。"
+        overview = event.summary or _ai_generate_summary(
+            event.title or '未命名事件',
+            Article.query.filter_by(event_id=event.id).limit(10).all(),
+            platforms,
+        )
+        if overview is None:
+            overview = '事件「' + (event.title or '未命名事件') + '」已聚合 ' + str(article_count) + ' 篇报道，覆盖 ' + str(platforms) + ' 个平台。'
         report = Report.query.filter_by(event_id=event.id).order_by(Report.id.desc()).first()
         if report is None:
             report = Report(event_id=event.id)
@@ -390,14 +396,68 @@ def _formal_candidate(cluster, config, versions):
 
 def _cluster_title(cluster) -> str:
     raw = max(cluster.documents, key=lambda item: (len(item.title), -item.article_id)).title or "未命名事件"
+    # 尝试 AI 生成标题
+    titles = list(dict.fromkeys(d.title for d in cluster.documents if d.title and len(d.title) > 5))
+    if len(titles) >= 2:
+        ai_title = _ai_generate_title(titles[:10])
+        if ai_title:
+            return ai_title
+    # 回退：截断
     if len(raw) > 80:
-        # 找最后一个完整句子边界截断
         for sep in ("。", "！", "？", "；", "，", " ", "\n"):
             idx = raw.rfind(sep, 0, 80)
             if idx > 40:
                 return raw[:idx + 1]
         return raw[:77] + "..."
     return raw
+
+
+def _ai_generate_title(titles: list[str]) -> str | None:
+    """用 LLM 从多篇文章标题生成简洁事件标题（≤20字）。"""
+    try:
+        from flask import current_app
+        from app.llm.client import LLMClient
+        client = LLMClient(
+            api_key=current_app.config.get("LLM_API_KEY", ""),
+            base_url=current_app.config.get("LLM_BASE_URL", ""),
+            model_name=current_app.config.get("LLM_MODEL_NAME", ""),
+            timeout=15,
+        )
+        joined = "\n".join(f"- {t}" for t in titles[:10])
+        resp = client.chat([
+            {"role": "system", "content": "你是舆情分析助手。根据多篇报道标题，生成一个简洁的事件标题（≤20字），不要加引号和标点符号，直接输出标题文本。"},
+            {"role": "user", "content": f"请从以下报道标题生成事件标题：\n{joined}"}
+        ], temperature=0.3, max_tokens=30)
+        result = resp["content"].strip().strip('"''""''「」[]（）()')
+        if 4 <= len(result) <= 40:
+            return result
+    except Exception:
+        pass
+    return None
+
+
+def _ai_generate_summary(title: str, articles: list, platform_count: int) -> str | None:
+    """用 LLM 生成事件研判摘要。"""
+    try:
+        from flask import current_app
+        from app.llm.client import LLMClient
+        client = LLMClient(
+            api_key=current_app.config.get("LLM_API_KEY", ""),
+            base_url=current_app.config.get("LLM_BASE_URL", ""),
+            model_name=current_app.config.get("LLM_MODEL_NAME", ""),
+            timeout=15,
+        )
+        samples = "\n".join(f"- {a.title}" for a in articles[:5] if a.title)
+        resp = client.chat([
+            {"role": "system", "content": "你是舆情分析师。根据事件标题和相关报道，写一段100-200字的事件研判摘要，包含事件性质、关键信息、舆论焦点。"},
+            {"role": "user", "content": f"事件：{title}\n相关报道：\n{samples}\n\n请写一段事件研判摘要（100-200字）："}
+        ], temperature=0.5, max_tokens=300)
+        result = resp["content"].strip()
+        if 20 <= len(result) <= 500:
+            return result
+    except Exception:
+        pass
+    return None
 
 
 def _ensure_membership(article, event, run, confidence, method, now):
