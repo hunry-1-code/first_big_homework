@@ -29,8 +29,8 @@ export function avatarDataUri(name: string, nickname?: string): string {
   const initials = avatarInitials(name, nickname);
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100">
     <rect width="100" height="100" fill="${color}"/>
-    <text x="50" y="50" dy=".1em" text-anchor="middle" dominant-baseline="central"
-      fill="white" font-size="42" font-family="PingFang SC,Microsoft YaHei,sans-serif" font-weight="600">
+    <text x="50" y="50" text-anchor="middle" dominant-baseline="central"
+      fill="white" font-size="44" font-family="PingFang SC,Microsoft YaHei,sans-serif" font-weight="600">
       ${initials}
     </text>
   </svg>`;

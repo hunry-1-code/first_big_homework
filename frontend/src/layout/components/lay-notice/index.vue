@@ -1,21 +1,15 @@
 <script setup lang="ts">
-import { useI18n } from "vue-i18n";
 import { ref, computed } from "vue";
 import { noticesData } from "./data";
 import NoticeList from "./components/NoticeList.vue";
 
 import BellIcon from "~icons/lucide/bell";
-import ArrowRightIcon from "~icons/ri/arrow-right-s-line";
-
-const { t } = useI18n();
 const dropdownRef = ref();
 const notices = ref(noticesData);
 const activeKey = ref(noticesData[0]?.key);
 
-const getLabel = computed(
-  () => item =>
-    t(item.name) + (item.list.length > 0 ? `(${item.list.length})` : "")
-);
+const getLabel = (item: any) =>
+  item.name + (item.list.length > 0 ? `(${item.list.length})` : "");
 
 const currentNoticeHasData = computed(() => {
   const currentNotice = notices.value.find(
@@ -65,7 +59,7 @@ const onMarkAsRead = () => {
         >
           <el-empty
             v-if="notices.length === 0"
-            :description="t('status.pureNoMessage')"
+            description="暂无消息"
             :image-size="60"
           />
           <span v-else>
@@ -86,11 +80,11 @@ const onMarkAsRead = () => {
         >
           <div class="flex-bc m-1">
             <el-button type="primary" size="small" text @click="onWatchMore">
-              {{ t("buttons.pureWatchMore") }}
+              查看更多
               <IconifyIconOffline :icon="ArrowRightIcon" />
             </el-button>
             <el-button type="primary" size="small" text @click="onMarkAsRead">
-              {{ t("buttons.pureMarkAsRead") }}
+              标为已读
             </el-button>
           </div>
         </div>

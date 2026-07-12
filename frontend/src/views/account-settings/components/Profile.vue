@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { message } from "@/utils/message";
-import { onMounted, reactive, ref } from "vue";
+import { onMounted, reactive, ref, computed } from "vue";
 import { getMine } from "@/api/user";
 import { http } from "@/utils/http";
 import { useUserStoreHook } from "@/store/modules/user";
@@ -53,7 +53,7 @@ const onSubmit = async (formEl: FormInstance) => {
   });
 };
 
-const avatarSrc = avatarDataUri(userInfos.username || "U", userInfos.nickname);
+const avatarSrc = computed(() => avatarDataUri(userInfos.username || "U", userInfos.nickname));
 </script>
 
 <template>
