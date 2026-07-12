@@ -4,12 +4,12 @@ from collections.abc import Sequence
 
 
 WINDOW_SIZE = 3
-LATENT_MAX_DAILY = 10
-LATENT_MAX_TOTAL = 30
-PEAK_MIN_DAILY = 80
+LATENT_MAX_DAILY = 3        # 潜伏期：单日 ≤3 篇
+LATENT_MAX_TOTAL = 10        # 潜伏期：总量 ≤10 篇
+PEAK_TO_GROWTH_RATIO = 3.0   # 峰值 > 潜伏阈值 ×3 才算进入成长期
 GROWTH_RATE_MIN = 0.30
-PEAK_STABLE_RATE = 0.10
-DECLINE_FROM_PEAK = 0.50
+PEAK_STABLE_RATE = 0.15
+DECLINE_FROM_PEAK = 0.50     # 当前值 < 峰值 ×0.5 → 消退期
 DECLINE_CONSECUTIVE_DAYS = 3
 
 
@@ -60,35 +60,41 @@ def predict_lifecycle_stage(daily_counts: list[int]) -> str:
     counts = _normalized(daily_counts)
     if not counts:
         return "潜伏期"
-    if max(counts) <= LATENT_MAX_DAILY and sum(counts) <= LATENT_MAX_TOTAL:
-        return "潜伏期"
 
     smoothed = _smooth(counts)
     current = smoothed[-1]
     peak = max(smoothed)
-    rates = _growth_rate(smoothed)
+    total = sum(counts)
 
+    # 潜伏期：数据量极小
+    if max(counts) <= LATENT_MAX_DAILY and total <= LATENT_MAX_TOTAL:
+        return "潜伏期"
+
+    # 消退期：当前值明显低于峰值
     if peak > 0 and current <= peak * (1.0 - DECLINE_FROM_PEAK):
-        return "衰退期"
+        return "消退期"
     if _has_sustained_decline(smoothed):
-        return "衰退期"
+        return "消退期"
 
-    recent_rates = rates[-3:]
-    positive_recent = [rate for rate in rates[-3:] if rate > 0]
+    rates = _growth_rate(smoothed)
+    recent_rates = rates[-3:] if len(rates) >= 3 else rates
+    positive_recent = [rate for rate in recent_rates if rate > 0]
     is_currently_rising = len(counts) >= 2 and counts[-1] > counts[-2]
+
+    # 成长期：快速上升中
     if is_currently_rising:
         if positive_recent and (max(positive_recent) >= GROWTH_RATE_MIN or len(positive_recent) >= 2):
             return "成长期"
+    if peak > LATENT_MAX_DAILY * PEAK_TO_GROWTH_RATIO and total > LATENT_MAX_TOTAL and current >= peak * 0.4:
+        return "成长期"
 
-    high_volume = current >= PEAK_MIN_DAILY or peak >= PEAK_MIN_DAILY
-    near_peak = peak == 0 or current >= peak * (1.0 - PEAK_STABLE_RATE)
-    stable = recent_rates and all(abs(rate) <= PEAK_STABLE_RATE for rate in recent_rates)
-    if high_volume and (near_peak or stable):
+    # 高潮期：高位稳定或接近峰值
+    near_peak = peak > 0 and current >= peak * (1.0 - PEAK_STABLE_RATE)
+    stable = len(recent_rates) >= 2 and all(abs(rate) <= PEAK_STABLE_RATE for rate in recent_rates)
+    if near_peak or stable:
         return "高潮期"
 
-    if high_volume:
-        return "高潮期"
-    return "潜伏期"
+    return "成长期"
 
 
 def get_lifecycle_change_points(
