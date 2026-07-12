@@ -792,46 +792,60 @@ function initBubbleChart() {
   console.log('[wordcloud] rendering', list.length, 'keywords', list.slice(0,3));
 
   const count = list.length;
-  // 用 sqrt 映射让权重分布更均匀，避免只有 1 个大词其余全一样小
-  const weights = list.map((kw: any) => Math.sqrt(kw.weight || 0.01));
-  const maxW = Math.max(...weights, 0.1);
-  const minW = Math.min(...weights, 0);
-  const range = maxW - minW || 0.1;
-
-  // 字号范围：词少则大，词多则调整
-  const fontSizeMin = count > 20 ? 14 : count > 10 ? 18 : 22;
-  const fontSizeMax = count > 20 ? 52 : count > 10 ? 60 : 72;
-
+  // 金字塔字号映射：顶部词巨大醒目，中部中等，底部微小环绕
   const sorted = [...list]
     .map((kw: any) => ({ ...kw }))
     .sort((a: any, b: any) => (b.weight || 0) - (a.weight || 0));
 
-  const wordData = sorted.map((kw: any) => {
-    const rawT = (Math.sqrt(kw.weight || 0.01) - minW) / range;
-    // 非线性拉伸：让中间权重词也有可观字号
-    const t = Math.pow(rawT, 0.6);
+  const fontSizeMin = 12;
+  const fontSizeMax = 64;
+
+  const wordData = sorted.map((kw: any, idx: number) => {
+    // 用 rank 位置做陡峭映射：顶部词吞噬大部分字号空间
+    const rankRatio = sorted.length > 1 ? idx / (sorted.length - 1) : 0;
+    const t = 1.0 - Math.pow(rankRatio, 0.35); // pow < 1 → 顶部拉开差距
     const fontSize = Math.round(fontSizeMin + t * (fontSizeMax - fontSizeMin));
+    const isTop = idx < Math.min(6, sorted.length * 0.2);
+    const isMid = !isTop && idx < Math.min(15, sorted.length * 0.5);
+
+    // 颜色纵深：顶部浓烈 → 中部分明 → 底部淡出
+    let color: string;
+    if (isTop) {
+      // 深靛蓝/深蓝，大字醒目
+      color = dark ? "#93c5fd" : "#1e40af";
+    } else if (isMid) {
+      const midT = (idx - (isTop ? 6 : 0)) / 10;
+      const r = Math.round(59 + midT * 37);
+      const g = Math.round(130 + midT * 45);
+      const b = Math.round(246 - midT * 50);
+      color = dark
+        ? `rgba(148,${163 + Math.round(midT * 20)},${220 - Math.round(midT * 20)},${(0.85 - midT * 0.3).toFixed(2)})`
+        : `rgba(${r},${g},${b},${(0.95 - midT * 0.25).toFixed(2)})`;
+    } else {
+      // 极淡灰蓝，小词退到背景
+      color = dark ? "rgba(148,163,184,0.35)" : "rgba(148,163,184,0.5)";
+    }
+
     return {
       name: kw.word,
       value: kw.weight,
       textStyle: {
-        color: getWordColor(rawT),
+        color,
         fontSize,
-        fontWeight: t >= 0.4 ? "bold" : "normal",
+        fontWeight: isTop ? "bold" : "normal",
         fontFamily: "PingFang SC, Hiragino Sans GB, Microsoft YaHei, Noto Sans SC, sans-serif"
       },
       emphasis: {
         textStyle: {
-          color: getWordEmphasisColor(rawT),
-          textShadowBlur: 8,
-          textShadowColor: dark ? "rgba(0,0,0,0.6)" : "rgba(0,0,0,0.15)"
+          color: dark ? "#e2e8f0" : "#1e293b",
+          textShadowBlur: 6,
+          textShadowColor: dark ? "rgba(0,0,0,0.6)" : "rgba(0,0,0,0.12)"
         }
       }
     };
   });
 
-  // 更密的网格让词填得更满
-  const gridSize = count > 20 ? 5 : count > 10 ? 4 : 3;
+  const gridSize = 4;
 
   if (bubbleChart) bubbleChart.dispose();
   try {
@@ -872,8 +886,11 @@ function initBubbleChart() {
         fontFamily: "PingFang SC, Hiragino Sans GB, Microsoft YaHei, Noto Sans SC, sans-serif",
         fontWeight: "normal",
         color: (v: any) => {
-          const rawT = (Math.sqrt(v.value || 0.01) - minW) / range;
-          return getWordColor(Math.pow(rawT, 0.6));
+          const idx = sorted.findIndex((k: any) => k.word === v.name);
+          if (idx < 0) return dark ? "#94a3b8" : "#64748b";
+          if (idx < 6) return dark ? "#93c5fd" : "#1e40af";
+          if (idx < 15) return dark ? "#94a3b8" : "#3b82f6";
+          return dark ? "rgba(148,163,184,0.35)" : "rgba(148,163,184,0.5)";
         }
       },
       emphasis: {
