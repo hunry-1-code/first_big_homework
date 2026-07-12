@@ -540,3 +540,93 @@ idle → startAnalysis() → running (2s 轮询 GET /api/tasks/:id)
 
 ---
 
+## 二十、词云算法与关键词体系重构（2026-07-13 第三阶段）
+
+### 20.1 词云渲染优化历程
+
+| 轮次 | Commit | 问题 | 修复 | 效果 |
+|:---:|--------|------|------|------|
+| 1 | `ccbf044` | 词云权重全部相等（归一化 sum=1） | 改为 max-normalize | 无效，TF-IDF 给每个词 score=1.0 |
+| 2 | `480eb16` | `echarts-wordcloud` 未安装 | pnpm install | 依赖就绪 |
+| 3 | `fde5530` | Vite 双 echarts 实例 | `vite.config.ts` 加 `resolve.dedupe: ["echarts"]` | 注册成功 |
+| 4 | `81275a9` | 权重极端分布（1个1.0 + 29个0.03） | sqrt + power(t,0.6) 映射 | 仍只有2-4个不同字号 |
+| 5 | `5f668bc` | 查询词"台风巴威"占满关键词 | 过滤 query_terms + 过滤乱码 + 排名衰减 30 级 | 词干净了，但 TF-IDF 词质量差 |
+| 6 | `823be51` | TF-IDF 分词烂（"一风""全力打"） | LLM 提取关键词 | 48篇 LLM 成功，词质量飞跃 |
+| 7 | `cc8b716` | 字号层次平（pow(t,0.6) 压缩） | `pow(rank_ratio, 0.35)` 陡峭金字塔 | 前6词40-64px，中层22-38px，底层12-20px |
+| 8 | `2520242` | 全蓝缺乏区分 | sentiment 着色：负红/正绿/中灰 | 一眼识别舆论焦点 |
+
+### 20.2 LLM 多维度关键词提取
+
+重写 `llm_keywords.py`，提示词返回四维度：
+
+| 维度 | 说明 | 适用场景 |
+|------|------|------|
+| term | 2-8字中文关键词 | 词云展示 |
+| score | 重要性 0-1 | 字号映射 |
+| sentiment | positive/negative/neutral | 情感着色 |
+| entity_type | location/organization/person/event/concept | 实体分类、图标区分 |
+
+**领域无关设计**：提示词无任何领域绑定词。TF-IDF 仅作 LLM 失败的 fallback。
+
+### 20.3 关键词数据复用
+
+关键词多维数据推广到 3 个展示面：
+
+| # | 位置 | 改动 | Commit |
+|:---:|------|------|:---:|
+| 1 | 看板 EventCard | top-3 关键词标签，情感着色 | `844d108` |
+| 2 | 详情页文章列表 | "正文摘要"列 → 关键词标签列 | `844d108` |
+| 3 | AI 研判摘要 | 提示词加入"负面焦点/正面焦点/涉及地域" | `844d108` |
+
+### 20.4 生命周期预测修复
+
+`trend_predictor.py` 阈值从绝对值改为相对值：
+- `LATENT_MAX_DAILY: 10→3`，`LATENT_MAX_TOTAL: 30→10`
+- `PEAK_MIN_DAILY` 删除，改为 `PEAK_TO_GROWTH_RATIO`
+- Event #1 从永久"潜伏期"→"成长期"
+
+### 20.5 LLM 缺口全连接
+
+将已有的 `EVENT_SUMMARY_PROMPT` 挂到 `_extract_event_metadata()`，一次 LLM 调用替换 3 个规则函数：
+
+| 函数 | 修复前 | 修复后 |
+|------|------|------|
+| `_extract_location` | 83 个地名字符串匹配 | LLM NER 提取 |
+| `_extract_key_figures` | 取 author 字段去重 | LLM 从正文提取人物/机构 |
+| `_extract_cause` | 截断 overview_text 前 100 字 | LLM 综合文章生成起因概述 |
+| `summarize_sentiment` | 纯数学比例 | LLM 一句话总结 + 数学数据 |
+| `fake_detector` | 仅 ≥70 分调 LLM | ≥40 分全调 LLM |
+| `trend_key_points` | 固定标签"首次报道""热度峰值" | 标签带报道数量 |
+
+### 20.6 未记录提交（20.6-20.20）
+
+| # | Commit | 内容 |
+|:---:|--------|------|
+| 11 | `4d41e8b` | docs: 开发日志从 AGENTS.md 移入本文档 |
+| 12 | `ccbf044` | fix: 词云权重 max-normalize |
+| 13 | `480eb16` | fix: 安装 echarts-wordcloud + 调试日志 |
+| 14 | `fde5530` | fix: Vite dedupe echarts |
+| 15 | `1ceca25` | feat: AI 生成事件标题和摘要 |
+| 16 | `77c5ee7` | refactor: 提取 _llm_client() 统一工厂 |
+| 17 | `612b783` | fix: LLM 缺口全连接（6 处） |
+| 18 | `94c5056` | fix: 生命周期相对阈值 |
+| 19 | `81275a9` | fix: 词云 sqrt+power 曲线 |
+| 20 | `5f668bc` | fix: 关键词过滤查询词+排名衰减 |
+| 21 | `afb5740` | docs: AGENTS.md 开发日志规则 |
+| 22 | `823be51` | feat: LLM 关键词提取替代 TF-IDF |
+| 23 | `cc8b716` | fix: 词云金字塔布局 |
+| 24 | `2520242` | feat: 多维度关键词+情感着色 |
+| 25 | `844d108` | feat: 关键词数据 3 处复用 |
+
+### 最终状态（截至 2026-07-13）
+
+- **全链路打通**：爬虫→预处理→TF-IDF+BGE→聚类→LLM情感/关键词→看板
+- **事件数**：3 个（34+13+1 篇），覆盖百度/B站/微博/知乎 4 平台
+- **API 字段**：30/30 全部对齐，新增 sentiment/entity_type 维度
+- **前端 Mock**：0 处残留
+- **词云算法**：LLM 多维度提取 + 金字塔字号 + 情感着色
+- **生命周期**：相对阈值正常运作
+- **待解决**：搜索模式不触发热点计算、`analysis/index.vue` 未上线验证
+
+---
+
