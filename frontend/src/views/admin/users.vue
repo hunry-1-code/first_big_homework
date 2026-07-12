@@ -36,6 +36,9 @@
             <el-button type="primary" :icon="useRenderIcon(AddFill)" @click="openDialog()">
               新建用户
             </el-button>
+            <el-button type="success" plain size="default" :icon="useRenderIcon('ri:user-add-line')" @click="openBatchDialog">
+              批量生成账户
+            </el-button>
             <el-button :icon="useRenderIcon(Refresh)" @click="loadUsers">刷新</el-button>
           </div>
         </div>
@@ -83,12 +86,16 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="last_login_at" label="最后登录" min-width="150">
+        <el-table-column label="最后登录" min-width="140">
           <template #default="{ row }">
-            <span class="text-xs text-slate-500 dark:text-slate-400">{{ row.last_login_at || '从未登录' }}</span>
+            <span class="text-xs text-slate-500 dark:text-slate-400">{{ fmtDate(row.last_login_at) || '从未登录' }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="created_at" label="创建时间" width="110" />
+        <el-table-column label="创建时间" width="140">
+          <template #default="{ row }">
+            <span class="text-xs text-slate-500 dark:text-slate-400">{{ fmtDate(row.created_at) }}</span>
+          </template>
+        </el-table-column>
         <el-table-column label="操作" width="220" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" size="small" :icon="useRenderIcon(EditPen)" @click="openDialog('修改', row)">
@@ -171,6 +178,81 @@
       </template>
     </el-dialog>
 
+    <!-- 批量生成账户弹窗 -->
+    <el-dialog v-model="batchVisible" title="批量生成账户" width="560px" destroy-on-close :close-on-click-modal="false">
+      <div class="space-y-4">
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="用户名前缀" label-width="80px">
+              <el-input v-model="batchForm.prefix" placeholder="如 user、stu" maxlength="20" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="生成数量" label-width="80px">
+              <el-input-number v-model="batchForm.count" :min="1" :max="50" class="!w-full" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="起始编号" label-width="80px">
+              <el-input-number v-model="batchForm.startNo" :min="1" :max="9999" class="!w-full" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="角色" label-width="80px">
+              <el-select v-model="batchForm.role" class="!w-full">
+                <el-option label="普通用户" value="user" />
+                <el-option label="管理员" value="admin" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-form-item label="默认密码" label-width="80px">
+          <el-input v-model="batchForm.password" placeholder="留空则使用随机密码" maxlength="32" />
+        </el-form-item>
+
+        <!-- 预览 -->
+        <div class="bg-slate-50 dark:bg-slate-800 rounded-lg p-3">
+          <div class="text-xs text-slate-500 dark:text-slate-400 mb-2">
+            预览（将生成 {{ batchForm.count }} 个账户）
+          </div>
+          <div class="text-xs font-mono text-slate-600 dark:text-slate-300 max-h-[100px] overflow-y-auto space-y-0.5">
+            <div v-for="u in batchPreview" :key="u.username">
+              {{ u.username }} / {{ u.password || batchForm.password || pad(batchForm.startNo + batchPreview.indexOf(u), 6) }} / {{ batchForm.role === 'admin' ? '管理员' : '普通用户' }}
+            </div>
+          </div>
+        </div>
+
+        <!-- 生成结果 -->
+        <div v-if="batchResults.length > 0" class="bg-emerald-50 dark:bg-emerald-950/30 rounded-lg p-3">
+          <div class="text-xs text-emerald-600 dark:text-emerald-400 mb-2 font-medium">
+            生成完成：成功 {{ batchResults.filter(r => r.ok).length }} / {{ batchResults.length }}
+          </div>
+          <div class="max-h-[180px] overflow-y-auto border border-emerald-200 dark:border-emerald-800 rounded text-xs">
+            <div
+              v-for="r in batchResults"
+              :key="r.username"
+              class="flex items-center justify-between px-3 py-1.5 border-b border-emerald-100 dark:border-emerald-800/50 last:border-0 font-mono"
+            >
+              <span :class="r.ok ? 'text-slate-700 dark:text-slate-200' : 'text-red-400 line-through'">
+                {{ r.username }} / {{ r.password || batchForm.password }}
+              </span>
+              <span :class="r.ok ? 'text-emerald-500' : 'text-red-400'" class="text-[10px]">
+                {{ r.ok ? '✓' : r.error }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="batchVisible = false">关闭</el-button>
+        <el-button type="primary" :loading="generating" @click="doBatchGenerate">
+          {{ generating ? '生成中...' : '开始生成' }}
+        </el-button>
+      </template>
+    </el-dialog>
+
     <!-- 重置密码弹窗 -->
     <el-dialog v-model="resetPwdVisible" title="重置密码" width="360px" destroy-on-close>
       <el-form label-width="80px">
@@ -187,7 +269,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, reactive } from "vue";
+import { onMounted, ref, reactive, computed } from "vue";
 import type { FormInstance, FormRules } from "element-plus";
 import { useRenderIcon } from "@/components/ReIcon/src/hooks";
 import { message } from "@/utils/message";
@@ -208,6 +290,62 @@ import More from "~icons/ep/more-filled";
 import Password from "~icons/ri/lock-password-line";
 
 defineOptions({ name: "AdminUsers" });
+
+function fmtDate(iso: string | null): string {
+  if (!iso) return "";
+  return iso.replace("T", " ").replace(/\.\d+Z?/, "").replace("Z", "").slice(0, 19);
+}
+
+// 批量生成
+const generating = ref(false);
+const batchVisible = ref(false);
+const batchForm = reactive({ prefix: "user", count: 5, startNo: 1, role: "user", password: "" });
+const batchResults = ref<{ username: string; password: string; ok: boolean; error?: string }[]>([]);
+
+const batchPreview = computed(() => {
+  const list: { username: string; password: string }[] = [];
+  for (let i = 0; i < batchForm.count; i++) {
+    const no = batchForm.startNo + i;
+    list.push({ username: `${batchForm.prefix}${pad(no, 3)}`, password: batchForm.password || randomPwd() });
+  }
+  return list;
+});
+
+function pad(n: number, len: number): string {
+  return String(n).padStart(len, "0");
+}
+
+function randomPwd(): string {
+  const chars = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789";
+  let pwd = "";
+  for (let i = 0; i < 8; i++) pwd += chars[Math.floor(Math.random() * chars.length)];
+  return pwd;
+}
+
+function openBatchDialog() {
+  batchForm.prefix = "user";
+  batchForm.count = 5;
+  batchForm.startNo = 1;
+  batchForm.role = "user";
+  batchForm.password = "";
+  batchResults.value = [];
+  batchVisible.value = true;
+}
+
+async function doBatchGenerate() {
+  generating.value = true;
+  batchResults.value = [];
+  for (const u of batchPreview.value) {
+    try {
+      await createUser({ username: u.username, password: u.password, nickname: u.username, role: batchForm.role });
+      batchResults.value.push({ username: u.username, password: u.password, ok: true });
+    } catch (e) {
+      batchResults.value.push({ username: u.username, password: u.password, ok: false, error: (e as any)?.response?.data?.message || "失败" });
+    }
+  }
+  generating.value = false;
+  loadUsers();
+}
 
 const tableRef = ref();
 const loading = ref(false);
