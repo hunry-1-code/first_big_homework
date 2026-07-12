@@ -29,7 +29,12 @@ _MAX_EDGES = 50          # 最大边数，防止 O(n²) 爆炸
 
 
 def _event_keywords(event: Event) -> dict:
-    """从 AnalysisRunArticle 聚合事件的关键词列表。"""
+    """从 AnalysisRunArticle 聚合事件的关键词列表。
+
+    策略：取每篇文章 TF-IDF 最高的关键词（跳过查询词），
+    按平均 score × log(出现次数) 排序，cosine 归一化权重。
+    """
+    import math
     article_ids = [
         a.id for a in Article.query.filter_by(event_id=event.id)
         .with_entities(Article.id).limit(200).all()
@@ -39,31 +44,59 @@ def _event_keywords(event: Event) -> dict:
     rows = AnalysisRunArticle.query.filter(
         AnalysisRunArticle.article_id.in_(article_ids)
     ).all()
-    # 用文档频率（出现次数）作为权重，天然产生梯度
-    keyword_counts: dict[str, int] = {}
-    keyword_best_score: dict[str, float] = {}
+
+    # 识别查询词（出现在超过半数文章中的 source=query 词）
+    query_candidates: dict[str, int] = {}
+    for row in rows:
+        for kw in (row.keywords or []):
+            if isinstance(kw, dict) and kw.get("source") == "query":
+                term = kw["term"].strip()
+                query_candidates[term] = query_candidates.get(term, 0) + 1
+    unique_articles = len(article_ids)
+    query_terms = {t for t, c in query_candidates.items() if c >= unique_articles * 0.5}
+
+    # 聚合：每篇文章取 top-3 非查询词，计算平均分和出现次数
+    term_scores: dict[str, list[float]] = {}
     for row in rows:
         seen: set[str] = set()
-        for kw in row.keywords or []:
-            if isinstance(kw, dict) and kw.get("term"):
-                term = kw["term"].strip()
-                score = float(kw.get("score", kw.get("weight", 0)))
-                if term not in seen:
-                    keyword_counts[term] = keyword_counts.get(term, 0) + 1
-                    seen.add(term)
-                keyword_best_score[term] = max(keyword_best_score.get(term, 0), score)
-    # 综合排序：出现次数 × 最高分
-    total_articles = len(set(row.article_id for row in rows)) or 1
-    sorted_keywords = sorted(
-        keyword_counts.items(),
-        key=lambda x: (keyword_counts[x[0]] * keyword_best_score.get(x[0], 0), keyword_counts[x[0]]),
-        reverse=True
-    )[:30]
-    max_count = max(count for _, count in sorted_keywords) if sorted_keywords else 1
+        count = 0
+        for kw in (row.keywords or []):
+            if not isinstance(kw, dict):
+                continue
+            term = kw["term"].strip()
+            if term in query_terms or term in seen:
+                continue
+            # 过滤乱码和纯数字/符号
+            if len(term) <= 1 or not any('一' <= c <= '鿿' for c in term):
+                continue
+                continue
+            seen.add(term)
+            score = float(kw.get("score", 0))
+            term_scores.setdefault(term, []).append(score)
+            count += 1
+            if count >= 3:
+                break
+
+    # 排序：对数文档频率。出现次数越多权重越高，但不线性
+    ranked = []
+    for term, scores in term_scores.items():
+        count = len(scores)
+        avg_score = sum(scores) / count
+        # 用 log 频率作为主排序，avg_score 打破平局
+        freq_log = math.log(1 + count)
+        ranked.append((term, freq_log, avg_score, count))
+
+    ranked.sort(key=lambda x: (x[1], x[2], x[3]), reverse=True)
+    ranked = ranked[:30]
+
+    if not ranked:
+        return {"keywords": []}
+
+    total = len(ranked)
     return {
         "keywords": [
-            {"word": term, "weight": round(count / max_count, 3)}
-            for term, count in sorted_keywords
+            {"word": term, "weight": round(1.0 - (idx / total) * 0.85, 4)}
+            for idx, (term, freq_log, avg_score, count) in enumerate(ranked)
         ]
     }
 
