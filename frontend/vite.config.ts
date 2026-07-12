@@ -16,7 +16,8 @@ export default async ({ mode }: ConfigEnv): Promise<UserConfigExport> => {
     base: VITE_PUBLIC_PATH,
     root,
     resolve: {
-      alias
+      alias,
+      dedupe: ["echarts"]
     },
     // 服务端渲染
     server: {
