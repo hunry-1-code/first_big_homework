@@ -160,6 +160,35 @@ class EdgeCasePropagationTest(unittest.TestCase):
         self.assertIsNone(node["publish_time"])
         self.assertEqual(node["name"], "未知")
 
+
+class PropagationBuilderTest(unittest.TestCase):
+    def _article(self, id, title, hour, **kwargs):
+        class Stub: pass
+        value=Stub(); value.id=id; value.title=title; value.clean_content=kwargs.pop('content',title); value.raw_content=value.clean_content
+        value.raw_json=kwargs.pop('raw_json',{}); value.publish_time=datetime(2026,7,10,8)+timedelta(hours=hour); value.first_crawled_at=value.publish_time
+        value.platform=kwargs.pop('platform','weibo'); value.source_article_id=str(id); value.source_url=f'https://example.com/{id}'
+        value.author=kwargs.pop('author',f'用户{id}'); value.author_id=str(id); value.author_followers=kwargs.pop('followers',100)
+        value.author_verified=False; value.author_type=kwargs.pop('author_type',None); value.likes_count=kwargs.pop('likes',0); value.comments_count=0; value.reposts_count=0; value.views_count=0
+        return value
+
+    def test_explicit_parent_wins_and_inferred_node_has_one_parent(self):
+        from app.propagation.builder import build_propagation_graph
+        a=self._article(1,'某公司发布新产品',0)
+        b=self._article(2,'转发某公司发布新产品',1,raw_json={'retweeted_status':{'id':'1'}})
+        c=self._article(3,'某公司新产品引发关注',2)
+        result=build_propagation_graph([a,b,c])
+        edge=next(x for x in result['graph']['links'] if x['target']==2)
+        self.assertEqual(edge['source'],1); self.assertEqual(edge['evidence_type'],'explicit')
+        inferred=[x for x in result['graph']['links'] if x['target']==3]
+        self.assertEqual(len(inferred),1)
+        self.assertEqual(inferred[0]['evidence_type'],'inferred')
+
+    def test_unrelated_articles_remain_multiple_roots(self):
+        from app.propagation.builder import build_propagation_graph
+        result=build_propagation_graph([self._article(1,'暴雨预警',0),self._article(2,'电影票房增长',1)])
+        self.assertEqual(result['graph']['links'],[])
+        self.assertEqual(result['summary']['origin_candidate_count'],2)
+
     def test_missing_author(self):
         """缺少作者使用默认值。"""
         class Stub:

@@ -16,3 +16,7 @@ export function exportEventReport(id, format = "html") {
   return apiClient.get(`/events/${id}/report/export`, { params: { format } });
 }
 
+export function getEventPropagation(id) {
+  return apiClient.get(`/events/${id}/propagation`);
+}
+

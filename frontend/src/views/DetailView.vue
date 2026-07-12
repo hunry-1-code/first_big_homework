@@ -33,6 +33,11 @@
           <el-table-column prop="sentiment_label" label="情感" width="120" />
         </el-table>
       </el-tab-pane>
+      <el-tab-pane label="传播路径">
+        <PropagationGraph :data="propagation" />
+        <el-divider content-position="left">关键传播阶段</el-divider>
+        <PropagationTimeline :phases="propagation?.phases || []" />
+      </el-tab-pane>
     </el-tabs>
   </AppShell>
 </template>
@@ -41,15 +46,19 @@
 import { onMounted, ref } from "vue";
 import { useRoute } from "vue-router";
 
-import { exportEventReport, getEvent } from "../api/events";
+import { exportEventReport, getEvent, getEventPropagation } from "../api/events";
 import AppShell from "../components/AppShell.vue";
+import PropagationGraph from "../components/PropagationGraph.vue";
+import PropagationTimeline from "../components/PropagationTimeline.vue";
 
 const route = useRoute();
 const detail = ref(null);
+const propagation = ref({ graph: { nodes: [], links: [] }, phases: [], summary: {} });
 
 onMounted(async () => {
-  const response = await getEvent(route.params.id);
+  const [response, propagationResponse] = await Promise.all([getEvent(route.params.id), getEventPropagation(route.params.id)]);
   detail.value = response.data;
+  propagation.value = propagationResponse.data;
 });
 
 async function reserveExport() {

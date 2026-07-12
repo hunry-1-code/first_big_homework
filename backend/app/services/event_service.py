@@ -241,6 +241,10 @@ def get_propagation_data(event_id: int) -> dict | None:
     articles = Article.query.filter_by(event_id=event.id)\
         .order_by(Article.publish_time.asc()).all()
 
+    from app.propagation import build_propagation_graph
+    from app.services.api_contract_service import api_platform_name
+    return build_propagation_graph(articles, platform_mapper=api_platform_name)
+
     if not articles:
         return {"key_nodes": [], "graph": {"nodes": [], "links": []}}
 
