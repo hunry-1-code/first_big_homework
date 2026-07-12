@@ -4,6 +4,8 @@ import { useRouter } from "vue-router";
 import { ReText } from "@/components/ReText";
 import Profile from "./components/Profile.vue";
 import { ref, onMounted, onBeforeMount } from "vue";
+import { useUserStoreHook } from "@/store/modules/user";
+import { avatarDataUri } from "@/utils/avatar";
 import Preferences from "./components/Preferences.vue";
 import SecurityLog from "./components/SecurityLog.vue";
 import { useGlobal, deviceDetection } from "@pureadmin/utils";
@@ -62,13 +64,22 @@ const panes = [
 const witchPane = ref("profile");
 
 onMounted(async () => {
+  const store = useUserStoreHook();
   try {
     const { code, data } = await getMine();
     if (code === 200) {
-      userInfo.value = { avatar: data.avatar || "", username: data.username || "", nickname: data.nickname || "" };
+      userInfo.value = {
+        avatar: data.avatar || avatarDataUri(data.username || "U", data.nickname),
+        username: data.username || store.username || "",
+        nickname: data.nickname || store.nickname || data.username || ""
+      };
     }
   } catch {
-    // 后端不可用时静默降级
+    userInfo.value = {
+      avatar: avatarDataUri(store.username || "U", store.nickname),
+      username: store.username || "",
+      nickname: store.nickname || store.username || ""
+    };
   }
 });
 </script>

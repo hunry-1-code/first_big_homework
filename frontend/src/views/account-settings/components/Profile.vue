@@ -1,178 +1,112 @@
 <script setup lang="ts">
 import { message } from "@/utils/message";
 import { onMounted, reactive, ref } from "vue";
-import { type UserInfo, getMine } from "@/api/user";
-import type { FormInstance, FormRules } from "element-plus";
-import ReCropperPreview from "@/components/ReCropperPreview";
-import { createFormData, deviceDetection } from "@pureadmin/utils";
-import uploadLine from "~icons/ri/upload-line";
+import { getMine } from "@/api/user";
+import { http } from "@/utils/http";
+import { useUserStoreHook } from "@/store/modules/user";
+import type { FormInstance } from "element-plus";
+import { deviceDetection } from "@pureadmin/utils";
+import { avatarDataUri } from "@/utils/avatar";
 
-defineOptions({
-  name: "Profile"
-});
+defineOptions({ name: "Profile" });
 
-const imgSrc = ref("");
-const cropperBlob = ref();
-const cropRef = ref();
-const uploadRef = ref();
-const isShow = ref(false);
 const userInfoFormRef = ref<FormInstance>();
-
+const saving = ref(false);
 const userInfos = reactive({
-  avatar: "",
+  username: "",
   nickname: "",
-  email: "",
-  phone: "",
-  description: ""
+  role: ""
 });
 
-const rules = reactive<FormRules<UserInfo>>({
-  nickname: [{ required: true, message: "昵称必填", trigger: "blur" }]
+onMounted(async () => {
+  try {
+    const { code, data } = await getMine();
+    if (code === 200) {
+      userInfos.username = data.username || "";
+      userInfos.nickname = data.nickname || data.username || "";
+      userInfos.role = data.role || "user";
+    }
+  } catch {
+    // 后端不可用，显示 store 中的数据
+    const store = useUserStoreHook();
+    userInfos.username = store.username || "";
+    userInfos.nickname = store.nickname || store.username || "";
+    userInfos.role = store.roles?.[0] || "user";
+  }
 });
 
-function queryEmail(queryString, callback) {
-  const emailList = [
-    { value: "@qq.com" },
-    { value: "@126.com" },
-    { value: "@163.com" }
-  ];
-  let results = [];
-  let queryList = [];
-  emailList.map(item =>
-    queryList.push({ value: queryString.split("@")[0] + item.value })
-  );
-  results = queryString
-    ? queryList.filter(
-        item =>
-          item.value.toLowerCase().indexOf(queryString.toLowerCase()) === 0
-      )
-    : queryList;
-  callback(results);
-}
-
-const onChange = uploadFile => {
-  const reader = new FileReader();
-  reader.onload = e => {
-    imgSrc.value = e.target.result as string;
-    isShow.value = true;
-  };
-  reader.readAsDataURL(uploadFile.raw);
-};
-
-const handleClose = () => {
-  cropRef.value.hidePopover();
-  uploadRef.value.clearFiles();
-  isShow.value = false;
-};
-
-const onCropper = ({ blob }) => (cropperBlob.value = blob);
-
-const handleSubmitImage = () => {
-  const formData = createFormData({
-    files: new File([cropperBlob.value], "avatar")
-  });
-  // 头像上传后端暂未支持
-  message("头像上传功能即将上线", { type: "info" });
-};
-
-// 更新信息
 const onSubmit = async (formEl: FormInstance) => {
-  await formEl.validate((valid, fields) => {
-    if (valid) {
-      console.log(userInfos);
-      message("更新信息成功", { type: "success" });
-    } else {
-      console.log("error submit!", fields);
+  if (!formEl) return;
+  await formEl.validate(async (valid) => {
+    if (!valid) return;
+    saving.value = true;
+    try {
+      await http.request("put", "/api/user/profile", { data: { nickname: userInfos.nickname } });
+      // 同步更新 store
+      useUserStoreHook().SET_NICKNAME(userInfos.nickname);
+      message("个人信息更新成功", { type: "success" });
+    } catch {
+      message("保存失败，请稍后重试", { type: "error" });
+    } finally {
+      saving.value = false;
     }
   });
 };
 
-onMounted(async () => {
-  const { code, data } = await getMine();
-  if (code === 200) {
-    Object.assign(userInfos, data);
-  }
-});
+const avatarSrc = avatarDataUri(userInfos.username || "U", userInfos.nickname);
 </script>
 
 <template>
   <div :class="['min-w-45', deviceDetection() ? 'max-w-full' : 'max-w-[70%]']">
     <h3 class="my-8!">个人信息</h3>
+
+    <!-- 头像 -->
+    <div class="flex items-center gap-4 mb-6">
+      <img :src="avatarSrc" class="w-16 h-16 rounded-full" alt="avatar" />
+      <div>
+        <div class="text-sm font-medium text-slate-700 dark:text-slate-200">{{ userInfos.nickname }}</div>
+        <div class="text-xs text-slate-400 mt-1">系统自动生成默认头像，自定义头像功能即将上线</div>
+      </div>
+    </div>
+
     <el-form
       ref="userInfoFormRef"
       label-position="top"
-      :rules="rules"
       :model="userInfos"
+      size="large"
     >
-      <el-form-item label="头像">
-        <el-avatar :size="80" :src="userInfos.avatar" />
-        <el-upload
-          ref="uploadRef"
-          accept="image/*"
-          action="#"
-          :limit="1"
-          :auto-upload="false"
-          :show-file-list="false"
-          :on-change="onChange"
-        >
-          <el-button plain class="ml-4!">
-            <IconifyIconOffline :icon="uploadLine" />
-            <span class="ml-2">更新头像</span>
-          </el-button>
-        </el-upload>
-      </el-form-item>
+      <el-row :gutter="24">
+        <el-col :span="12">
+          <el-form-item label="用户名">
+            <el-input :model-value="userInfos.username" disabled />
+            <template #extra>
+              <span class="text-[11px] text-slate-400">用户名不可修改</span>
+            </template>
+          </el-form-item>
+        </el-col>
+        <el-col :span="12">
+          <el-form-item label="角色">
+            <el-input :model-value="userInfos.role === 'admin' ? '管理员' : '普通用户'" disabled />
+            <template #extra>
+              <span class="text-[11px] text-slate-400">请联系管理员修改角色</span>
+            </template>
+          </el-form-item>
+        </el-col>
+      </el-row>
+
       <el-form-item label="昵称" prop="nickname">
-        <el-input v-model="userInfos.nickname" placeholder="请输入昵称" />
-      </el-form-item>
-      <el-form-item label="邮箱" prop="email">
-        <el-autocomplete
-          v-model="userInfos.email"
-          :fetch-suggestions="queryEmail"
-          :trigger-on-focus="false"
-          placeholder="请输入邮箱"
-          clearable
-          class="w-full"
-        />
-      </el-form-item>
-      <el-form-item label="联系电话">
         <el-input
-          v-model="userInfos.phone"
-          placeholder="请输入联系电话"
-          clearable
+          v-model="userInfos.nickname"
+          maxlength="50"
+          placeholder="请输入昵称"
         />
       </el-form-item>
-      <el-form-item label="简介">
-        <el-input
-          v-model="userInfos.description"
-          placeholder="请输入简介"
-          type="textarea"
-          :autosize="{ minRows: 6, maxRows: 8 }"
-          maxlength="56"
-          show-word-limit
-        />
+
+      <el-form-item>
+        <el-button type="primary" :loading="saving" @click="onSubmit(userInfoFormRef)">
+          保存修改
+        </el-button>
       </el-form-item>
-      <el-button type="primary" @click="onSubmit(userInfoFormRef)">
-        更新信息
-      </el-button>
     </el-form>
-    <el-dialog
-      v-model="isShow"
-      width="40%"
-      title="编辑头像"
-      destroy-on-close
-      :closeOnClickModal="false"
-      :before-close="handleClose"
-      :fullscreen="deviceDetection()"
-    >
-      <ReCropperPreview ref="cropRef" :imgSrc="imgSrc" @cropper="onCropper" />
-      <template #footer>
-        <div class="dialog-footer">
-          <el-button bg text @click="handleClose">取消</el-button>
-          <el-button bg text type="primary" @click="handleSubmitImage">
-            确定
-          </el-button>
-        </div>
-      </template>
-    </el-dialog>
   </div>
 </template>

@@ -2,8 +2,8 @@ import { storeToRefs } from "pinia";
 import { getConfig } from "@/config";
 import { useRouter } from "vue-router";
 import { emitter } from "@/utils/mitt";
-import Avatar from "@/assets/user.jpg";
 import { getTopMenu } from "@/router/utils";
+import { avatarDataUri } from "@/utils/avatar";
 import { useFullscreen } from "@vueuse/core";
 import type { routeMetaType } from "../types";
 import { transformI18n } from "@/plugins/i18n";
@@ -38,11 +38,11 @@ export function useNav() {
     };
   });
 
-  /** 头像（如果头像为空则使用 src/assets/user.jpg ） */
+  /** 头像（空则生成默认字母头像） */
   const userAvatar = computed(() => {
-    return isAllEmpty(useUserStoreHook()?.avatar)
-      ? Avatar
-      : useUserStoreHook()?.avatar;
+    const store = useUserStoreHook();
+    if (store?.avatar) return store.avatar;
+    return avatarDataUri(store?.username || "U", store?.nickname);
   });
 
   /** 昵称（如果昵称为空则显示用户名） */
