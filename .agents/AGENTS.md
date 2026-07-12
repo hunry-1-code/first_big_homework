@@ -35,8 +35,10 @@
 3. 禁止引入新的 UI 样式库或修改核心布局
 
 ### 开发后
-1. 更新 `docs/frontend_changelog_and_memory.md`
-2. `git commit`（commit message 用中文描述 + Co-Authored-By: Claude）
+1. **更新 `docs/integration_report.md`**：每次 `git commit` 后记录改动内容、根因、修复方案（添加新章节或追加到最新章节）
+2. **更新 `.agents/AGENTS.md`**：如有新的项目约定、已知问题、配置变更，同步更新本文
+3. `git commit`（commit message 用中文描述 + Co-Authored-By: Claude）
+4. **更新 `docs/frontend_changelog_and_memory.md`**：前端 UI/组件级变更记录
 
 ---
 
