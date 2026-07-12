@@ -283,6 +283,17 @@ def _result_values(result: dict, run: SentimentRun) -> dict:
 
 def _serialize_snapshot(snapshot: EventSentimentSnapshot) -> dict:
     daily_trend = snapshot.daily_trend or []
+    # 情感文字总结（运行时生成，不持久化）
+    sentiment_summary = None
+    try:
+        from app.analysis.sentiment_aggregator import _generate_sentiment_summary
+        from collections import Counter
+        ratios = snapshot.weighted_ratios or {}
+        dominant = max(ratios, key=ratios.get) if ratios else None
+        sentiment_summary = _generate_sentiment_summary(ratios, dominant, snapshot.article_count or 0)
+    except Exception:
+        pass
+
     return {
         "snapshot_id": snapshot.id,
         "sentiment_run_id": snapshot.sentiment_run_id,
@@ -295,6 +306,7 @@ def _serialize_snapshot(snapshot: EventSentimentSnapshot) -> dict:
         "representative_count": snapshot.representative_count,
         "raw_counts": snapshot.raw_counts or {},
         "weighted_ratios": snapshot.weighted_ratios or {},
+        "summary": sentiment_summary,
         "positive": float((snapshot.weighted_ratios or {}).get("positive", 0)),
         "negative": float((snapshot.weighted_ratios or {}).get("negative", 0)),
         "neutral": float((snapshot.weighted_ratios or {}).get("neutral", 0)),

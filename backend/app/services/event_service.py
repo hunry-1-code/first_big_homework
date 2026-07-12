@@ -68,54 +68,52 @@ def _event_keywords(event: Event) -> dict:
     }
 
 
-_CHINA_LOCATIONS = {
-    "北京", "上海", "天津", "重庆", "广东", "广州", "深圳",
-    "浙江", "杭州", "宁波", "温州", "台州", "乐清", "玉环", "舟山",
-    "江苏", "南京", "苏州", "福建", "福州", "厦门", "泉州", "漳州",
-    "山东", "济南", "青岛", "辽宁", "沈阳", "大连",
-    "湖北", "武汉", "湖南", "长沙", "四川", "成都",
-    "河南", "郑州", "河北", "石家庄", "山西", "太原",
-    "安徽", "合肥", "江西", "南昌", "陕西", "西安",
-    "海南", "海口", "三亚", "广西", "南宁", "云南", "昆明",
-    "贵州", "贵阳", "甘肃", "兰州", "吉林", "长春", "黑龙江", "哈尔滨",
-    "西藏", "拉萨", "新疆", "乌鲁木齐", "内蒙古", "呼和浩特",
-    "香港", "澳门", "台湾",
-}
-
-
-def _extract_location(articles) -> str:
-    found = []
-    for a in articles[:50]:
-        title = str(a.title or "")
-        for loc in _CHINA_LOCATIONS:
-            if loc in title and loc not in found:
-                found.append(loc)
-                if len(found) >= 5:
-                    break
-    return "、".join(found[:5]) if found else ""
-
-
-def _extract_key_figures(articles) -> str:
-    authors = []
-    skip = {"匿名用户", "系统样例", "示例新闻", "示例晚报",
-            "样例用户A", "样例用户B", "", "-"}
-    for a in articles[:50]:
-        author = str(a.author or "").strip()
-        if author and author not in skip and author not in authors:
-            authors.append(author)
-            if len(authors) >= 8:
-                break
-    return "、".join(authors[:8]) if authors else ""
-
-
-def _extract_cause(event, report, articles) -> str:
-    if report and report.overview_text:
-        text = report.overview_text
-        return text[:100] + ("..." if len(text) > 100 else "")
-    if event.summary:
-        return event.summary[:100] + ("..." if len(event.summary) > 100 else "")
-    titles = [a.title for a in articles[:3] if a.title]
-    return "、".join(titles[:3])[:100] if titles else ""
+def _extract_event_metadata(event, articles) -> dict:
+    """用 LLM 一次提取事件的时间、地点、人物和起因。失败则回退规则提取。"""
+    try:
+        from flask import current_app
+        from app.llm.client import LLMClient
+        from app.llm.prompts import EVENT_SUMMARY_PROMPT
+        client = LLMClient(
+            api_key=current_app.config.get("LLM_API_KEY", ""),
+            base_url=current_app.config.get("LLM_BASE_URL", ""),
+            model_name=current_app.config.get("LLM_MODEL_NAME", ""),
+            timeout=15,
+        )
+        samples = "\n".join(
+            f"- [{a.platform}] {a.title}"
+            for a in articles[:10] if a.title
+        )
+        resp = client.chat([
+            {"role": "system", "content": EVENT_SUMMARY_PROMPT},
+            {"role": "user", "content": (
+                f"事件标题：{event.title or '未知'}\n相关报道：\n{samples}\n\n"
+                "请返回 JSON：{\"time_code\":\"发生时间\",\"location\":\"地点\","
+                "\"key_figures\":\"人物/机构\",\"cause\":\"起因概述(≤100字)\"}"
+            )}
+        ], temperature=0.3, max_tokens=200)
+        import json, re
+        text = resp["content"].strip()
+        fenced = re.fullmatch(r"```(?:json)?\s*(.*?)\s*```", text, re.DOTALL | re.IGNORECASE)
+        if fenced:
+            text = fenced.group(1)
+        value = json.loads(text)
+        if isinstance(value, dict):
+            return {
+                "time_code": str(value.get("time_code", "")).strip()[:50],
+                "location": str(value.get("location", "")).strip()[:100],
+                "key_figures": str(value.get("key_figures", "")).strip()[:200],
+                "cause": str(value.get("cause", "")).strip()[:200],
+            }
+    except Exception:
+        pass
+    # 规则回退
+    return {
+        "time_code": event.first_publish_time.strftime("%Y年%m月%d日 %H:%M") if event.first_publish_time else "",
+        "location": "",
+        "key_figures": "",
+        "cause": "",
+    }
 
 
 def _event_item(event: Event, snapshot: EventHeatSnapshot | None = None, platforms: list[str] | None = None) -> dict:
@@ -282,13 +280,12 @@ def get_event_detail(event_id: int) -> dict | None:
     data["lifecycle_stage"] = api_lifecycle_stage(current_lifecycle)
 
     # ── AI 元数据：从 articles 聚合 ──
-    data["time_code"] = (
-        event.first_publish_time.strftime("%Y年%m月%d日 %H:%M")
-        if event.first_publish_time else ""
-    )
-    data["location"] = event.location or _extract_location(articles)
-    data["key_figures"] = event.key_figures or _extract_key_figures(articles)
-    data["cause"] = event.cause or _extract_cause(event, report, articles)
+    # AI 元数据：优先用 LLM 提取，失败回退 DB 已有值
+    ai_meta = _extract_event_metadata(event, articles)
+    data["time_code"] = ai_meta["time_code"] if not event.time_code else event.time_code
+    data["location"] = event.location or ai_meta["location"]
+    data["key_figures"] = event.key_figures or ai_meta["key_figures"]
+    data["cause"] = event.cause or ai_meta["cause"]
 
     data.update(
         report={

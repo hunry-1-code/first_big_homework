@@ -230,8 +230,8 @@ def batch_assess_articles(articles: list, ctx: dict) -> list[dict]:
 
     for article in articles:
         result = assess_suspicious_risk(article, ctx)
-        # 高风险文章尝试 LLM 辅助
-        if result["score"] >= 70:
+        # 可疑文章尝试 LLM 辅助（≥40 分即触发，原为 ≥70）
+        if result["score"] >= 40:
             try:
                 from app.llm.client import LLMUnavailableError
 

@@ -16,7 +16,10 @@ def short_date(v):
     return f'{v.month}/{v.day}' if isinstance(v,(date,datetime)) else ''
 def trend_key_points(dates,counts):
     if not dates or not counts:return []
-    pairs=[('首次报道',0),('热度峰值',max(range(len(counts)),key=counts.__getitem__)),('最新动态',len(counts)-1)];out=[];seen=set()
+    n=len(counts)
+    pairs=[(f'首次出现（{counts[0]}篇）',0),
+           (f'峰值（{max(counts)}篇）',max(range(n),key=counts.__getitem__)),
+           (f'最近（{counts[-1]}篇）',n-1)];out=[];seen=set()
     for name,i in pairs:
         coord=(dates[i],counts[i])
         if coord not in seen:out.append({'name':name,'coord':[dates[i],counts[i]]});seen.add(coord)

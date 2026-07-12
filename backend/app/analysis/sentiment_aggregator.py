@@ -82,7 +82,34 @@ def summarize_sentiment(
         "average_score": score_total / total_weight if total_weight else 0.0,
         "dominant_label": dominant,
         "effective_weight": total_weight,
+        "summary": _generate_sentiment_summary(ratios, dominant, len(rows)),
     }
+
+
+def _generate_sentiment_summary(ratios: dict, dominant: str | None, total: int) -> str | None:
+    """用 LLM 生成情感分析自然语言总结。"""
+    try:
+        from flask import current_app
+        from app.llm.client import LLMClient
+        client = LLMClient(
+            api_key=current_app.config.get("LLM_API_KEY", ""),
+            base_url=current_app.config.get("LLM_BASE_URL", ""),
+            model_name=current_app.config.get("LLM_MODEL_NAME", ""),
+            timeout=10,
+        )
+        pos = round(ratios.get("positive", 0) * 100)
+        neg = round(ratios.get("negative", 0) * 100)
+        neu = round(ratios.get("neutral", 0) * 100)
+        resp = client.chat([
+            {"role": "system", "content": "你是舆情分析师。用一句话（≤40字）总结情感倾向分布。"},
+            {"role": "user", "content": f"正面{pos}%、负面{neg}%、中立{neu}%，共{total}篇，主导情感是{dominant}。请一句话总结："}
+        ], temperature=0.3, max_tokens=60)
+        result = resp["content"].strip()
+        if 5 <= len(result) <= 60:
+            return result
+    except Exception:
+        pass
+    return None
 
 
 def build_daily_sentiment(
