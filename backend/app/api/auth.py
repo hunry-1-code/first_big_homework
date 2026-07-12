@@ -86,3 +86,25 @@ def me():
     user = dict(g.current_user)
     user.setdefault("nickname", "管理员" if user.get("role") == "admin" else user["username"])
     return ok(user)
+
+
+@auth_bp.post("/register")
+def register():
+    import re
+    payload = request.get_json(silent=True) or {}
+    username = str(payload.get("username", "")).strip()
+    password = str(payload.get("password", ""))
+    nickname = str(payload.get("nickname", "")).strip() or username
+
+    if not re.fullmatch(r"[A-Za-z0-9_-]{3,50}", username):
+        return fail("用户名格式：3-50位字母、数字、下划线或短横线")
+    if len(password) < 6 or len(password) > 128:
+        return fail("密码长度 6-128 位")
+    if User.query.filter_by(username=username).first():
+        return fail("用户名已存在", 409)
+
+    hashed, _ = _hash_password(password)
+    user = User(username=username, password_hash=hashed, nickname=nickname or None, role="user", status=1)
+    db.session.add(user)
+    db.session.commit()
+    return ok({"id": user.id, "username": user.username}, "注册成功")
