@@ -17,6 +17,21 @@ _sensational_keywords = [
     "速看", "删前速看", "紧急通知", "最新消息",
 ]
 
+_ADVERTISING_PATTERNS = (
+    "点击链接", "扫码领取", "扫码购买", "添加微信", "加微信",
+    "私信领取", "立即购买", "限时领取", "关注公众号",
+)
+_URL_PATTERN = re.compile(r"(?:https?://|www\.)[^\s]+", re.IGNORECASE)
+
+
+def _title_content_consistency_low(title: str, content: str) -> bool:
+    """Conservative character-overlap check for obviously unrelated Chinese text."""
+    title_chars = {char for char in title if "\u4e00" <= char <= "\u9fff"}
+    content_chars = {char for char in content[:500] if "\u4e00" <= char <= "\u9fff"}
+    if len(title_chars) < 6 or len(content_chars) < 10:
+        return False
+    return len(title_chars & content_chars) / len(title_chars) < 0.15
+
 # ── 官方媒体名称模式 ────────────────────────────────────
 _OFFICIAL_MEDIA_PATTERNS = [
     "新闻网", "日报", "晚报", "晨报", "周报", "时报", "快报",
@@ -157,6 +172,20 @@ def assess_suspicious_risk(article, ctx: dict) -> dict:
     if hit_keywords:
         score += 10
         reasons.append(f"标题/正文存在夸张煽动表达: {', '.join(hit_keywords[:3])}")
+
+    # Supplemental low-weight textual signals. None is sufficient to label a text fake.
+    hit_ads = [pattern for pattern in _ADVERTISING_PATTERNS if pattern in content]
+    if hit_ads:
+        score += 8
+        reasons.append(f"正文存在广告引流表达: {', '.join(hit_ads[:2])}")
+
+    if _URL_PATTERN.search(content):
+        score += 3
+        reasons.append("正文包含外部链接，需核验链接来源")
+
+    if _title_content_consistency_low(title, content):
+        score += 5
+        reasons.append("标题与正文一致性较低")
 
     # 4. 负面情绪：score < -0.5 +10
     sentiment = getattr(article, "sentiment_score", None)

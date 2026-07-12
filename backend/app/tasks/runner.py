@@ -30,19 +30,16 @@ def _execute(app, function: Callable, task_id: int) -> object:
             return None
 
     stop_heartbeat = Event()
-    heartbeat_thread = Thread(
-        target=_heartbeat_loop,
-        args=(
-            app,
-            task_id,
-            lease_token,
-            stop_heartbeat,
-            app.config.get("TASK_HEARTBEAT_INTERVAL_SECONDS", 30),
-        ),
-        name=f"opinion-task-heartbeat-{task_id}",
-        daemon=True,
-    )
-    heartbeat_thread.start()
+    database_uri = str(app.config.get("SQLALCHEMY_DATABASE_URI", ""))
+    heartbeat_thread = None
+    if not (app.config.get("TASKS_RUN_SYNC", False) and database_uri.startswith("sqlite")):
+        heartbeat_thread = Thread(
+            target=_heartbeat_loop,
+            args=(app, task_id, lease_token, stop_heartbeat, app.config.get("TASK_HEARTBEAT_INTERVAL_SECONDS", 30)),
+            name=f"opinion-task-heartbeat-{task_id}",
+            daemon=True,
+        )
+        heartbeat_thread.start()
     from app.services.task_service import (
         StaleTaskLeaseError,
         activate_task_lease,
@@ -73,7 +70,8 @@ def _execute(app, function: Callable, task_id: int) -> object:
     finally:
         reset_task_lease(context_token)
         stop_heartbeat.set()
-        heartbeat_thread.join(timeout=1)
+        if heartbeat_thread is not None:
+            heartbeat_thread.join(timeout=1)
 
 
 def _mark_failed(app, task_id: int, message: str) -> None:

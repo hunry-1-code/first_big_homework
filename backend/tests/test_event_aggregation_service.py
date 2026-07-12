@@ -25,6 +25,8 @@ from app.models import (
     EventArticleMembership,
     EventMergeRecord,
     EventRepresentation,
+    EventSentimentSnapshot,
+    Report,
 )
 from app.services.event_aggregation_service import (
     create_aggregation_run,
@@ -447,6 +449,9 @@ class EventAggregationServiceTest(unittest.TestCase):
         self.assertEqual(Event.query.count(), 1)
         self.assertEqual(EventArticleMembership.query.filter_by(is_active=True).count(), 2)
         self.assertEqual(db.session.get(AggregationCluster, cluster.id).resolved_event_id, first["event_id"])
+        self.assertEqual(EventSentimentSnapshot.query.filter_by(event_id=first["event_id"]).count(), 1)
+        self.assertTrue(Report.query.filter_by(event_id=first["event_id"]).one().overview_text)
+        self.assertEqual(first["postprocess"]["sentiment"], "success")
 
     def test_admin_can_publish_search_cluster_via_api(self):
         article = self._article(1, "重庆暴雨", ["重庆", "暴雨"], [1.0, 0.0])

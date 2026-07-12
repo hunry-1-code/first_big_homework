@@ -185,6 +185,15 @@ class JobTest(unittest.TestCase):
 
         self.assertEqual(get_task(task["id"])["status"], "failed")
 
+    def test_sync_sqlite_execution_does_not_start_heartbeat_thread(self):
+        task = create_task("crawl", created_by=1, payload={})
+        self.app.config["TASKS_RUN_SYNC"] = True
+
+        with patch("app.tasks.runner.Thread") as thread:
+            runner._execute(self.app, lambda task_id: {"task_id": task_id}, task["id"])
+
+        thread.assert_not_called()
+
     def test_runner_recovers_pending_database_task_on_startup(self):
         task = create_task("crawl", created_by=1, payload={})
         self.app.config["TASKS_RUN_SYNC"] = True

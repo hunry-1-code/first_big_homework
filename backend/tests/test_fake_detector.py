@@ -146,6 +146,29 @@ class AssessSuspiciousRiskTest(unittest.TestCase):
         result = assess_suspicious_risk(article, ctx)
         self.assertTrue(result["is_suspicious"] or result["score"] >= 40)
 
+    def test_advertising_call_to_action_adds_low_weight_risk(self):
+        article = self._make_article(clean_content="点击链接扫码领取福利，并添加微信咨询")
+        result = assess_suspicious_risk(article, self._make_event_context())
+        self.assertEqual(result["score"], 33.0)
+        self.assertIn("广告引流", result["reason"])
+
+    def test_external_link_adds_low_weight_risk(self):
+        article = self._make_article(clean_content="更多内容请查看 http://unknown.example/path")
+        result = assess_suspicious_risk(article, self._make_event_context())
+        self.assertEqual(result["score"], 28.0)
+        self.assertIn("外部链接", result["reason"])
+
+    def test_title_content_low_consistency_adds_low_weight_risk(self):
+        article = self._make_article(title="城市暴雨应急救援进展", clean_content="明星演唱会门票正式开售，现场座位已经公布。")
+        result = assess_suspicious_risk(article, self._make_event_context())
+        self.assertEqual(result["score"], 30.0)
+        self.assertIn("标题与正文一致性较低", result["reason"])
+
+    def test_short_or_missing_text_does_not_trigger_consistency_rule(self):
+        article = self._make_article(title="通知", clean_content="内容")
+        result = assess_suspicious_risk(article, self._make_event_context())
+        self.assertEqual(result["score"], 25.0)
+
 
 class BatchAssessTest(unittest.TestCase):
     """批量评估测试"""

@@ -34,6 +34,7 @@ from app.models import (
     EventMergeRecord,
     EventRepresentation,
     HotspotRun,
+    Report,
     TopicArticleAssignment,
     TopicResult,
 )
@@ -43,6 +44,65 @@ from app.services.task_service import StaleTaskLeaseError, assert_task_lease
 
 _CREATION_LOCK = RLock()
 _GLOBAL_WRITE_LOCK = RLock()
+
+
+def _postprocess_published_event(event_id: int, publish_run_id: int, user_id: int, now: datetime) -> dict:
+    """Build formal-event derivatives after publication; safe to call repeatedly."""
+    status = {"sentiment": "skipped", "heat": "skipped", "report": "skipped", "warnings": []}
+    try:
+        from app.services.sentiment_analysis_service import create_sentiment_run, run_sentiment_analysis
+
+        sentiment_run, _ = create_sentiment_run(publish_run_id, user_id=user_id)
+        if sentiment_run.status != "success":
+            run_sentiment_analysis(sentiment_run.id, now=now)
+        status["sentiment"] = "success"
+    except Exception as exc:
+        db.session.rollback()
+        status["sentiment"] = "failed"
+        status["warnings"].append(f"SENTIMENT_POSTPROCESS_FAILED:{type(exc).__name__}")
+
+    publish_run = db.session.get(AggregationRun, int(publish_run_id))
+    hotspot = (
+        HotspotRun.query.filter_by(analysis_run_id=publish_run.analysis_run_id, topic_status="success")
+        .order_by(HotspotRun.id.desc()).first()
+        if publish_run else None
+    )
+    if hotspot is not None:
+        try:
+            from app.services.hotspot_service import finalize_hotspot_heat
+
+            finalize_hotspot_heat(hotspot.id, calculated_at=now)
+            hotspot.warnings = [w for w in (hotspot.warnings or []) if w != "EVENT_AGGREGATION_PENDING"]
+            db.session.commit()
+            status["heat"] = "success" if hotspot.heat_status == "success" else "pending"
+        except Exception as exc:
+            db.session.rollback()
+            status["heat"] = "failed"
+            status["warnings"].append(f"HEAT_POSTPROCESS_FAILED:{type(exc).__name__}")
+
+    try:
+        event = db.session.get(Event, int(event_id))
+        article_count = Article.query.filter_by(event_id=event.id).count()
+        platforms = Article.query.with_entities(Article.platform).filter_by(event_id=event.id).distinct().count()
+        overview = event.summary or f"事件“{event.title or '未命名事件'}”已聚合 {article_count} 篇报道，覆盖 {platforms} 个平台。"
+        report = Report.query.filter_by(event_id=event.id).order_by(Report.id.desc()).first()
+        if report is None:
+            report = Report(event_id=event.id)
+            db.session.add(report)
+        report.overview_text = overview
+        report.sentiment_data = {
+            "positive": float(event.sentiment_positive or 0),
+            "negative": float(event.sentiment_negative or 0),
+            "neutral": float(event.sentiment_neutral or 0),
+        }
+        report.platform_data = {"platform_count": platforms}
+        db.session.commit()
+        status["report"] = "success"
+    except Exception as exc:
+        db.session.rollback()
+        status["report"] = "failed"
+        status["warnings"].append(f"REPORT_POSTPROCESS_FAILED:{type(exc).__name__}")
+    return status
 
 
 def _utcnow() -> datetime:
@@ -825,10 +885,12 @@ def publish_cluster(
     if source_run.scope not in {"search_shared", "manual"}:
         raise ValueError("只有搜索或手动事件簇需要发布")
     if source.resolved_event_id is not None:
+        published = AggregationCluster.query.filter_by(resolved_event_id=source.resolved_event_id).filter(AggregationCluster.id != source.id).order_by(AggregationCluster.id.desc()).first()
         return {
             "source_cluster_id": source.id,
             "event_id": source.resolved_event_id,
             "reused": True,
+            "postprocess": _postprocess_published_event(source.resolved_event_id, published.aggregation_run_id, user_id, now) if published else {"warnings": ["PUBLISH_RUN_UNAVAILABLE"]},
         }
     publish_run, reused = create_aggregation_run(
         source_run.analysis_run_id,
@@ -925,12 +987,14 @@ def publish_cluster(
     publish_run.started_at = publish_run.started_at or now
     publish_run.completed_at = now
     db.session.commit()
-    return {
+    result = {
         "source_cluster_id": source.id,
         "aggregation_run_id": publish_run.id,
         "event_id": event.id,
         "reused": False,
     }
+    result["postprocess"] = _postprocess_published_event(event.id, publish_run.id, user_id, now)
+    return result
 
 
 def list_merge_candidates(*, status: str = "pending") -> list[dict]:
