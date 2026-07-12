@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { formUpload } from "@/api/mock";
 import { message } from "@/utils/message";
 import { onMounted, reactive, ref } from "vue";
 import { type UserInfo, getMine } from "@/api/user";
@@ -72,18 +71,8 @@ const handleSubmitImage = () => {
   const formData = createFormData({
     files: new File([cropperBlob.value], "avatar")
   });
-  formUpload(formData)
-    .then(({ code }) => {
-      if (code === 0) {
-        message("更新头像成功", { type: "success" });
-        handleClose();
-      } else {
-        message("更新头像失败");
-      }
-    })
-    .catch(error => {
-      message(`提交异常 ${error}`, { type: "error" });
-    });
+  // 头像上传后端暂未支持
+  message("头像上传功能即将上线", { type: "info" });
 };
 
 // 更新信息
@@ -100,7 +89,7 @@ const onSubmit = async (formEl: FormInstance) => {
 
 onMounted(async () => {
   const { code, data } = await getMine();
-  if (code === 0) {
+  if (code === 200) {
     Object.assign(userInfos, data);
   }
 });

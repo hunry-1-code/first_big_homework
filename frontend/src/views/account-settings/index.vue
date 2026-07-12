@@ -62,9 +62,13 @@ const panes = [
 const witchPane = ref("profile");
 
 onMounted(async () => {
-  const { code, data } = await getMine();
-  if (code === 0) {
-    userInfo.value = data;
+  try {
+    const { code, data } = await getMine();
+    if (code === 200) {
+      userInfo.value = { avatar: data.avatar || "", username: data.username || "", nickname: data.nickname || "" };
+    }
+  } catch {
+    // 后端不可用时静默降级
   }
 });
 </script>

@@ -84,10 +84,10 @@ export const refreshTokenApi = (data?: object) => {
 
 /** 账户设置-个人信息 */
 export const getMine = (data?: object) => {
-  return http.request<UserInfoResult>("get", "/mine", { data });
+  return http.request<UserInfoResult>("get", "/api/user/profile", { data });
 };
 
 /** 账户设置-个人安全日志 */
 export const getMineLogs = (data?: object) => {
-  return http.request<ResultTable>("get", "/mine-logs", { data });
+  return http.request<ResultTable>("get", "/api/user/profile/logs", { data });
 };

@@ -176,10 +176,17 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, reactive, computed } from "vue";
+import { onMounted, ref, reactive } from "vue";
 import { useRenderIcon } from "@/components/ReIcon/src/hooks";
 import { message } from "@/utils/message";
-import type { AdminUser } from "@/api/admin";
+import {
+  getUserList,
+  createUser,
+  updateUser,
+  resetUserPassword,
+  deleteUser,
+  type AdminUser
+} from "@/api/admin";
 
 import Refresh from "~icons/ep/refresh";
 import AddFill from "~icons/ri/add-circle-line";
@@ -187,8 +194,6 @@ import EditPen from "~icons/ep/edit-pen";
 import Delete from "~icons/ep/delete";
 import More from "~icons/ep/more-filled";
 import Password from "~icons/ri/lock-password-line";
-
-// 注意：mock 模式下 import 仅做类型标注，实际数据由 vite-plugin-fake-server 拦截
 
 defineOptions({ name: "AdminUsers" });
 
@@ -214,20 +219,15 @@ onMounted(() => loadUsers());
 async function loadUsers() {
   loading.value = true;
   try {
-    const query = new URLSearchParams({
-      page: String(pagination.currentPage),
-      size: String(pagination.pageSize),
+    const res = await getUserList({
+      page: pagination.currentPage,
+      size: pagination.pageSize,
+      keyword: form.username || undefined,
+      role: form.role || undefined,
+      status: form.status || undefined
     });
-    if (form.username) query.set("keyword", form.username);
-    if (form.role) query.set("role", form.role);
-    if (form.status) query.set("status", form.status);
-
-    const res = await fetch(`/api/admin/users?${query.toString()}`);
-    const json = await res.json();
-    if (json.code === 200) {
-      dataList.value = json.data.users;
-      pagination.total = json.data.total;
-    }
+    dataList.value = res.data.users;
+    pagination.total = res.data.total;
   } catch {
     dataList.value = [];
   } finally {
@@ -254,7 +254,7 @@ function onSelectionChange(selection: AdminUser[]) {
 async function onBatchDel() {
   try {
     for (const id of selectedIds.value) {
-      await fetch(`/api/admin/users/${id}`, { method: "DELETE" });
+      await deleteUser(id);
     }
     message("批量删除成功", { type: "success" });
     selectedIds.value = [];
@@ -287,17 +287,14 @@ function openDialog(title = "新增用户", row?: AdminUser) {
 async function handleSubmit() {
   try {
     if (isEdit.value) {
-      await fetch(`/api/admin/users/${userForm.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nickname: userForm.nickname, role: userForm.role })
-      });
+      await updateUser(userForm.id, { nickname: userForm.nickname, role: userForm.role });
       message("修改成功", { type: "success" });
     } else {
-      await fetch("/api/admin/users", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: userForm.username, password: userForm.password || "123456", nickname: userForm.nickname, role: userForm.role })
+      await createUser({
+        username: userForm.username,
+        password: userForm.password || "123456",
+        nickname: userForm.nickname,
+        role: userForm.role
       });
       message("新增成功", { type: "success" });
     }
@@ -310,7 +307,7 @@ async function handleSubmit() {
 
 async function handleDelete(row: AdminUser) {
   try {
-    await fetch(`/api/admin/users/${row.id}`, { method: "DELETE" });
+    await deleteUser(row.id);
     message("删除成功", { type: "success" });
     loadUsers();
   } catch {
@@ -326,11 +323,7 @@ function handleResetPwd(row: AdminUser) {
 
 async function doResetPwd() {
   try {
-    await fetch(`/api/admin/users/${resetPwdId.value}/password`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password: resetPwdValue.value || "123456" })
-    });
+    await resetUserPassword(resetPwdId.value, resetPwdValue.value || "123456");
     message("密码重置成功", { type: "success" });
     resetPwdVisible.value = false;
   } catch {
@@ -341,11 +334,7 @@ async function doResetPwd() {
 async function handleToggleStatus(row: AdminUser) {
   try {
     const newStatus = row.status === 1 ? 0 : 1;
-    await fetch(`/api/admin/users/${row.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: newStatus })
-    });
+    await updateUser(row.id, { status: newStatus });
     message(newStatus === 1 ? "已启用" : "已停用", { type: "success" });
     loadUsers();
   } catch {

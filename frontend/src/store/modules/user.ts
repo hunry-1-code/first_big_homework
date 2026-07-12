@@ -88,7 +88,7 @@ export const useUserStore = defineStore("pure-user", {
                 refreshToken: res.data.token,
                 username: res.data.user.username,
                 nickname: res.data.user.nickname,
-                avatar: "https://avatars.githubusercontent.com/u/2026?v=4",
+                avatar: "",
                 roles: [res.data.user.role],
                 permissions: ["*:*:*"]
               };
