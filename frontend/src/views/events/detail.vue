@@ -294,11 +294,7 @@ function initSentimentTrendChart() {
 
   const dark = isDark.value;
   const c = chartColors(dark);
-  const { dates, counts } = getEnrichedTrend();
-
-  const posBase = (eventData.value.sentiment_positive || 0.25) * 100;
-  const neuBase = (eventData.value.sentiment_neutral || 0.25) * 100;
-  const negBase = (eventData.value.sentiment_negative || 0.50) * 100;
+  const { dates } = getEnrichedTrend();
 
   const daily = eventData.value?.sentiment?.daily || eventData.value?.sentiment?.daily_trend || [];
   if (daily.length === 0) {

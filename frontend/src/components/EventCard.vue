@@ -79,7 +79,7 @@
 </template>
 
 <script setup lang="ts">
-import { PLATFORMS, type PlatformInfo } from "@/constants/platforms";
+import { PLATFORMS, type PlatformInfo, getPlatform, resolvePlatformName } from "@/constants/platforms";
 import IconifyIconOffline from "@/components/ReIcon/src/iconifyIconOffline";
 
 defineProps<{
