@@ -51,7 +51,7 @@
       </span>
     </div>
 
-    <!-- 信源平台 -->
+    <!-- 信源平台 + 关键词 -->
     <div class="flex items-center gap-1.5 mb-3 flex-wrap">
       <span class="text-[10px] text-slate-400 dark:text-slate-500 shrink-0">信源:</span>
       <span
@@ -62,6 +62,21 @@
       >
         <IconifyIconOffline :icon="p.icon" class="text-xs" />
         {{ p.name }}
+      </span>
+    </div>
+    <!-- 关键词标签 -->
+    <div v-if="event.top_keywords && event.top_keywords.length > 0" class="flex items-center gap-1 flex-wrap mb-3">
+      <span
+        v-for="k in event.top_keywords"
+        :key="k.word"
+        class="inline-flex items-center text-[11px] px-1.5 py-0.5 rounded font-medium"
+        :class="{
+          'bg-red-50 text-red-600 dark:bg-red-950/30 dark:text-red-400': k.sentiment === 'negative',
+          'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400': k.sentiment === 'positive',
+          'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400': k.sentiment === 'neutral'
+        }"
+      >
+        {{ k.word }}
       </span>
     </div>
 

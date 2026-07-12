@@ -1394,9 +1394,23 @@ function getProgressColor(heat: number) {
               </div>
             </template>
           </el-table-column>
-          <el-table-column prop="clean_content" label="正文摘要" min-width="200" show-overflow-tooltip>
+          <el-table-column label="关键词" min-width="180">
             <template #default="{ row }">
-              <span class="line-clamp-2 text-xs text-slate-500 dark:text-slate-400">{{ (row.clean_content || '').slice(0, 150) }}</span>
+              <div class="flex flex-wrap gap-1">
+                <span
+                  v-for="k in (row.keywords || [])"
+                  :key="k.word"
+                  class="inline-block text-[11px] px-1.5 py-0.5 rounded font-medium cursor-pointer hover:opacity-80"
+                  :class="{
+                    'bg-red-50 text-red-600 dark:bg-red-950/30 dark:text-red-400': k.sentiment === 'negative',
+                    'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400': k.sentiment === 'positive',
+                    'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400': k.sentiment === 'neutral'
+                  }"
+                >
+                  {{ k.word }}
+                </span>
+                <span v-if="!row.keywords || row.keywords.length === 0" class="text-xs text-slate-400">-</span>
+              </div>
             </template>
           </el-table-column>
         </el-table>

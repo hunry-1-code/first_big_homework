@@ -27,6 +27,30 @@ def _title_bigrams(title: str | None) -> list[str]:
 _SIMILARITY_MIN = 0.05   # 标题相似度最低阈值
 _MAX_EDGES = 50          # 最大边数，防止 O(n²) 爆炸
 
+# 文章级关键词缓存（避免同一 event detail 请求中重复查询）
+_keywords_cache: dict[int, list[dict]] = {}
+
+
+def _article_keywords(article_id: int) -> list[dict]:
+    """取单篇文章的 top-5 关键词（带 sentiment），带简单缓存。"""
+    if article_id in _keywords_cache:
+        return _keywords_cache[article_id]
+    rows = AnalysisRunArticle.query.filter_by(article_id=article_id).all()
+    for row in rows:
+        if row.keywords and len(row.keywords) >= 3:
+            result = []
+            for kw in row.keywords[:5]:
+                if isinstance(kw, dict) and kw.get("term"):
+                    result.append({
+                        "word": kw["term"].strip(),
+                        "score": float(kw.get("score", 0)),
+                        "sentiment": str(kw.get("sentiment", "neutral")),
+                    })
+            _keywords_cache[article_id] = result
+            return result
+    _keywords_cache[article_id] = []
+    return []
+
 
 def _event_keywords(event: Event) -> dict:
     """从 AnalysisRunArticle 聚合事件的关键词列表。
@@ -162,10 +186,19 @@ def _event_item(event: Event, snapshot: EventHeatSnapshot | None = None, platfor
     if snapshot is None and event.current_heat_snapshot_id:
         snapshot = db.session.get(EventHeatSnapshot, event.current_heat_snapshot_id)
     positive,negative,neutral=normalized_sentiment(event.sentiment_positive,event.sentiment_negative,event.sentiment_neutral)
+    # 轻量 top-3 关键词（给看板卡片用）
+    top3 = []
+    try:
+        ek = _event_keywords(event)
+        top3 = [{"word": k["word"], "sentiment": k.get("sentiment", "neutral")}
+                for k in (ek.get("keywords") or [])[:3]]
+    except Exception:
+        pass
     return {
         "id": event.id,
         "title": event.title,
         "summary": event.summary,
+        "top_keywords": top3,
         "topic_category": event.topic_category,
         "topic_name": event.topic_name,
         "heat_index": clamp_heat(event.heat_index),
@@ -246,6 +279,7 @@ def list_events(args) -> dict:
 
 
 def get_event_detail(event_id: int) -> dict | None:
+    _keywords_cache.clear()  # 每次新请求清缓存
     event = Event.query.get(event_id)
     if event is None:
         return None
@@ -369,6 +403,7 @@ def get_event_detail(event_id: int) -> dict | None:
                     "publish_time": article.publish_time.isoformat()
                     if article.publish_time
                     else None,
+                    "keywords": _article_keywords(article.id),
                 }
                 for article in articles
             ],

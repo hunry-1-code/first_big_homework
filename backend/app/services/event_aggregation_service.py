@@ -442,13 +442,35 @@ def _ai_generate_title(titles: list[str]) -> str | None:
 
 
 def _ai_generate_summary(title: str, articles: list, platform_count: int) -> str | None:
-    """用 LLM 生成事件研判摘要。"""
+    """用 LLM 生成事件研判摘要，融入结构化关键词数据。"""
     try:
         client = _llm_client()
-        samples = "\n".join(f"- {a.title}" for a in articles[:5] if a.title)
+        samples = "\n".join(f"- [{a.platform}] {a.title}" for a in articles[:8] if a.title)
+        # 从 event_keywords 获取结构化关键词
+        kw_context = ""
+        try:
+            from app.services.event_service import _event_keywords
+            ek = _event_keywords(articles[0]) if articles and hasattr(articles[0], 'event_id') else None
+        except Exception:
+            ek = None
+        if ek and ek.get("keywords"):
+            neg_kw = [k["word"] for k in ek["keywords"] if k.get("sentiment") == "negative"][:5]
+            pos_kw = [k["word"] for k in ek["keywords"] if k.get("sentiment") == "positive"][:5]
+            loc_kw = [k["word"] for k in ek["keywords"] if k.get("entity_type") == "location"][:5]
+            kw_parts = []
+            if neg_kw: kw_parts.append("负面焦点: " + ", ".join(neg_kw))
+            if pos_kw: kw_parts.append("正面焦点: " + ", ".join(pos_kw))
+            if loc_kw: kw_parts.append("涉及地域: " + ", ".join(loc_kw))
+            if kw_parts: kw_context = "\n关键词分析:\n" + "\n".join(kw_parts)
         resp = client.chat([
-            {"role": "system", "content": "你是舆情分析师。根据事件标题和相关报道，写一段100-200字的事件研判摘要，包含事件性质、关键信息、舆论焦点。"},
-            {"role": "user", "content": f"事件：{title}\n相关报道：\n{samples}\n\n请写一段事件研判摘要（100-200字）："}
+            {"role": "system", "content": (
+                "你是舆情分析师。根据事件标题、关键词分析和相关报道，"
+                "写一段100-200字的事件研判摘要，包含事件性质、关键信息、舆论焦点。"
+            )},
+            {"role": "user", "content": (
+                f"事件：{title}\n{kw_context}\n相关报道：\n{samples}\n\n"
+                "请写一段事件研判摘要（100-200字）："
+            )}
         ], temperature=0.5, max_tokens=300)
         result = resp["content"].strip()
         if 20 <= len(result) <= 500:
