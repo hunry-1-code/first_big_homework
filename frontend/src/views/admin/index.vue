@@ -163,7 +163,7 @@ function handleLoadDemo() {
       title: "某地网络产品数据泄露舆情事件",
       summary: "某科技公司近期被曝光存在严重的用户隐私数据泄露，引起社交媒体平台网友的大量讨论和声讨。",
       heat_index: 82.3,
-      lifecycle_stage: "爆发期",
+      lifecycle_stage: "高潮期",
       sentiment_positive: 0.12,
       sentiment_neutral: 0.28,
       sentiment_negative: 0.60

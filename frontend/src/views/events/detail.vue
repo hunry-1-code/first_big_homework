@@ -6,7 +6,7 @@ import "echarts-wordcloud";
 import { getEvent, exportEventReport } from "@/api/events";
 import { useDark } from "@pureadmin/utils";
 import { message } from "@/utils/message";
-import { PLATFORMS, platformColor, platformBg, getPlatform, type PlatformInfo } from "@/constants/platforms";
+import { PLATFORMS, platformColor, platformBg, getPlatform, resolvePlatformName, type PlatformInfo } from "@/constants/platforms";
 import IconifyIconOffline from "@/components/ReIcon/src/iconifyIconOffline";
 import PlusIcon from "~icons/ep/plus";
 import MinusIcon from "~icons/ep/minus";
@@ -42,7 +42,7 @@ const shapeOptions = [
 ];
 
 // 生命周期阶段定义
-const lifecycleStages = ["潜伏期", "成长期", "爆发期", "消退期"] as const;
+const lifecycleStages = ["潜伏期", "成长期", "高潮期", "消退期"] as const;
 const currentStageIndex = computed(() => {
   const stage = eventData.value?.lifecycle_stage || "潜伏期";
   const idx = lifecycleStages.indexOf(stage as any);
@@ -51,7 +51,7 @@ const currentStageIndex = computed(() => {
 function getStageColor(stage: string): string {
   if (stage === "潜伏期") return "#3b82f6";
   if (stage === "成长期") return "#f97316";
-  if (stage === "爆发期") return "#ef4444";
+  if (stage === "高潮期") return "#ef4444";
   if (stage === "消退期") return "#22c55e";
   return "#3b82f6";
 }
@@ -121,12 +121,13 @@ function getEnrichedPlatforms(): PlatformInfo[] {
       .map((p: any) => PLATFORMS.find(x => x.name === (p.platform || p.name)))
       .filter(Boolean) as PlatformInfo[];
   }
-  // 从 articles 中提取出现过的平台并去重
+  // 从 articles 中提取出现过的平台并去重（支持后端英文代码自动转换）
   const articles = eventData.value?.articles?.articles || [];
   const seen = new Set<string>();
   const result: PlatformInfo[] = [];
   for (const a of articles) {
-    const p = PLATFORMS.find(x => x.name === a.platform);
+    const cn = resolvePlatformName(a.platform);
+    const p = PLATFORMS.find(x => x.name === cn);
     if (p && !seen.has(p.name)) { seen.add(p.name); result.push(p); }
   }
   return result.length >= 2 ? result : PLATFORMS.slice(0, 4);
@@ -367,11 +368,11 @@ function initSentimentTrendChart() {
       formatter: (params: any) => {
         const date = params[0]?.axisValue || "";
         const pos = params.find((p: any) => p.seriesName === "正面");
-        const neu = params.find((p: any) => p.seriesName === "中性");
+        const neu = params.find((p: any) => p.seriesName === "中立");
         const neg = params.find((p: any) => p.seriesName === "负面");
         return `<b>${date}</b><br/>
           <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#34d399;margin-right:4px"></span>正面 <b>${pos?.value?.toFixed(1) ?? 0}%</b><br/>
-          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#94a3b8;margin-right:4px"></span>中性 <b>${neu?.value?.toFixed(1) ?? 0}%</b><br/>
+          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#94a3b8;margin-right:4px"></span>中立 <b>${neu?.value?.toFixed(1) ?? 0}%</b><br/>
           <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f87171;margin-right:4px"></span>负面 <b>${neg?.value?.toFixed(1) ?? 0}%</b>`;
       }
     },
@@ -403,7 +404,7 @@ function initSentimentTrendChart() {
         emphasis: { focus: "series" }
       },
       {
-        name: "中性",
+        name: "中立",
         data: raw.map(r => +r.neu.toFixed(1)),
         type: "line",
         stack: "total",
@@ -442,7 +443,7 @@ function initSentimentChart() {
 
   const sentimentData = [
     { value: posVal, name: "正面" },
-    { value: neuVal, name: "中性" },
+    { value: neuVal, name: "中立" },
     { value: negVal, name: "负面" }
   ];
   const dominant = sentimentData.reduce((a, b) => (a.value >= b.value ? a : b));
@@ -457,7 +458,7 @@ function initSentimentChart() {
     { offset: 0, color: "#dc2626" }, { offset: 1, color: "#fca5a5" }
   ]);
 
-  const dominantLabelMap: Record<string, string> = { "正面": "#059669", "中性": "#475569", "负面": "#dc2626" };
+  const dominantLabelMap: Record<string, string> = { "正面": "#059669", "中立": "#475569", "负面": "#dc2626" };
   const dominantColor = dominantLabelMap[dominant.name] || "#475569";
 
   sentimentChart.setOption({
@@ -505,7 +506,7 @@ function initSentimentChart() {
       emphasis: { focus: "self", scaleSize: 8, label: { fontSize: 15, fontWeight: "bold" }, itemStyle: { shadowBlur: 16, shadowColor: "rgba(0,0,0,0.18)" } },
       data: [
         { value: posVal, name: "正面", itemStyle: { color: posColor } },
-        { value: neuVal, name: "中性", itemStyle: { color: neuColor } },
+        { value: neuVal, name: "中立", itemStyle: { color: neuColor } },
         { value: negVal, name: "负面", itemStyle: { color: negColor } }
       ]
     }]
@@ -1119,7 +1120,7 @@ function getProgressColor(heat: number) {
           <div ref="trendRef" class="w-full h-[200px]" />
         </div>
         <div>
-          <div class="text-xs text-slate-400 dark:text-slate-500 mb-2">情感分布变化（正面 · 中性 · 负面）</div>
+          <div class="text-xs text-slate-400 dark:text-slate-500 mb-2">情感分布变化（正面 · 中立 · 负面）</div>
           <div ref="sentimentTrendRef" class="w-full h-[200px]" />
         </div>
       </el-card>
@@ -1351,7 +1352,7 @@ function getProgressColor(heat: number) {
                 effect="dark"
                 :type="row.sentiment_label === '正面' ? 'success' : row.sentiment_label === '负面' ? 'danger' : 'info'"
               >
-                {{ row.sentiment_label || '中性' }}
+                {{ row.sentiment_label || '中立' }}
               </el-tag>
             </template>
           </el-table-column>

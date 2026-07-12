@@ -47,7 +47,7 @@
         负面: {{ percent(event.sentiment_negative) }}
       </span>
       <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-medium">
-        中性: {{ percent(event.sentiment_neutral) }}
+        中立: {{ percent(event.sentiment_neutral) }}
       </span>
     </div>
 
@@ -100,7 +100,7 @@ function percent(value: number) {
 }
 
 function getStageType(stage: string): any {
-  if (stage === "爆发期") return "danger";
+  if (stage === "高潮期") return "danger";
   if (stage === "潜伏期") return "info";
   if (stage === "消退期") return "success";
   return "warning";

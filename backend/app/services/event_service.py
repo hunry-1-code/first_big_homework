@@ -7,7 +7,7 @@ SAMPLE_EVENTS = [
         "title": "某知名互联网企业疑似发生大规模用户数据泄露事件",
         "summary": "近日有网民爆料称某头部互联网公司发生用户隐私数据泄露，涉及数千万用户信息，包括手机号、身份证等敏感字段已在暗网流传，引发广泛关注。",
         "heat_index": 92.3,
-        "lifecycle_stage": "爆发期",
+        "lifecycle_stage": "高潮期",
         "sentiment_positive": 0.05,
         "sentiment_negative": 0.82,
         "sentiment_neutral": 0.13,
@@ -57,7 +57,7 @@ SAMPLE_EVENTS = [
         "title": "多地暴雨引发洪涝灾害应急响应升至二级",
         "summary": "受持续强降雨影响，长江中下游多地出现严重城市内涝和山体滑坡，国家防总已将防汛应急响应提升至二级，救援力量全面投入一线。",
         "heat_index": 88.9,
-        "lifecycle_stage": "爆发期",
+        "lifecycle_stage": "高潮期",
         "sentiment_positive": 0.12,
         "sentiment_negative": 0.56,
         "sentiment_neutral": 0.32,
@@ -87,7 +87,7 @@ SAMPLE_EVENTS = [
         "title": "某上市公司财务造假丑闻被做空机构曝光",
         "summary": "国际知名做空机构发布长篇调查报告，指控某A股上市公司存在系统性财务造假行为，该公司股价当日跌停，证监会表示已启动核查程序。",
         "heat_index": 85.1,
-        "lifecycle_stage": "爆发期",
+        "lifecycle_stage": "高潮期",
         "sentiment_positive": 0.03,
         "sentiment_negative": 0.89,
         "sentiment_neutral": 0.08,
@@ -172,7 +172,7 @@ def get_event_detail(event_id: int) -> dict:
                     "author": "后端工程师小王", "publish_time": "2026-07-11 16:45",
                     "reposts_count": 892, "comments_count": 1560, "likes_count": 3420,
                     "clean_content": "从技术角度来看，大规模数据泄露通常与以下几个方面有关：数据库配置不当、API权限控制缺失、内部人员操作等。需要等待官方调查结果。",
-                    "sentiment_label": "中性", "is_suspicious": False, "suspicious_score": 0
+                    "sentiment_label": "中立", "is_suspicious": False, "suspicious_score": 0
                 },
                 {
                     "id": 3, "platform": "B站", "title": "【速报】某平台千万用户数据疑在暗网出售",
@@ -186,7 +186,7 @@ def get_event_detail(event_id: int) -> dict:
                     "author": "新华网", "publish_time": "2026-07-11 18:00",
                     "reposts_count": 6700, "comments_count": 3210, "likes_count": 8500,
                     "clean_content": "记者今日从有关部门获悉，针对近期网络上关于某互联网平台用户数据泄露的相关报道，监管部门已经启动调查程序，后续结果将及时向社会公布。",
-                    "sentiment_label": "中性", "is_suspicious": False, "suspicious_score": 0
+                    "sentiment_label": "中立", "is_suspicious": False, "suspicious_score": 0
                 },
                 {
                     "id": 5, "platform": "小红书", "title": "教大家自查账号是否在这次泄露事件中受影响",

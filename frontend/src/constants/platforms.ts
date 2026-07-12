@@ -21,12 +21,33 @@ export function getPlatform(name: string): PlatformInfo | undefined {
   return PLATFORMS.find(p => p.name === name);
 }
 
+/** 后端英文代码 → 前端中文名 */
+const EN_TO_CN: Record<string, string> = {
+  weibo: "微博热搜",
+  weibo_search: "微博搜索",
+  weibo_hot: "微博热搜",
+  zhihu: "知乎",
+  zhihu_hot: "知乎",
+  bilibili: "B站",
+  xiaohongshu: "小红书",
+  baidu: "百度搜索",
+  baidu_news: "百度搜索",
+  baidu_hot: "百度热搜",
+  rss: "百度搜索",
+  douyin: "微博热搜"
+};
+
+/** 将后端英文平台代码转为前端中文名 */
+export function resolvePlatformName(raw: string): string {
+  return EN_TO_CN[raw] || raw;
+}
+
 /** 按 name 查 brand color */
 export function platformColor(name: string): string {
-  return getPlatform(name)?.color || "#94a3b8";
+  return getPlatform(resolvePlatformName(name))?.color || "#94a3b8";
 }
 
 /** 按 name 查背景色 */
 export function platformBg(name: string): string {
-  return getPlatform(name)?.bg || "#f1f5f9";
+  return getPlatform(resolvePlatformName(name))?.bg || "#f1f5f9";
 }
