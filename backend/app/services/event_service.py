@@ -391,6 +391,18 @@ def get_propagation_data(event_id: int) -> dict | None:
     }
 
 
+def delete_event(event_id: int) -> None:
+    from app.models import EventArticleMembership, EventSentimentSnapshot, EventHeatSnapshot
+    event = db.session.get(Event, event_id)
+    if event is None:
+        raise KeyError(f"event not found: {event_id}")
+    EventArticleMembership.query.filter_by(event_id=event_id).delete()
+    EventSentimentSnapshot.query.filter_by(event_id=event_id).delete()
+    EventHeatSnapshot.query.filter_by(event_id=event_id).delete()
+    db.session.delete(event)
+    db.session.commit()
+
+
 def search_events(keyword: str) -> list[dict]:
     semantic = search_historical_events(keyword, limit=20)
     if not semantic:

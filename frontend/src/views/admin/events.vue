@@ -15,7 +15,15 @@
           <el-button size="default" @click="loadEvents">搜索</el-button>
           <span class="text-xs text-slate-400 ml-auto">共 {{ eventTotal }} 个事件</span>
         </div>
-        <el-table :data="events" stripe size="default" v-loading="loading">
+        <div v-if="selectedEvents.length > 0" class="bg-slate-50 dark:bg-slate-800 h-10 mb-3 px-4 flex items-center rounded-lg text-sm">
+          <span class="flex-auto text-slate-500 dark:text-slate-400">已选 {{ selectedEvents.length }} 项</span>
+          <el-button type="primary" text size="small" @click="selectedEvents=[]">取消选择</el-button>
+          <el-popconfirm title="确认批量删除选中的事件？" @confirm="batchDeleteEvents">
+            <template #reference><el-button type="danger" text size="small">批量删除</el-button></template>
+          </el-popconfirm>
+        </div>
+        <el-table :data="events" stripe size="default" v-loading="loading" @selection-change="onEventSelect">
+          <el-table-column type="selection" width="45" />
           <el-table-column prop="id" label="ID" width="60" />
           <el-table-column prop="title" label="标题" min-width="240" show-overflow-tooltip>
             <template #default="{ row }">
@@ -35,9 +43,12 @@
           </el-table-column>
           <el-table-column prop="platform_count" label="平台数" width="70" align="center" />
           <el-table-column prop="independent_report_count" label="报道" width="70" align="center" />
-          <el-table-column label="操作" width="100">
+          <el-table-column label="操作" width="140">
             <template #default="{ row }">
               <el-button link type="primary" size="small" @click="$router.push(`/events/${row.id}`)">详情</el-button>
+              <el-popconfirm title="确认删除该事件？" @confirm="deleteEvent(row.id)">
+                <template #reference><el-button link type="danger" size="small">删除</el-button></template>
+              </el-popconfirm>
             </template>
           </el-table-column>
         </el-table>
@@ -125,6 +136,7 @@ defineOptions({ name: "AdminEvents" });
 const activeTab = ref("events");
 const loading = ref(false);
 const events = ref<any[]>([]);
+const selectedEvents = ref<any[]>([]);
 const eventTotal = ref(0);
 const eventPage = ref(1);
 const eventSize = ref(20);
@@ -145,6 +157,23 @@ async function loadEvents() {
     eventTotal.value = res.data.total || 0;
   } catch { events.value = []; }
   finally { loading.value = false; }
+}
+
+function onEventSelect(selection: any[]) { selectedEvents.value = selection; }
+
+async function deleteEvent(id: number) {
+  try { await http.request("delete", `/api/events/${id}`); message("已删除", { type: "success" }); loadEvents(); }
+  catch { message("删除失败", { type: "error" }); }
+}
+
+async function batchDeleteEvents() {
+  let ok = 0;
+  for (const e of selectedEvents.value) {
+    try { await http.request("delete", `/api/events/${e.id}`); ok++; } catch {}
+  }
+  message(`删除完成：成功 ${ok} / ${selectedEvents.value.length}`, { type: "success" });
+  selectedEvents.value = [];
+  loadEvents();
 }
 
 async function loadAggRuns() {

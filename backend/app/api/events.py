@@ -25,9 +25,21 @@ def events_search():
     return ok({"events": search_events(request.args.get("q", ""))})
 
 
-@events_bp.get("/<int:event_id>")
+@events_bp.route("/<int:event_id>", methods=["GET", "DELETE"])
 @login_required
 def event_detail(event_id: int):
+    if request.method == "DELETE":
+        from app.core.security import admin_required as _admin_required
+        try:
+            _admin_required(lambda: None)()
+        except Exception:
+            return fail("需要管理员权限", 403)
+        from app.services.event_service import delete_event
+        try:
+            delete_event(event_id)
+            return ok(message="删除成功")
+        except KeyError:
+            return fail("事件不存在", 404)
     detail = get_event_detail(event_id)
     if detail is None:
         return fail("事件不存在", 404)
