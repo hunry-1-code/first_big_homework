@@ -81,6 +81,15 @@ export default [
           icon: "ri:admin-line",
           title: "用户管理"
         }
+      },
+      {
+        path: "/system/events",
+        name: "SystemEvents",
+        component: () => import("@/views/admin/events.vue"),
+        meta: {
+          icon: "ri:file-list-3-line",
+          title: "事件管理"
+        }
       }
     ]
   }
