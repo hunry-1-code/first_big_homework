@@ -259,8 +259,8 @@ async function onBatchDel() {
     message("批量删除成功", { type: "success" });
     selectedIds.value = [];
     loadUsers();
-  } catch {
-    message("删除失败", { type: "error" });
+  } catch (e) {
+    message(e?.response?.data?.message || e?.message || "删除失败", { type: "error" });
   }
 }
 
@@ -300,8 +300,8 @@ async function handleSubmit() {
     }
     dialogVisible.value = false;
     loadUsers();
-  } catch {
-    message("操作失败", { type: "error" });
+  } catch (e) {
+    message(e?.response?.data?.message || e?.message || "操作失败", { type: "error" });
   }
 }
 
@@ -310,8 +310,8 @@ async function handleDelete(row: AdminUser) {
     await deleteUser(row.id);
     message("删除成功", { type: "success" });
     loadUsers();
-  } catch {
-    message("删除失败", { type: "error" });
+  } catch (e) {
+    message(e?.response?.data?.message || e?.message || "删除失败", { type: "error" });
   }
 }
 
@@ -326,8 +326,8 @@ async function doResetPwd() {
     await resetUserPassword(resetPwdId.value, resetPwdValue.value || "123456");
     message("密码重置成功", { type: "success" });
     resetPwdVisible.value = false;
-  } catch {
-    message("操作失败", { type: "error" });
+  } catch (e) {
+    message(e?.response?.data?.message || e?.message || "操作失败", { type: "error" });
   }
 }
 
@@ -337,8 +337,8 @@ async function handleToggleStatus(row: AdminUser) {
     await updateUser(row.id, { status: newStatus });
     message(newStatus === 1 ? "已启用" : "已停用", { type: "success" });
     loadUsers();
-  } catch {
-    message("操作失败", { type: "error" });
+  } catch (e) {
+    message(e?.response?.data?.message || e?.message || "操作失败", { type: "error" });
   }
 }
 </script>
