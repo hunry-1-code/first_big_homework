@@ -792,33 +792,37 @@ function initBubbleChart() {
   console.log('[wordcloud] rendering', list.length, 'keywords', list.slice(0,3));
 
   const count = list.length;
-  const weights = list.map((kw: any) => kw.weight || 0);
-  const maxW = Math.max(...weights, 1);
+  // 用 sqrt 映射让权重分布更均匀，避免只有 1 个大词其余全一样小
+  const weights = list.map((kw: any) => Math.sqrt(kw.weight || 0.01));
+  const maxW = Math.max(...weights, 0.1);
   const minW = Math.min(...weights, 0);
-  const range = maxW - minW || 1;
+  const range = maxW - minW || 0.1;
 
-  const fontSizeMin = count > 20 ? 10 : count > 12 ? 12 : 14;
-  const fontSizeMax = count > 20 ? 48 : count > 12 ? 56 : 64;
+  // 字号范围：词少则大，词多则调整
+  const fontSizeMin = count > 20 ? 14 : count > 10 ? 18 : 22;
+  const fontSizeMax = count > 20 ? 52 : count > 10 ? 60 : 72;
 
   const sorted = [...list]
     .map((kw: any) => ({ ...kw }))
     .sort((a: any, b: any) => (b.weight || 0) - (a.weight || 0));
 
   const wordData = sorted.map((kw: any) => {
-    const t = ((kw.weight || 0) - minW) / range;
+    const rawT = (Math.sqrt(kw.weight || 0.01) - minW) / range;
+    // 非线性拉伸：让中间权重词也有可观字号
+    const t = Math.pow(rawT, 0.6);
     const fontSize = Math.round(fontSizeMin + t * (fontSizeMax - fontSizeMin));
     return {
       name: kw.word,
       value: kw.weight,
       textStyle: {
-        color: getWordColor(t),
+        color: getWordColor(rawT),
         fontSize,
-        fontWeight: t >= 0.55 ? "bold" : "normal",
+        fontWeight: t >= 0.4 ? "bold" : "normal",
         fontFamily: "PingFang SC, Hiragino Sans GB, Microsoft YaHei, Noto Sans SC, sans-serif"
       },
       emphasis: {
         textStyle: {
-          color: getWordEmphasisColor(t),
+          color: getWordEmphasisColor(rawT),
           textShadowBlur: 8,
           textShadowColor: dark ? "rgba(0,0,0,0.6)" : "rgba(0,0,0,0.15)"
         }
@@ -826,7 +830,8 @@ function initBubbleChart() {
     };
   });
 
-  const gridSize = count > 20 ? 8 : count > 12 ? 6 : 4;
+  // 更密的网格让词填得更满
+  const gridSize = count > 20 ? 5 : count > 10 ? 4 : 3;
 
   if (bubbleChart) bubbleChart.dispose();
   try {
@@ -857,8 +862,8 @@ function initBubbleChart() {
       width: "100%", height: "100%",
       left: "center", top: "center",
       sizeRange: [fontSizeMin, fontSizeMax],
-      rotationRange: [0, 0],
-      rotationStep: 0,
+      rotationRange: [-30, 30],
+      rotationStep: 15,
       gridSize,
       drawOutOfBound: false,
       shrinkToFit: true,
@@ -867,8 +872,8 @@ function initBubbleChart() {
         fontFamily: "PingFang SC, Hiragino Sans GB, Microsoft YaHei, Noto Sans SC, sans-serif",
         fontWeight: "normal",
         color: (v: any) => {
-          const t = ((v.value || 0) - minW) / range;
-          return getWordColor(t);
+          const rawT = (Math.sqrt(v.value || 0.01) - minW) / range;
+          return getWordColor(Math.pow(rawT, 0.6));
         }
       },
       emphasis: {
