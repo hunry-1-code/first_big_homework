@@ -57,7 +57,7 @@ def _event_keywords(event: Event) -> dict:
     }
 
 
-def _event_item(event: Event, snapshot: EventHeatSnapshot | None = None) -> dict:
+def _event_item(event: Event, snapshot: EventHeatSnapshot | None = None, platforms: list[str] | None = None) -> dict:
     if snapshot is None and event.current_heat_snapshot_id:
         snapshot = db.session.get(EventHeatSnapshot, event.current_heat_snapshot_id)
     positive,negative,neutral=normalized_sentiment(event.sentiment_positive,event.sentiment_negative,event.sentiment_neutral)
@@ -78,6 +78,7 @@ def _event_item(event: Event, snapshot: EventHeatSnapshot | None = None) -> dict
         "sentiment_neutral": neutral,
         "independent_report_count": int(event.independent_report_count or 0),
         "platform_count": int(event.platform_count or 0),
+        "platforms": platforms or [],
         "time_confidence": event.time_confidence,
         "first_publish_time": event.first_publish_time.isoformat()
         if event.first_publish_time
@@ -117,14 +118,26 @@ def list_events(args) -> dict:
         .limit(size)
         .all()
     )
-    # 批量预加载 heat snapshots，避免 N+1 查询
+    # 批量预加载 heat snapshots 和 platform 信息，避免 N+1 查询
     snapshot_ids = [e.current_heat_snapshot_id for e in events if e.current_heat_snapshot_id]
     snapshots_map = {}
     if snapshot_ids:
         snapshots = EventHeatSnapshot.query.filter(EventHeatSnapshot.id.in_(snapshot_ids)).all()
         snapshots_map = {s.id: s for s in snapshots}
+    event_ids = [e.id for e in events]
+    platform_rows = (
+        db.session.query(Article.event_id, Article.platform)
+        .filter(Article.event_id.in_(event_ids), Article.platform.isnot(None))
+        .distinct()
+        .all()
+    ) if event_ids else []
+    platforms_map: dict[int, list[str]] = {}
+    for event_id, platform in platform_rows:
+        mapped = api_platform_name(platform)
+        if mapped:
+            platforms_map.setdefault(event_id, []).append(mapped)
     return {
-        "events": [_event_item(event, snapshots_map.get(event.current_heat_snapshot_id)) for event in events],
+        "events": [_event_item(event, snapshots_map.get(event.current_heat_snapshot_id), platforms_map.get(event.id, [])) for event in events],
         "total": total,
         "page": page,
         "size": size,

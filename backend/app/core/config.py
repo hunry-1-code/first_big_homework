@@ -204,23 +204,23 @@ class Config:
 
     EVENT_AGGREGATION_ATTACH_THRESHOLD = min(
         1.0,
-        max(0.0, float(os.getenv("EVENT_AGGREGATION_ATTACH_THRESHOLD", "0.72"))),
+        max(0.0, float(os.getenv("EVENT_AGGREGATION_ATTACH_THRESHOLD", "0.55"))),
     )
     EVENT_AGGREGATION_CREATE_THRESHOLD = min(
         1.0,
-        max(0.0, float(os.getenv("EVENT_AGGREGATION_CREATE_THRESHOLD", "0.58"))),
+        max(0.0, float(os.getenv("EVENT_AGGREGATION_CREATE_THRESHOLD", "0.40"))),
     )
     EVENT_AGGREGATION_MOVE_MARGIN = min(
-        1.0, max(0.0, float(os.getenv("EVENT_AGGREGATION_MOVE_MARGIN", "0.15")))
+        1.0, max(0.0, float(os.getenv("EVENT_AGGREGATION_MOVE_MARGIN", "0.10")))
     )
     EVENT_AGGREGATION_BGE_WEIGHT = max(
-        0.0, float(os.getenv("EVENT_AGGREGATION_BGE_WEIGHT", "0.45"))
+        0.0, float(os.getenv("EVENT_AGGREGATION_BGE_WEIGHT", "0.55"))
     )
     EVENT_AGGREGATION_TFIDF_WEIGHT = max(
-        0.0, float(os.getenv("EVENT_AGGREGATION_TFIDF_WEIGHT", "0.25"))
+        0.0, float(os.getenv("EVENT_AGGREGATION_TFIDF_WEIGHT", "0.20"))
     )
     EVENT_AGGREGATION_ENTITY_WEIGHT = max(
-        0.0, float(os.getenv("EVENT_AGGREGATION_ENTITY_WEIGHT", "0.20"))
+        0.0, float(os.getenv("EVENT_AGGREGATION_ENTITY_WEIGHT", "0.15"))
     )
     EVENT_AGGREGATION_TIME_WEIGHT = max(
         0.0, float(os.getenv("EVENT_AGGREGATION_TIME_WEIGHT", "0.10"))

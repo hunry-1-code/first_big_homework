@@ -55,7 +55,7 @@
     <div class="flex items-center gap-1.5 mb-3 flex-wrap">
       <span class="text-[10px] text-slate-400 dark:text-slate-500 shrink-0">信源:</span>
       <span
-        v-for="p in getPlatformBadges(event.id)"
+        v-for="p in getPlatformBadges(event.platforms)"
         :key="p.name"
         class="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-px rounded font-medium"
         :style="{ color: p.color, background: p.bg }"
@@ -92,6 +92,7 @@ defineProps<{
     sentiment_positive: number;
     sentiment_negative: number;
     sentiment_neutral: number;
+    platforms?: string[];
   };
 }>();
 
@@ -112,14 +113,12 @@ function getProgressColor(heat: number) {
   return "#3b82f6";
 }
 
-function getPlatformBadges(eventId: number): PlatformInfo[] {
-  const count = 2 + (eventId % 3);
-  const start = (eventId * 3) % PLATFORMS.length;
-  const result: PlatformInfo[] = [];
-  for (let i = 0; i < count; i++) {
-    result.push(PLATFORMS[(start + i) % PLATFORMS.length]);
-  }
-  return result;
+function getPlatformBadges(platforms?: string[]): PlatformInfo[] {
+  if (!platforms || platforms.length === 0) return [];
+  return platforms
+    .map(name => getPlatform(resolvePlatformName(name)))
+    .filter((p): p is PlatformInfo => p !== undefined)
+    .slice(0, 4);
 }
 </script>
 

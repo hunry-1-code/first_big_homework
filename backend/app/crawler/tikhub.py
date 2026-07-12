@@ -1,10 +1,19 @@
 from __future__ import annotations
 
+import re
 from datetime import datetime, timezone
 from typing import Any
 
 from app.crawler.base import CrawlRequest, RawDocument
 from app.crawler.errors import raise_for_api_error
+
+
+def _strip_html(text: str) -> str:
+    """Remove HTML tags and decode entities from text."""
+    import html
+    text = re.sub(r"<[^>]+>", "", text or "")
+    text = html.unescape(text)
+    return text.strip()
 
 
 ENDPOINTS = {
@@ -124,8 +133,8 @@ class TikHubCrawler:
                 platform="weibo",
                 source_url=item.get("url") or f"https://weibo.com/{user.get('id', 'u')}/{item_id}",
                 source_article_id=item_id,
-                title=item.get("text_raw") or item.get("text") or "微博内容",
-                raw_content=item.get("text_raw") or item.get("text") or "",
+                title=_strip_html(item.get("text_raw") or item.get("text") or "微博内容"),
+                raw_content=_strip_html(item.get("text_raw") or item.get("text") or ""),
                 source_type="social",
                 author=user.get("screen_name"),
                 author_id=str(user.get("id")) if user.get("id") is not None else None,
@@ -142,8 +151,8 @@ class TikHubCrawler:
             user = card.get("user") or item.get("user") or {}
             item_id = str(item.get("id") or card.get("note_id") or card.get("id") or "")
             interact = card.get("interact_info") or {}
-            title = card.get("display_title") or card.get("title") or ""
-            content = card.get("desc") or title
+            title = _strip_html(card.get("display_title") or card.get("title") or "")
+            content = _strip_html(card.get("desc") or title)
             if not item_id and not content:
                 return None
             return RawDocument(
@@ -170,8 +179,8 @@ class TikHubCrawler:
             platform="douyin",
             source_url=aweme.get("share_url") or f"https://www.douyin.com/video/{item_id}",
             source_article_id=item_id,
-            title=aweme.get("desc") or "抖音内容",
-            raw_content=aweme.get("desc") or "",
+            title=_strip_html(aweme.get("desc") or "抖音内容"),
+            raw_content=_strip_html(aweme.get("desc") or ""),
             source_type="social",
             author=author.get("nickname"),
             author_id=str(author.get("uid")) if author.get("uid") is not None else None,

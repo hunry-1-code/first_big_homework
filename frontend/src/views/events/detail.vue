@@ -3,7 +3,7 @@ import { onMounted, ref, watch, nextTick, onBeforeUnmount, computed } from "vue"
 import { useRoute, useRouter } from "vue-router";
 import * as echarts from "echarts";
 import "echarts-wordcloud";
-import { getEvent, exportEventReport } from "@/api/events";
+import { getEvent, exportEventReport, getEventPropagation } from "@/api/events";
 import { useDark } from "@pureadmin/utils";
 import { message } from "@/utils/message";
 import { PLATFORMS, platformColor, platformBg, getPlatform, resolvePlatformName, type PlatformInfo } from "@/constants/platforms";
@@ -19,6 +19,7 @@ defineOptions({
 const route = useRoute();
 const router = useRouter();
 const eventData = ref<any>(null);
+const propagationData = ref<any>(null);
 const loading = ref(true);
 
 const { isDark } = useDark();
@@ -137,87 +138,35 @@ function getEnrichedPlatforms(): PlatformInfo[] {
 function getEnrichedTrend(): { dates: string[]; counts: number[] } {
   const rawDates: string[] = eventData.value?.trend?.dates || [];
   const rawCounts: number[] = eventData.value?.trend?.counts || [];
-  if (rawDates.length >= 7) return { dates: rawDates, counts: rawCounts };
-
-  // 生成最近 14 天
-  const dates: string[] = [];
-  const now = new Date();
-  for (let i = 13; i >= 0; i--) {
-    const d = new Date(now);
-    d.setDate(d.getDate() - i);
-    dates.push(`${d.getMonth() + 1}/${d.getDate()}`);
-  }
-
-  // 模拟舆情传播的生命周期曲线：潜伏 → 爬升 → 爆发 → 高位震荡 → 回落
-  const heatBase = eventData.value?.heat_index || 50;
-  const peakScale = heatBase / 50; // 热度越高峰值越大
-  const counts = dates.map((_, i) => {
-    const t = i / 13; // 0 → 1 进度
-    // 用偏态分布模拟舆情曲线：缓慢上升 → 快速爆发 → 高位震荡 → 缓慢回落
-    let base: number;
-    if (t < 0.3)       base = 5 + t / 0.3 * 15;                    // 潜伏期: 5→20
-    else if (t < 0.55) base = 20 + (t - 0.3) / 0.25 * 60;         // 爬升期: 20→80
-    else if (t < 0.75) base = 80 + Math.sin((t - 0.55) * 8) * 8; // 爆发震荡: ~72-88
-    else               base = 75 - (t - 0.75) / 0.25 * 55;        // 回落期: 75→20
-    const noise = (Math.random() - 0.5) * 6 * peakScale;
-    return Math.max(3, Math.round(base * peakScale + noise));
-  });
-
-  return { dates, counts };
+  return { dates: rawDates, counts: rawCounts };
 }
 
-// 构造模拟传播网络数据（分层手动布局，清晰有序）
+// 构造传播网络数据——使用后端真实数据 + force 自动布局
 function buildPropagationData() {
-  // 每层的节点列表和 Y 轴分布
-  const layers = [
-    { x: 8,  nodes: [{ name: "初始爆料", symbolSize: 46 }] },
-    { x: 26, nodes: [{ name: "大V-财经观察", symbolSize: 34 }, { name: "大V-科技圈那些事", symbolSize: 32 }] },
-    { x: 44, nodes: [{ name: "微博热搜", symbolSize: 40 }, { name: "今日头条", symbolSize: 34 }, { name: "知乎热榜", symbolSize: 30 }] },
-    { x: 62, nodes: [{ name: "人民日报", symbolSize: 38 }, { name: "央视新闻", symbolSize: 36 }] },
-    { x: 80, nodes: [{ name: "网友A", symbolSize: 16 }, { name: "网友B", symbolSize: 15 }, { name: "网友C", symbolSize: 14 }, { name: "网友D", symbolSize: 13 }] }
-  ];
+  const raw = propagationData.value;
+  if (!raw || !raw.graph || !raw.graph.nodes || raw.graph.nodes.length === 0) {
+    // fallback: 无数据时返回空
+    return { nodes: [], links: [], categories: [] };
+  }
 
-  const nodes: any[] = [];
-  let catIdx = 0;
-  layers.forEach((layer) => {
-    const n = layer.nodes.length;
-    layer.nodes.forEach((node, i) => {
-      // y 从 12% 到 88% 均匀分布
-      const y = n === 1 ? 46 : 10 + (i / (n - 1)) * 68;
-      nodes.push({
-        name: node.name,
-        category: catIdx,
-        symbolSize: node.symbolSize,
-        x: layer.x,
-        y
-      });
-    });
-    catIdx++;
-  });
+  const g = raw.graph;
+  const categorySet = new Set(g.nodes.map((n: any) => n.category ?? 3));
+  const categories = Array.from(categorySet).sort().map((c: any) => ({
+    name: ["信息源头", "关键传播者", "官方媒体", "普通讨论"][c] || `类别${c}`
+  }));
 
   return {
-    nodes,
-    links: [
-      { source: "初始爆料", target: "大V-财经观察", value: 3800 },
-      { source: "初始爆料", target: "大V-科技圈那些事", value: 2900 },
-      { source: "大V-财经观察", target: "微博热搜", value: 8500 },
-      { source: "大V-科技圈那些事", target: "微博热搜", value: 6200 },
-      { source: "大V-财经观察", target: "今日头条", value: 4100 },
-      { source: "微博热搜", target: "知乎热榜", value: 3200 },
-      { source: "微博热搜", target: "人民日报", value: 2800 },
-      { source: "今日头条", target: "央视新闻", value: 2400 },
-      { source: "微博热搜", target: "网友A", value: 200 },
-      { source: "微博热搜", target: "网友B", value: 180 },
-      { source: "今日头条", target: "网友C", value: 150 },
-      { source: "知乎热榜", target: "网友D", value: 120 }
-    ],
-    categories: [
-      { name: "信息源头" },
-      { name: "关键传播者" },
-      { name: "平台扩散" },
-      { name: "官方媒体" },
-      { name: "公众讨论" }
-    ]
+    nodes: g.nodes.map((n: any) => ({
+      ...n,
+      symbolSize: n.symbolSize || 15,
+      category: n.category ?? 3
+    })),
+    links: g.links.map((l: any) => ({
+      source: l.source,
+      target: l.target,
+      value: l.confidence ? Math.round(l.confidence * 100) : 1
+    })),
+    categories
   };
 }
 
@@ -229,16 +178,20 @@ function buildInfluenceData() {
     name: a.title?.length > 20 ? a.title.slice(0, 20) + "..." : (a.title || `报道${i + 1}`),
     fullName: a.title || "",
     platform: a.platform || "未知",
-    reposts: a.reposts_count || Math.floor(Math.random() * 5000) + 200,
-    comments: a.comments_count || Math.floor(Math.random() * 3000) + 100,
-    likes: a.likes_count || Math.floor(Math.random() * 8000) + 500
+    reposts: a.reposts_count || 0,
+    comments: a.comments_count || 0,
+    likes: a.likes_count || 0
   }));
 }
 
 onMounted(async () => {
   try {
-    const response = await getEvent(Number(route.params.id));
-    eventData.value = response.data;
+    const [eventResp, propResp] = await Promise.all([
+      getEvent(Number(route.params.id)),
+      getEventPropagation(Number(route.params.id))
+    ]);
+    eventData.value = eventResp.data;
+    propagationData.value = propResp.data;
     nextTick(() => {
       initCharts();
     });
@@ -347,18 +300,40 @@ function initSentimentTrendChart() {
   const neuBase = (eventData.value.sentiment_neutral || 0.25) * 100;
   const negBase = (eventData.value.sentiment_negative || 0.50) * 100;
 
-  const raw = counts.map((_: number, i: number) => {
-    const p = Math.max(1, posBase + Math.sin(i * 0.5 + 1) * 8 + (Math.random() - 0.5) * 3);
-    const n = Math.max(1, neuBase + Math.cos(i * 0.6) * 6 + (Math.random() - 0.5) * 2);
-    const g = Math.max(1, negBase + Math.sin(i * 0.8) * 10 + (Math.random() - 0.5) * 4);
-    const t = p + n + g;
-    return { pos: p / t * 100, neu: n / t * 100, neg: g / t * 100 };
-  });
-  const totalCheck = raw.map(r => r.pos + r.neu + r.neg);
-  // ensure sum ~100
-  raw.forEach((r, i) => { r.pos = 100 - r.neu - r.neg; });
+  const daily = eventData.value?.sentiment?.daily || eventData.value?.sentiment?.daily_trend || [];
+  if (daily.length === 0) {
+    // fallback: 用基础比例生成单点
+    const pos = (eventData.value.sentiment_positive || 0) * 100;
+    const neu = (eventData.value.sentiment_neutral || 0) * 100;
+    const neg = (eventData.value.sentiment_negative || 0) * 100;
+    sentimentTrendChart.setOption(getSentimentAreaOption(dark, c, dates, [
+      { pos, neu, neg }
+    ]));
+    return;
+  }
 
-  sentimentTrendChart.setOption({
+  const raw = daily.map((d: any) => ({
+    pos: (d.positive || d.weighted_ratios?.positive || 0) * 100,
+    neu: (d.neutral || d.weighted_ratios?.neutral || 0) * 100,
+    neg: (d.negative || d.weighted_ratios?.negative || 0) * 100
+  }));
+  // ensure sum ~100 for each day
+  raw.forEach((r: any) => {
+    const total = r.pos + r.neu + r.neg;
+    if (total > 0) { r.pos = (r.pos / total) * 100; r.neu = (r.neu / total) * 100; r.neg = (r.neg / total) * 100; }
+  });
+
+  const dailyDates = daily.map((d: any) => {
+    if (d.date) return d.date.slice(5); // MM-DD
+    if (d.calculated_at) return d.calculated_at.slice(5, 10);
+    return "";
+  }).filter(Boolean);
+
+  sentimentTrendChart.setOption(getSentimentAreaOption(dark, c, dailyDates.length ? dailyDates : dates.slice(0, raw.length), raw));
+}
+
+function getSentimentAreaOption(dark: boolean, c: any, dates: string[], raw: any[]) {
+  return {
     grid: { top: 10, right: 30, bottom: 30, left: 45 },
     tooltip: {
       trigger: "axis",
@@ -674,9 +649,13 @@ function initPropagationChart() {
     },
     series: [{
       type: "graph",
-      layout: "none",
-      coordinateSystem: undefined,
-      roam: false,
+      layout: "force",
+      roam: true,
+      force: {
+        repulsion: 300,
+        edgeLength: [100, 250],
+        gravity: 0.1
+      },
       categories: data.categories.map((c: any, i: number) => ({ name: c.name, itemStyle: { color: categoryColors[i] } })),
       data: data.nodes,
       links: data.links,
