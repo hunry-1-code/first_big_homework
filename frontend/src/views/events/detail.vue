@@ -397,7 +397,7 @@ function getSentimentAreaOption(dark: boolean, c: any, dates: string[], raw: any
         emphasis: { focus: "series" }
       }
     ]
-  });
+  };
 }
 
 // ==================== 2. 情感极性分布环形图 ====================
