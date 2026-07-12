@@ -8,7 +8,14 @@ const TITLE = getConfig("Title");
   <footer
     class="layout-footer text-[rgba(0,0,0,0.6)] dark:text-[rgba(220,220,242,0.8)]"
   >
-    网络舆情事件智能分析系统
+    Copyright © 2020-present
+    <a
+      class="hover:text-primary!"
+      href="https://github.com/pure-admin"
+      target="_blank"
+    >
+      &nbsp;{{ TITLE }}
+    </a>
   </footer>
 </template>
 
