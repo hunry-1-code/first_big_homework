@@ -412,17 +412,22 @@ def _cluster_title(cluster) -> str:
     return raw
 
 
+def _llm_client():
+    """统一的 LLM 客户端工厂，复用已有的配置模式。"""
+    from flask import current_app
+    from app.llm.client import LLMClient
+    return LLMClient(
+        api_key=current_app.config.get("LLM_API_KEY", ""),
+        base_url=current_app.config.get("LLM_BASE_URL", ""),
+        model_name=current_app.config.get("LLM_MODEL_NAME", ""),
+        timeout=15,
+    )
+
+
 def _ai_generate_title(titles: list[str]) -> str | None:
     """用 LLM 从多篇文章标题生成简洁事件标题（≤20字）。"""
     try:
-        from flask import current_app
-        from app.llm.client import LLMClient
-        client = LLMClient(
-            api_key=current_app.config.get("LLM_API_KEY", ""),
-            base_url=current_app.config.get("LLM_BASE_URL", ""),
-            model_name=current_app.config.get("LLM_MODEL_NAME", ""),
-            timeout=15,
-        )
+        client = _llm_client()
         joined = "\n".join(f"- {t}" for t in titles[:10])
         resp = client.chat([
             {"role": "system", "content": "你是舆情分析助手。根据多篇报道标题，生成一个简洁的事件标题（≤20字），不要加引号和标点符号，直接输出标题文本。"},
@@ -439,14 +444,7 @@ def _ai_generate_title(titles: list[str]) -> str | None:
 def _ai_generate_summary(title: str, articles: list, platform_count: int) -> str | None:
     """用 LLM 生成事件研判摘要。"""
     try:
-        from flask import current_app
-        from app.llm.client import LLMClient
-        client = LLMClient(
-            api_key=current_app.config.get("LLM_API_KEY", ""),
-            base_url=current_app.config.get("LLM_BASE_URL", ""),
-            model_name=current_app.config.get("LLM_MODEL_NAME", ""),
-            timeout=15,
-        )
+        client = _llm_client()
         samples = "\n".join(f"- {a.title}" for a in articles[:5] if a.title)
         resp = client.chat([
             {"role": "system", "content": "你是舆情分析师。根据事件标题和相关报道，写一段100-200字的事件研判摘要，包含事件性质、关键信息、舆论焦点。"},
