@@ -440,3 +440,78 @@ idle → startAnalysis() → running (2s 轮询 GET /api/tasks/:id)
 
 ---
 
+## 十八、全链路调试与修复（2026-07-13 第二阶段）
+
+### 18.1 聚类碎片化问题
+
+**现象**：59 篇文章聚类出 40 个事件簇，其中 35 个只有 1 篇文章。
+
+**根因链**：
+1. `sentence-transformers` 未安装 → BGE 语义向量全部失败
+2. HuggingFace 被墙 → 模型无法下载
+3. 仅靠 TF-IDF 向量聚类，相似度不足以突破 `attach_threshold=0.72`
+4. 最终分值 ~0.60-0.65，永远达不到 0.72
+
+**修复**：
+- `pip install sentence-transformers` + `.env` 加 `HF_ENDPOINT=https://hf-mirror.com`
+- `config.py` 默认阈值：`attach_threshold 0.72→0.55`，`bge_weight 0.45→0.55`
+- 效果：40 个孤簇 → **3 个有意义事件**（34+13+1），45/48 篇文章正确归入
+
+### 18.2 搜索链路修复
+
+- `crawl_service.py:27`：`if platforms is not None` → `if platforms`
+- `tasks/jobs.py:290`：`effective_platforms = platforms or list(batch.platform_counts.keys())`
+- `event_service.py`：新增 `_event_keywords()` 从 `AnalysisRunArticle` 聚合真实关键词
+
+### 18.3 前端 Mock 数据清理
+
+| 组件 | 修复前 | 修复后 |
+|------|------|------|
+| 传播网络图 | `buildPropagationData()` 硬编码 14 个假节点 | 调用 `/propagation` API + force 布局 |
+| 情感趋势图 | sin/cos 模拟曲线 | `sentiment.daily_trend` 真实数据 |
+| 平台 Badge | `eventId % 3` 随机 | `event.platforms` 真实平台名 |
+| 影响排行 | `Math.random()` 加噪声 | 真实互动数据 |
+| 趋势曲线 | 数据 <7 点就模拟 14 天 | `getEnrichedTrend()` 只用真实数据 |
+| 词云 | 权重归一化 sum=1 导致全等 | max-normalize 保留差异 |
+
+### 18.4 数据质量修复
+
+| 问题 | 根因 | 修复 |
+|------|------|------|
+| 事件标题 HTML/URL 乱码 | TikHub 微博爬虫 `_map_item` 未清洗 HTML | 新增 `_strip_html()` |
+| 标题过长（154 字） | 微博文章全文当标题 | `_cluster_title()` 截断 ≤80 字 |
+| AI 元数据 "待后端录入" | `get_event_detail` 未填充 | `_extract_location`/`_extract_key_figures`/`_extract_cause` |
+| heat=0 | 搜索模式不走热点计算 | `_postprocess_published_event` 加基础热度公式 |
+| 传播图仅 2 条边 | `inferred_score` 阈值 0.38 | 降至 0.15 + category 修复为数字索引 |
+| 文章正文 tooltip 溢出 | `show-overflow-tooltip` 显示全文 | 截断至 150 字 + CSS `line-clamp-2` |
+
+### 18.5 最终全链路结果
+
+| 指标 | 修复前 | 修复后 |
+|------|:---:|:---:|
+| 爬取 | 0 篇（链路断裂） | 59 篇（百度17+B站17+微博15+知乎10） |
+| BGE 向量 | 0 | 48 个（512 维） |
+| 事件数 | 0 | 3 个（34+13+1） |
+| 关键词 | 空数组 | 30 词/事件 |
+| API 字段完整度 | 25/30 | 30/30 |
+| 标题乱码 | 3/3 | 0/3 |
+| 前端 Mock | 8 处 | 0 处 |
+
+### 18.6 CI/CD 注意事项
+
+1. **`sentence-transformers` 已在 `requirements.txt`**，首次运行需下载 BGE 模型（~400MB），国内需配 `HF_ENDPOINT=https://hf-mirror.com`
+2. **BGE 在 CPU 上 ~3.7 秒/篇**，49 篇约 3 分钟
+3. **DeepSeek LLM API Key 必须配置**，否则情感分析降级 SnowNLP
+4. **抖音/小红书暂不可用**，不影响百度/B站/微博/知乎
+5. **搜索模式需手动 publish 事件簇**，不会自动创建 Event
+
+### 18.7 待解决问题
+
+| 问题 | 影响 | 建议 |
+|------|------|------|
+| `analysis/index.vue` 未上线验证 | 新功能不可见 | 启动前端测试 |
+| 搜索模式不触发热点计算 | 热度排名缺失 | publish 后自动创建 hotspot_run |
+| `TASKS_RUN_SYNC=true` 不适合生产 | 单次调用可能数分钟 | 生产改 false，前端轮询 |
+
+---
+
