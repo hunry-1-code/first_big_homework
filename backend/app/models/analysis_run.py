@@ -1,9 +1,6 @@
 from app.extensions import db
 
 
-SQLITE_BIGINT = db.BigInteger().with_variant(db.Integer, "sqlite")
-
-
 class AnalysisRun(db.Model):
     __tablename__ = "analysis_run"
     __table_args__ = (
@@ -12,9 +9,9 @@ class AnalysisRun(db.Model):
         db.Index("ix_analysis_run_fingerprint", "query_fingerprint", "dataset_hash"),
     )
 
-    id = db.Column(SQLITE_BIGINT, primary_key=True, autoincrement=True)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
-    source_task_id = db.Column(SQLITE_BIGINT, db.ForeignKey("task.id"), nullable=True)
+    source_task_id = db.Column(db.Integer, db.ForeignKey("task.id"), nullable=True)
     mode = db.Column(db.String(20), nullable=False, default="search")
     keyword = db.Column(db.String(255))
     platforms = db.Column(db.JSON)
@@ -44,15 +41,15 @@ class AnalysisRunArticle(db.Model):
         db.Index("ix_analysis_run_article_run_status", "analysis_run_id", "feature_status"),
     )
 
-    id = db.Column(SQLITE_BIGINT, primary_key=True, autoincrement=True)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     analysis_run_id = db.Column(
-        SQLITE_BIGINT,
+        db.Integer,
         db.ForeignKey("analysis_run.id", ondelete="CASCADE"),
         nullable=False,
     )
     article_id = db.Column(db.Integer, db.ForeignKey("article.id"), nullable=False)
     article_snapshot_id = db.Column(
-        SQLITE_BIGINT, db.ForeignKey("article_snapshot.id"), nullable=True
+        db.Integer, db.ForeignKey("article_snapshot.id"), nullable=True
     )
     content_version = db.Column(db.Integer, nullable=False, default=1)
     content_identity = db.Column(db.String(80), nullable=False)

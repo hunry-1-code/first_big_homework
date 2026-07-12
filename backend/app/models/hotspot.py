@@ -1,9 +1,6 @@
 from app.extensions import db
 
 
-SQLITE_BIGINT = db.BigInteger().with_variant(db.Integer, "sqlite")
-
-
 class HotspotRun(db.Model):
     __tablename__ = "hotspot_run"
     __table_args__ = (
@@ -19,12 +16,12 @@ class HotspotRun(db.Model):
         db.Index("ix_hotspot_run_user_created", "user_id", "created_at"),
     )
 
-    id = db.Column(SQLITE_BIGINT, primary_key=True, autoincrement=True)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     analysis_run_id = db.Column(
-        SQLITE_BIGINT, db.ForeignKey("analysis_run.id"), nullable=False, index=True
+        db.Integer, db.ForeignKey("analysis_run.id"), nullable=False, index=True
     )
     source_task_id = db.Column(
-        SQLITE_BIGINT, db.ForeignKey("task.id"), nullable=True
+        db.Integer, db.ForeignKey("task.id"), nullable=True
     )
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
     mode = db.Column(db.String(20), nullable=False, default="hot")
@@ -64,13 +61,13 @@ class HotSeedExpansion(db.Model):
         ),
     )
 
-    id = db.Column(SQLITE_BIGINT, primary_key=True, autoincrement=True)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     seed_article_id = db.Column(
         db.Integer, db.ForeignKey("article.id"), nullable=False
     )
     search_query = db.Column("query", db.String(255), nullable=False)
     crawl_task_id = db.Column(
-        SQLITE_BIGINT, db.ForeignKey("task.id"), nullable=True
+        db.Integer, db.ForeignKey("task.id"), nullable=True
     )
     platform = db.Column(db.String(50), nullable=False)
     article_id = db.Column(
@@ -89,9 +86,9 @@ class TopicResult(db.Model):
         db.Index("ix_topic_result_run_category", "hotspot_run_id", "category"),
     )
 
-    id = db.Column(SQLITE_BIGINT, primary_key=True, autoincrement=True)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     hotspot_run_id = db.Column(
-        SQLITE_BIGINT,
+        db.Integer,
         db.ForeignKey("hotspot_run.id", ondelete="CASCADE"),
         nullable=False,
     )
@@ -124,14 +121,14 @@ class TopicArticleAssignment(db.Model):
         ),
     )
 
-    id = db.Column(SQLITE_BIGINT, primary_key=True, autoincrement=True)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     hotspot_run_id = db.Column(
-        SQLITE_BIGINT,
+        db.Integer,
         db.ForeignKey("hotspot_run.id", ondelete="CASCADE"),
         nullable=False,
     )
     topic_result_id = db.Column(
-        SQLITE_BIGINT,
+        db.Integer,
         db.ForeignKey("topic_result.id", ondelete="CASCADE"),
         nullable=False,
     )
@@ -154,9 +151,9 @@ class EventHeatSnapshot(db.Model):
         db.Index("ix_event_heat_hot_rank", "eligible_as_hot", "rank"),
     )
 
-    id = db.Column(SQLITE_BIGINT, primary_key=True, autoincrement=True)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     hotspot_run_id = db.Column(
-        SQLITE_BIGINT,
+        db.Integer,
         db.ForeignKey("hotspot_run.id", ondelete="CASCADE"),
         nullable=False,
     )

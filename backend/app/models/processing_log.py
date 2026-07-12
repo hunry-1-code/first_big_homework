@@ -1,13 +1,10 @@
 from app.extensions import db
 
 
-SQLITE_BIGINT = db.BigInteger().with_variant(db.Integer, "sqlite")
-
-
 class ProcessingLog(db.Model):
     __tablename__ = "processing_log"
 
-    id = db.Column(SQLITE_BIGINT, primary_key=True, autoincrement=True)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     task_id = db.Column(db.Integer, db.ForeignKey("task.id"), nullable=True, index=True)
     article_id = db.Column(db.Integer, db.ForeignKey("article.id"), nullable=False, index=True)
     snapshot_id = db.Column(db.BigInteger, nullable=True)

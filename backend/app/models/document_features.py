@@ -1,13 +1,10 @@
 from app.extensions import db
 
 
-SQLITE_BIGINT = db.BigInteger().with_variant(db.Integer, "sqlite")
-
-
 class DocumentFeatures(db.Model):
     __tablename__ = "document_features"
 
-    id = db.Column(SQLITE_BIGINT, primary_key=True, autoincrement=True)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     article_id = db.Column(db.Integer, db.ForeignKey("article.id"), nullable=False, unique=True)
     tokens = db.Column(db.JSON)
     tfidf_tokens = db.Column(db.JSON)

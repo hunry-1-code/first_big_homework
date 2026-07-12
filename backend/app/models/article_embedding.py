@@ -1,8 +1,6 @@
 from app.extensions import db
 
 
-SQLITE_BIGINT = db.BigInteger().with_variant(db.Integer, "sqlite")
-
 
 class ArticleEmbedding(db.Model):
     __tablename__ = "article_embedding"
@@ -23,10 +21,10 @@ class ArticleEmbedding(db.Model):
         ),
     )
 
-    id = db.Column(SQLITE_BIGINT, primary_key=True, autoincrement=True)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     article_id = db.Column(db.Integer, db.ForeignKey("article.id"), nullable=False)
     article_snapshot_id = db.Column(
-        SQLITE_BIGINT, db.ForeignKey("article_snapshot.id"), nullable=True
+        db.Integer, db.ForeignKey("article_snapshot.id"), nullable=True
     )
     content_version = db.Column(db.Integer, nullable=False, default=1)
     content_identity = db.Column(db.String(80), nullable=False)

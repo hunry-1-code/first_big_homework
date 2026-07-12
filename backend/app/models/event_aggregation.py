@@ -1,9 +1,6 @@
 from app.extensions import db
 
 
-SQLITE_BIGINT = db.BigInteger().with_variant(db.Integer, "sqlite")
-
-
 class AggregationRun(db.Model):
     __tablename__ = "aggregation_run"
     __table_args__ = (
@@ -20,14 +17,14 @@ class AggregationRun(db.Model):
         db.Index("ix_aggregation_run_query_cache", "query_fingerprint", "cache_expires_at"),
     )
 
-    id = db.Column(SQLITE_BIGINT, primary_key=True, autoincrement=True)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     analysis_run_id = db.Column(
-        SQLITE_BIGINT, db.ForeignKey("analysis_run.id"), nullable=False, index=True
+        db.Integer, db.ForeignKey("analysis_run.id"), nullable=False, index=True
     )
     hotspot_run_id = db.Column(
-        SQLITE_BIGINT, db.ForeignKey("hotspot_run.id"), nullable=True, index=True
+        db.Integer, db.ForeignKey("hotspot_run.id"), nullable=True, index=True
     )
-    source_task_id = db.Column(SQLITE_BIGINT, db.ForeignKey("task.id"), nullable=True)
+    source_task_id = db.Column(db.Integer, db.ForeignKey("task.id"), nullable=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
     scope = db.Column(db.String(24), nullable=False)
     mode = db.Column(db.String(20), nullable=False)
@@ -57,9 +54,9 @@ class AggregationCluster(db.Model):
         db.Index("ix_aggregation_cluster_event", "resolved_event_id"),
     )
 
-    id = db.Column(SQLITE_BIGINT, primary_key=True, autoincrement=True)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     aggregation_run_id = db.Column(
-        SQLITE_BIGINT,
+        db.Integer,
         db.ForeignKey("aggregation_run.id", ondelete="CASCADE"),
         nullable=False,
     )
@@ -88,14 +85,14 @@ class AggregationAssignment(db.Model):
         db.Index("ix_aggregation_assignment_event", "resolved_event_id"),
     )
 
-    id = db.Column(SQLITE_BIGINT, primary_key=True, autoincrement=True)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     aggregation_run_id = db.Column(
-        SQLITE_BIGINT,
+        db.Integer,
         db.ForeignKey("aggregation_run.id", ondelete="CASCADE"),
         nullable=False,
     )
     aggregation_cluster_id = db.Column(
-        SQLITE_BIGINT,
+        db.Integer,
         db.ForeignKey("aggregation_cluster.id", ondelete="CASCADE"),
         nullable=True,
     )
@@ -119,12 +116,12 @@ class EventArticleMembership(db.Model):
         db.Index("ix_event_membership_article", "article_id"),
     )
 
-    id = db.Column(SQLITE_BIGINT, primary_key=True, autoincrement=True)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     event_id = db.Column(db.Integer, db.ForeignKey("event.id"), nullable=False)
     article_id = db.Column(db.Integer, db.ForeignKey("article.id"), nullable=False)
     active_article_id = db.Column(db.Integer, nullable=True)
     source_aggregation_run_id = db.Column(
-        SQLITE_BIGINT, db.ForeignKey("aggregation_run.id"), nullable=False
+        db.Integer, db.ForeignKey("aggregation_run.id"), nullable=False
     )
     confidence = db.Column(db.Float, nullable=False, default=0.0)
     decision_method = db.Column(db.String(64), nullable=False)
@@ -147,7 +144,7 @@ class EventRepresentation(db.Model):
         db.Index("ix_event_representation_model", "model_name", "model_version"),
     )
 
-    id = db.Column(SQLITE_BIGINT, primary_key=True, autoincrement=True)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     event_id = db.Column(db.Integer, db.ForeignKey("event.id"), nullable=False)
     model_name = db.Column(db.String(255), nullable=False)
     model_version = db.Column(db.String(64), nullable=False)
@@ -158,7 +155,7 @@ class EventRepresentation(db.Model):
     entities = db.Column(db.JSON)
     member_count = db.Column(db.Integer, nullable=False, default=0)
     source_aggregation_run_id = db.Column(
-        SQLITE_BIGINT, db.ForeignKey("aggregation_run.id"), nullable=False
+        db.Integer, db.ForeignKey("aggregation_run.id"), nullable=False
     )
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
@@ -173,11 +170,11 @@ class EventMergeRecord(db.Model):
         db.Index("ix_event_merge_status_created", "status", "created_at"),
     )
 
-    id = db.Column(SQLITE_BIGINT, primary_key=True, autoincrement=True)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     source_event_id = db.Column(db.Integer, db.ForeignKey("event.id"), nullable=False)
     target_event_id = db.Column(db.Integer, db.ForeignKey("event.id"), nullable=False)
     aggregation_run_id = db.Column(
-        SQLITE_BIGINT, db.ForeignKey("aggregation_run.id"), nullable=True
+        db.Integer, db.ForeignKey("aggregation_run.id"), nullable=True
     )
     similarity_evidence = db.Column(db.JSON)
     reason = db.Column(db.String(255))

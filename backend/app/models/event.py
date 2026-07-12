@@ -13,7 +13,7 @@ class Event(db.Model):
     key_figures = db.Column(db.String(500))
     heat_index = db.Column(db.Float, default=0)
     current_heat_snapshot_id = db.Column(
-        db.BigInteger,
+        db.Integer,
         db.ForeignKey(
             "event_heat_snapshot.id",
             name="fk_event_current_heat_snapshot",
@@ -35,7 +35,7 @@ class Event(db.Model):
     sentiment_positive = db.Column(db.Float, default=0)
     sentiment_negative = db.Column(db.Float, default=0)
     sentiment_neutral = db.Column(db.Float, default=0)
-    current_sentiment_snapshot_id = db.Column(db.BigInteger, nullable=True, index=True)
+    current_sentiment_snapshot_id = db.Column(db.Integer, nullable=True, index=True)
     sentiment_score = db.Column(db.Float, default=0)
     sentiment_updated_at = db.Column(db.DateTime)
     lifecycle_stage = db.Column(db.String(20), default="潜伏期")

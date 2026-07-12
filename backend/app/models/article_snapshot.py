@@ -2,14 +2,13 @@ from app.extensions import db
 from sqlalchemy.dialects.mysql import LONGTEXT
 
 
-SQLITE_BIGINT = db.BigInteger().with_variant(db.Integer, "sqlite")
 LONG_TEXT = db.Text().with_variant(LONGTEXT(), "mysql")
 
 
 class ArticleSnapshot(db.Model):
     __tablename__ = "article_snapshot"
 
-    id = db.Column(SQLITE_BIGINT, primary_key=True, autoincrement=True)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     article_id = db.Column(db.Integer, db.ForeignKey("article.id"), nullable=False, index=True)
     crawled_at = db.Column(db.DateTime, server_default=db.func.now())
     http_status = db.Column(db.Integer, nullable=True)

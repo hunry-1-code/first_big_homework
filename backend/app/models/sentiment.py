@@ -1,9 +1,6 @@
 from app.extensions import db
 
 
-SQLITE_BIGINT = db.BigInteger().with_variant(db.Integer, "sqlite")
-
-
 class SentimentRun(db.Model):
     __tablename__ = "sentiment_run"
     __table_args__ = (
@@ -18,11 +15,11 @@ class SentimentRun(db.Model):
         db.Index("ix_sentiment_run_status_created", "status", "created_at"),
     )
 
-    id = db.Column(SQLITE_BIGINT, primary_key=True, autoincrement=True)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     aggregation_run_id = db.Column(
-        SQLITE_BIGINT, db.ForeignKey("aggregation_run.id"), nullable=False, index=True
+        db.Integer, db.ForeignKey("aggregation_run.id"), nullable=False, index=True
     )
-    source_task_id = db.Column(SQLITE_BIGINT, db.ForeignKey("task.id"), nullable=True)
+    source_task_id = db.Column(db.Integer, db.ForeignKey("task.id"), nullable=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
     scope = db.Column(db.String(24), nullable=False)
     mode = db.Column(db.String(20), nullable=False)
@@ -51,16 +48,16 @@ class ArticleSentimentResult(db.Model):
         db.Index("ix_article_sentiment_event", "event_id"),
     )
 
-    id = db.Column(SQLITE_BIGINT, primary_key=True, autoincrement=True)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     sentiment_run_id = db.Column(
-        SQLITE_BIGINT,
+        db.Integer,
         db.ForeignKey("sentiment_run.id", ondelete="CASCADE"),
         nullable=False,
     )
     article_id = db.Column(db.Integer, db.ForeignKey("article.id"), nullable=False)
     content_identity = db.Column(db.String(80), nullable=False)
     aggregation_cluster_id = db.Column(
-        SQLITE_BIGINT, db.ForeignKey("aggregation_cluster.id"), nullable=True
+        db.Integer, db.ForeignKey("aggregation_cluster.id"), nullable=True
     )
     event_id = db.Column(db.Integer, db.ForeignKey("event.id"), nullable=True)
     label = db.Column(db.String(16), nullable=False)
@@ -76,7 +73,7 @@ class ArticleSentimentResult(db.Model):
     preprocess_version = db.Column(db.String(64), nullable=False)
     raw_response = db.Column(db.JSON)
     inherited_from_result_id = db.Column(
-        SQLITE_BIGINT, db.ForeignKey("article_sentiment_result.id"), nullable=True
+        db.Integer, db.ForeignKey("article_sentiment_result.id"), nullable=True
     )
     weight_details = db.Column(db.JSON)
     warnings = db.Column(db.JSON)
@@ -97,15 +94,15 @@ class EventSentimentSnapshot(db.Model):
         db.Index("ix_sentiment_snapshot_event_time", "event_id", "calculated_at"),
     )
 
-    id = db.Column(SQLITE_BIGINT, primary_key=True, autoincrement=True)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     sentiment_run_id = db.Column(
-        SQLITE_BIGINT,
+        db.Integer,
         db.ForeignKey("sentiment_run.id", ondelete="CASCADE"),
         nullable=False,
     )
     event_id = db.Column(db.Integer, db.ForeignKey("event.id"), nullable=True)
     aggregation_cluster_id = db.Column(
-        SQLITE_BIGINT, db.ForeignKey("aggregation_cluster.id"), nullable=True
+        db.Integer, db.ForeignKey("aggregation_cluster.id"), nullable=True
     )
     calculated_at = db.Column(db.DateTime, nullable=False)
     article_count = db.Column(db.Integer, nullable=False, default=0)
