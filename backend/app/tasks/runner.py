@@ -129,6 +129,7 @@ def recover_background_jobs(app, job_registry: dict[str, Callable] | None = None
             aggregation_job,
             analyze_job,
             crawl_job,
+            daily_hot_job,
             hotspot_job,
             import_job,
             sentiment_job,
@@ -136,6 +137,7 @@ def recover_background_jobs(app, job_registry: dict[str, Callable] | None = None
 
         job_registry = {
             "crawl": crawl_job,
+            "daily_hot": daily_hot_job,
             "import": import_job,
             "analysis": analyze_job,
             "hotspot": hotspot_job,
@@ -188,6 +190,9 @@ def start_recovery_scheduler(app, scheduler=None):
         coalesce=True,
         replace_existing=True,
     )
+    from app.tasks.scheduler import register_daily_hot_refresh
+
+    register_daily_hot_refresh(app, scheduler)
     scheduler.start()
     app.extensions["task_recovery_scheduler"] = scheduler
     return scheduler

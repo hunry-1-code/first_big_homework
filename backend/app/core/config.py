@@ -232,6 +232,14 @@ class Config:
         60,
         int(os.getenv("DAILY_HOT_TTL_SECONDS", "900")),
     )
+    DAILY_HOT_REFRESH_INTERVAL_SECONDS = max(
+        60,
+        int(os.getenv("DAILY_HOT_REFRESH_INTERVAL_SECONDS", "900")),
+    )
+    DAILY_HOT_SYSTEM_USERNAME = os.getenv(
+        "DAILY_HOT_SYSTEM_USERNAME",
+        DEMO_ADMIN_USERNAME,
+    ).strip()
 
     EVENT_AGGREGATION_ATTACH_THRESHOLD = min(
         1.0,

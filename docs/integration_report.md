@@ -857,5 +857,15 @@ TDD 覆盖第三方单源失败仍生成融合结果、密钥不进入 errors/pa
 
 新增配置默认值：三大直接热榜来源、每来源 30 条、结果 10 条、`rrf_k=60`、TTL 900 秒，并同步 `.env.example`，未读取或修改真实 `.env`。Top10 API 聚焦测试与服务测试通过；和正式热点、契约联合验证为 `29 passed, 1 warning`，原 `GET /api/hotspots` 语义未改变。
 
+### 21.25 租约后台刷新与定时调度
+
+新增 `daily_hot_job(task_id)`，通过现有 runner 租约领取执行，按逐来源采集、RRF 融合和持久化边界更新任务进度。部分来源失败时 Run 为 `partial`、Task 仍成功；所有来源失败时 Task 明确失败。重复提交同一个 Task 时第二次无法再次领取，因此不会重复采集。
+
+`daily_hot` 已加入默认恢复注册表，进程重启后 pending 或租约超时任务可重新排队。任务 payload 中的 `sources` 与原 `platforms` 一样按去重、大小写和排序规范化，来源顺序变化仍会复用等价任务。
+
+恢复 scheduler 同时注册 `daily-hot-refresh` 间隔任务，默认 900 秒。调度器按 `DAILY_HOT_SYSTEM_USERNAME` 查找已存在、启用且角色为 admin/system 的用户，创建或复用最近等价 Task；找不到合法 actor 时明确抛错，不创建 `created_by` 为空的任务，也不自动创建管理员。部署需预先配置有效用户。
+
+新增 `DAILY_HOT_REFRESH_INTERVAL_SECONDS` 和 `DAILY_HOT_SYSTEM_USERNAME` 示例配置。聚焦 job/recovery/scheduler 测试 `5 passed`，Top10、任务和爬虫 API 联合结果 `43 passed, 1 warning`。
+
 ---
 

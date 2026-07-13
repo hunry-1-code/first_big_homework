@@ -12,6 +12,7 @@ if str(BACKEND_ROOT) not in sys.path:
 
 from app import create_app
 from app.crawler.base import CrawlerRegistry, RawDocument
+from app.crawler.errors import CrawlerError
 from app.crawler.sample import SampleCrawler
 from app.extensions import db
 from app.models import (
@@ -19,16 +20,19 @@ from app.models import (
     AnalysisRun,
     Article,
     EventHeatSnapshot,
+    DailyHotRun,
     HotSeedExpansion,
     HotspotRun,
     SentimentRun,
     Task,
+    User,
 )
 from app.services.task_service import create_task, get_task, reset_task_store, update_task
 from app.services import task_service
-from app.tasks.jobs import crawl_job, hotspot_job, import_job
+from app.tasks.jobs import crawl_job, daily_hot_job, hotspot_job, import_job
 from app.tasks import runner
 from app.tasks.runner import submit_background_job
+from app.tasks.scheduler import enqueue_daily_hot_refresh
 
 
 class TestConfig:
@@ -185,6 +189,64 @@ class JobTest(unittest.TestCase):
 
         self.assertEqual(get_task(task["id"])["status"], "failed")
 
+    def test_daily_hot_job_is_claimed_once_and_survives_one_source_failure(self):
+        class HotCrawler:
+            def __init__(self, platform, *, fail=False):
+                self.platform = platform
+                self.fail = fail
+                self.calls = 0
+
+            def crawl(self, request):
+                self.calls += 1
+                if self.fail:
+                    raise CrawlerError(
+                        self.platform,
+                        "CRAWL_DOWN",
+                        "temporary outage",
+                    )
+                return [
+                    RawDocument(
+                        platform=self.platform,
+                        source_url=f"https://example.com/{self.platform}",
+                        title="#测试热点#",
+                        raw_content="测试热点",
+                        source_type="hotlist",
+                        raw_json={"rank": 1},
+                    )
+                ]
+
+        registry = CrawlerRegistry()
+        crawlers = [
+            HotCrawler("weibo_hot"),
+            HotCrawler("baidu_hot"),
+            HotCrawler("zhihu_hot", fail=True),
+        ]
+        for crawler in crawlers:
+            registry.register(crawler)
+        task = create_task(
+            "daily_hot",
+            created_by=1,
+            payload={
+                "sources": ["weibo_hot", "baidu_hot", "zhihu_hot"],
+                "source_limit": 30,
+                "result_limit": 10,
+                "rrf_k": 60,
+                "ttl_seconds": 900,
+            },
+        )
+        self.app.config["TASKS_RUN_SYNC"] = True
+
+        function = lambda task_id: daily_hot_job(task_id, registry=registry)
+        submit_background_job(self.app, function, task["id"])
+        submit_background_job(self.app, function, task["id"])
+
+        current = get_task(task["id"])
+        self.assertEqual(current["status"], "success")
+        self.assertEqual(current["result"]["status"], "partial")
+        self.assertEqual(current["result"]["item_count"], 1)
+        self.assertEqual(DailyHotRun.query.count(), 1)
+        self.assertEqual([crawler.calls for crawler in crawlers], [1, 1, 1])
+
     def test_sync_sqlite_execution_does_not_start_heartbeat_thread(self):
         task = create_task("crawl", created_by=1, payload={})
         self.app.config["TASKS_RUN_SYNC"] = True
@@ -224,6 +286,26 @@ class JobTest(unittest.TestCase):
             )
 
         self.assertTrue(job.called)
+
+    def test_default_recovery_registry_includes_daily_hot_job(self):
+        task = create_task("daily_hot", created_by=1, payload={})
+        self.app.config["TASKS_RUN_SYNC"] = True
+
+        def complete(task_id):
+            update_task(
+                task_id,
+                status="success",
+                progress=100,
+                message="done",
+                result={"run_id": 1},
+            )
+            return {"run_id": 1}
+
+        with patch("app.tasks.jobs.daily_hot_job", side_effect=complete) as job:
+            runner.recover_background_jobs(self.app)
+
+        self.assertTrue(job.called)
+        self.assertEqual(get_task(task["id"])["status"], "success")
 
     def test_runner_requeues_stale_running_task_on_startup(self):
         task = create_task("crawl", created_by=1, payload={})
@@ -341,11 +423,11 @@ class JobTest(unittest.TestCase):
     def test_recovery_scheduler_registers_periodic_scan(self):
         class FakeScheduler:
             def __init__(self):
-                self.job = None
+                self.jobs = []
                 self.started = False
 
             def add_job(self, function, trigger, **kwargs):
-                self.job = (function, trigger, kwargs)
+                self.jobs.append((function, trigger, kwargs))
 
             def start(self):
                 self.started = True
@@ -356,9 +438,46 @@ class JobTest(unittest.TestCase):
         self.assertTrue(hasattr(runner, "start_recovery_scheduler"))
         runner.start_recovery_scheduler(self.app, scheduler=scheduler)
 
-        self.assertEqual(scheduler.job[1], "interval")
-        self.assertEqual(scheduler.job[2]["seconds"], 30)
+        jobs = {item[2]["id"]: item for item in scheduler.jobs}
+        self.assertEqual(jobs["task-recovery-scan"][1], "interval")
+        self.assertEqual(jobs["task-recovery-scan"][2]["seconds"], 30)
+        self.assertIn("daily-hot-refresh", jobs)
         self.assertTrue(scheduler.started)
+
+    def test_daily_hot_scheduler_uses_active_admin_and_reuses_task(self):
+        admin = User(
+            username="scheduler-admin",
+            password_hash="unused",
+            role="admin",
+            status=1,
+        )
+        db.session.add(admin)
+        db.session.commit()
+        self.app.config.update(
+            DAILY_HOT_SYSTEM_USERNAME="scheduler-admin",
+            DAILY_HOT_REFRESH_INTERVAL_SECONDS=900,
+            DAILY_HOT_SOURCES=["weibo_hot", "baidu_hot"],
+            DAILY_HOT_SOURCE_LIMIT=20,
+            DAILY_HOT_RESULT_LIMIT=10,
+            DAILY_HOT_RRF_K=60,
+            DAILY_HOT_TTL_SECONDS=900,
+        )
+
+        with patch("app.tasks.scheduler.submit_background_job") as submit:
+            first = enqueue_daily_hot_refresh(self.app)
+            self.app.config["DAILY_HOT_SOURCES"] = ["baidu_hot", "weibo_hot"]
+            second = enqueue_daily_hot_refresh(self.app)
+
+        self.assertEqual(first["id"], second["id"])
+        self.assertEqual(Task.query.filter_by(task_type="daily_hot").count(), 1)
+        self.assertEqual(db.session.get(Task, first["id"]).created_by, admin.id)
+        self.assertEqual(submit.call_count, 1)
+
+    def test_daily_hot_scheduler_rejects_missing_system_actor(self):
+        self.app.config["DAILY_HOT_SYSTEM_USERNAME"] = "missing-admin"
+
+        with self.assertRaisesRegex(RuntimeError, "daily hot system actor"):
+            enqueue_daily_hot_refresh(self.app)
 
     def test_concurrent_equivalent_task_creation_creates_one_database_row(self):
         self.assertTrue(hasattr(task_service, "create_or_reuse_recent_task"))

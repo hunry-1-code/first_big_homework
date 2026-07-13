@@ -97,6 +97,7 @@ def collect_daily_hot(
     ttl_seconds: int = 900,
     now: datetime | None = None,
     force: bool = False,
+    progress_callback=None,
 ) -> DailyHotRun:
     now = now or _utcnow()
     selected_sources = sorted(
@@ -138,7 +139,9 @@ def collect_daily_hot(
     available_sources = []
     failed_sources = []
     errors = {}
-    for source in selected_sources:
+    for index, source in enumerate(selected_sources, start=1):
+        if progress_callback is not None:
+            progress_callback("source", index, len(selected_sources), source)
         try:
             crawler = registry.get(source)
             documents = crawler.crawl(
@@ -186,6 +189,8 @@ def collect_daily_hot(
             failed_sources.append(source)
             errors[source] = _source_error(type(exc).__name__.upper())
 
+    if progress_callback is not None:
+        progress_callback("fusion", len(ranked_items), len(selected_sources), None)
     fused = fuse_hot_rankings(
         ranked_items,
         rrf_k=rrf_k,
@@ -205,6 +210,8 @@ def collect_daily_hot(
         if not available_sources
         else ("partial" if failed_sources else "success")
     )
+    if progress_callback is not None:
+        progress_callback("persistence", len(fused), result_limit, None)
     run = DailyHotRun(
         run_date=now.date(),
         status=status,

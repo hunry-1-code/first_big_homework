@@ -247,15 +247,16 @@ def _normalized_payload(payload: dict | None) -> dict:
     keyword = normalized.get("keyword")
     if isinstance(keyword, str):
         normalized["keyword"] = " ".join(keyword.split()).casefold()
-    platforms = normalized.get("platforms")
-    if isinstance(platforms, list):
-        normalized["platforms"] = sorted(
-            {
-                item.strip().casefold()
-                for item in platforms
-                if isinstance(item, str) and item.strip()
-            }
-        )
+    for field in ("platforms", "sources"):
+        values = normalized.get(field)
+        if isinstance(values, list):
+            normalized[field] = sorted(
+                {
+                    item.strip().casefold()
+                    for item in values
+                    if isinstance(item, str) and item.strip()
+                }
+            )
     return normalized
 
 

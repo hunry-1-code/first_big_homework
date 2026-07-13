@@ -156,21 +156,21 @@ Use the common `{code,message,data}` response. Return date, generated time, stal
 - Modify: `backend/tests/test_jobs.py`
 - Create or modify: `backend/tests/test_task_recovery.py`
 
-- [ ] **Step 1: Write failing job and recovery tests**
+- [x] **Step 1: Write failing job and recovery tests**
 
 Assert a `daily_hot` task is claimed once, updates progress, persists a run, survives one source failure and is discoverable by recovery registry.
 
-- [ ] **Step 2: Run and verify RED**
+- [x] **Step 2: Run and verify RED**
 
-- [ ] **Step 3: Implement `daily_hot_job(task_id)`**
+- [x] **Step 3: Implement `daily_hot_job(task_id)`**
 
 Load sources/limits from task payload, call the service, update progress at source collection, fusion and persistence boundaries, then store run ID and counts.
 
-- [ ] **Step 4: Register recovery and scheduler**
+- [x] **Step 4: Register recovery and scheduler**
 
 Add `daily_hot` to the job registry. Scheduler creates or reuses an equivalent task every configured interval. Use the configured system/admin actor and fail explicitly if no valid actor exists; do not create an unowned Task because `created_by` is non-null.
 
-- [ ] **Step 5: Run task tests and commit**
+- [x] **Step 5: Run task tests and commit**
 
 ### Task 6: Enqueue independent enrichment for Top10 items
 

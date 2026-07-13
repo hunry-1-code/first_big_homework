@@ -330,6 +330,80 @@ def crawl_job(task_id: int, registry: CrawlerRegistry | None = None) -> dict:
     return summary
 
 
+def daily_hot_job(task_id: int, registry: CrawlerRegistry | None = None) -> dict:
+    task = get_task(task_id)
+    if task is None:
+        raise KeyError(f"task not found: {task_id}")
+    payload = task.get("payload") or {}
+    from app.services.daily_hot_service import collect_daily_hot
+
+    update_task(
+        task_id,
+        status="running",
+        progress=5,
+        message="正在准备今日热榜采集。",
+    )
+
+    def report(stage, current, total, source):
+        if stage == "source":
+            progress = 10 + int(current / max(1, total) * 50)
+            message = f"正在采集热榜来源 {current}/{total}: {source}。"
+        elif stage == "fusion":
+            progress = 75
+            message = f"正在融合 {current} 条跨平台热榜记录。"
+        else:
+            progress = 90
+            message = f"正在持久化 Top{min(current, total)} 热点快照。"
+        update_task(task_id, progress=progress, message=message)
+
+    run = collect_daily_hot(
+        registry=registry,
+        sources=payload.get("sources")
+        or current_app.config.get(
+            "DAILY_HOT_SOURCES",
+            ["weibo_hot", "baidu_hot", "zhihu_hot"],
+        ),
+        source_limit=payload.get(
+            "source_limit",
+            current_app.config.get("DAILY_HOT_SOURCE_LIMIT", 30),
+        ),
+        result_limit=payload.get(
+            "result_limit",
+            current_app.config.get("DAILY_HOT_RESULT_LIMIT", 10),
+        ),
+        rrf_k=payload.get(
+            "rrf_k",
+            current_app.config.get("DAILY_HOT_RRF_K", 60),
+        ),
+        ttl_seconds=payload.get(
+            "ttl_seconds",
+            current_app.config.get("DAILY_HOT_TTL_SECONDS", 900),
+        ),
+        force=bool(payload.get("force", False)),
+        progress_callback=report,
+    )
+    summary = {
+        "run_id": run.id,
+        "status": run.status,
+        "item_count": int(run.item_count or 0),
+        "available_sources": run.available_sources or [],
+        "failed_sources": run.failed_sources or [],
+    }
+    task_status = "failed" if run.status == "failed" else "success"
+    update_task(
+        task_id,
+        status=task_status,
+        progress=100,
+        message=(
+            "今日热榜采集完成。"
+            if task_status == "success"
+            else "今日热榜所有来源均采集失败。"
+        ),
+        result=summary,
+    )
+    return summary
+
+
 def import_job(task_id: int) -> dict:
     task = get_task(task_id)
     if task is None:
