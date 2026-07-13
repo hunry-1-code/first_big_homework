@@ -16,7 +16,8 @@ def ask():
     if not question:
         return fail("question 不能为空", 400)
     event_id = payload.get("event_id")
-    return ok(answer_question(g.current_user["id"], question, event_id))
+    platform = payload.get("platform")
+    return ok(answer_question(g.current_user["id"], question, event_id, platform))
 
 
 @qa_bp.post("/ask/stream")
@@ -27,7 +28,8 @@ def ask_stream():
     if not question:
         return fail("question 不能为空", 400)
     event_id = payload.get("event_id")
-    return ok(answer_question(g.current_user["id"], question, event_id), message="stream reserved")
+    platform = payload.get("platform")
+    return ok(answer_question(g.current_user["id"], question, event_id, platform), message="stream reserved")
 
 
 @qa_bp.get("/history")
