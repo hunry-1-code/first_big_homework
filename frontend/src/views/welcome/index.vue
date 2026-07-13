@@ -134,9 +134,10 @@ async function loadDailyHot() {
   finally { dailyHotLoading.value = false; }
 }
 
-function searchDailyHot(title: string) {
+async function searchDailyHot(title: string) {
   keyword.value = title;
-  handleSearch();
+  // 只搜索已有事件，不触发爬取
+  await eventsStore.loadEvents({ keyword: title });
 }
 
 onMounted(() => {
