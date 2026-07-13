@@ -79,9 +79,12 @@ def answer_question(user_id: int, question: str, event_id=None, platform: str | 
         timeout=current_app.config.get("LLM_REQUEST_TIMEOUT", 30),
     )
 
+    has_event = event_id is not None
     system_prompt = (
-        "你是舆情分析助手。只能依据给定事件材料回答；证据不足时明确说明，不得编造。"
-        "回答应包含：1) 基于材料的核心结论 2) 支撑数据（如有）3) 信息不足时的说明。"
+        "你是舆情分析助手。"
+        + ("只能依据给定事件材料回答；证据不足时明确说明，不得编造。" if has_event
+           else "可以结合联网搜索结果回答一般性问题。")
+        + "回答应包含：1) 核心结论 2) 支撑数据（如有）3) 信息不足时的说明。"
     )
 
     method = "llm"
@@ -90,7 +93,11 @@ def answer_question(user_id: int, question: str, event_id=None, platform: str | 
         messages = [{"role": "system", "content": system_prompt}]
         messages.extend(history)
         messages.append({"role": "user", "content": f"事件材料：\n{context}\n\n问题：{question}"})
-        response = client.chat(messages, temperature=0.2)
+        # 无事件时启用联网搜索
+        chat_kwargs = {"temperature": 0.2}
+        if not has_event:
+            chat_kwargs["enable_search"] = True
+        response = client.chat(messages, **chat_kwargs)
         answer = response["content"]
         model_name = response.get("model")
     except Exception:
