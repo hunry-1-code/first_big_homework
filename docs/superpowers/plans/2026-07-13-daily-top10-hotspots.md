@@ -16,7 +16,7 @@
 - Create: `backend/app/analysis/daily_hot.py`
 - Create: `backend/tests/test_daily_hot.py`
 
-- [ ] **Step 1: Write failing pure algorithm tests**
+- [x] **Step 1: Write failing pure algorithm tests**
 
 Cover punctuation/hashtag normalization, same-title merging, independent source contribution, stable tie-breaking and result limiting.
 
@@ -31,13 +31,13 @@ self.assertEqual(ranked[0].normalized_title, "某地暴雨")
 self.assertEqual(ranked[0].source_ranks, {"weibo_hot": 1, "baidu_hot": 3})
 ```
 
-- [ ] **Step 2: Run and verify RED**
+- [x] **Step 2: Run and verify RED**
 
 ```powershell
 python -m pytest backend/tests/test_daily_hot.py -q
 ```
 
-- [ ] **Step 3: Implement dataclasses and fusion**
+- [x] **Step 3: Implement dataclasses and fusion**
 
 ```python
 @dataclass(frozen=True)
@@ -51,7 +51,7 @@ class HotRankItem:
 
 Normalize Unicode, hashtags, repeated whitespace and trailing heat labels. Calculate `sum(1 / (rrf_k + rank))`; one source contributes once per normalized item. Sort by score descending, source count descending, best rank ascending, normalized title ascending.
 
-- [ ] **Step 4: Run tests and commit**
+- [x] **Step 4: Run tests and commit**
 
 Commit pure algorithm and tests.
 
