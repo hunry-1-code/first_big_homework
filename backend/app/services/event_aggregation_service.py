@@ -404,20 +404,24 @@ def _formal_candidate(cluster, config, versions):
 
 def _cluster_title(cluster) -> str:
     raw = max(cluster.documents, key=lambda item: (len(item.title), -item.article_id)).title or "未命名事件"
-    # 尝试 AI 生成标题
+    # 尝试 AI 生成标题（单篇也走 AI，因为微博 text_raw 是全文）
     titles = list(dict.fromkeys(d.title for d in cluster.documents if d.title and len(d.title) > 5))
-    if len(titles) >= 2:
+    if titles:
         ai_title = _ai_generate_title(titles[:10])
         if ai_title:
             return ai_title
-    # 回退：截断
-    if len(raw) > 80:
+    # 回退：去 hashtag + 截断到 60 字
+    import re as _re
+    cleaned = _re.sub(r'#\S+?#', '', raw)  # 去微博 hashtag
+    cleaned = _re.sub(r'【.+?】', '', cleaned)  # 去微博话题标记
+    cleaned = cleaned.strip()
+    if len(cleaned) > 60:
         for sep in ("。", "！", "？", "；", "，", " ", "\n"):
-            idx = raw.rfind(sep, 0, 80)
-            if idx > 40:
-                return raw[:idx + 1]
-        return raw[:77] + "..."
-    return raw
+            idx = cleaned.rfind(sep, 0, 60)
+            if idx > 20:
+                return cleaned[:idx + 1]
+        return cleaned[:57] + "..."
+    return cleaned or raw[:60]
 
 
 def _llm_client():

@@ -12,6 +12,7 @@ from sqlalchemy.exc import IntegrityError
 from app.analysis.feature_config import FeatureConfig
 from app.analysis.feature_matrix import build_feature_matrices
 from app.analysis.heat_calculator import (
+    EventHeatResult,
     HeatArticle,
     EventHeatInput,
     calculate_event_heats,
@@ -396,21 +397,33 @@ def persist_event_heat_snapshot(
             continue
         if rank > 0:
             hotlist_ranks.append(rank)
-    result = calculate_single_event_heat(
-        EventHeatInput(
-            event_id=event.id,
-            articles=[
-                _heat_article(
-                    article,
-                    article_snapshots.get(article.latest_snapshot_id),
-                    is_representative=not bool(article.is_duplicate),
-                )
-                for article in articles
-            ],
-            hotlist_ranks=hotlist_ranks,
-        ),
-        calculated_at=calculated_at,
-        config=config,
+    # 单事件热度：百分位排名公式在单事件时退化，改用绝对评分
+    representative_articles = [
+        article for article in articles if not bool(article.is_duplicate)
+    ]
+    total = len(representative_articles) or 1
+    platform_count = len({a.platform for a in articles if a.platform}) or 1
+    hours_ago = max(0, (calculated_at - (event.first_publish_time or calculated_at)).total_seconds() / 3600)
+    time_decay = max(0.15, 1.0 - hours_ago / (24 * 7))
+    # 基础分：文章数 × 平台多样性 × 时间衰减
+    raw_heat = min(100, total * 2.0 * (1 + platform_count * 0.3) * time_decay)
+    # 互动加成
+    total_engagement = 0
+    for article in articles:
+        total_engagement += (article.comments_count or 0) + (article.reposts_count or 0) + (article.likes_count or 0)
+    engagement_bonus = min(20, total_engagement / max(1, total) * 0.1)
+    final_heat = round(min(100, raw_heat + engagement_bonus), 1)
+    result = EventHeatResult(
+        event_id=event.id,
+        raw_statistics={"independent_report_count_7d": total, "platform_count": platform_count},
+        component_scores={"raw": raw_heat, "engagement": engagement_bonus},
+        core_heat=round(final_heat * 0.7, 1),
+        spread_heat=round(final_heat * 0.3, 1),
+        final_heat=final_heat,
+        eligible_as_hot=final_heat >= 40,
+        rank=None,
+        time_confidence="medium" if total >= 3 else "low",
+        warnings=[],
     )
     snapshot = EventHeatSnapshot(
         hotspot_run_id=None,
