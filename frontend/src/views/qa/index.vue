@@ -36,7 +36,7 @@
             clearable
           >
             <el-option
-              v-for="p in PLATFORMS"
+              v-for="p in availablePlatforms"
               :key="p.name"
               :label="p.name"
               :value="p.name"
@@ -222,7 +222,16 @@ async function loadHistory() {
 }
 
 // 切换事件上下文
+// 只显示选中事件实际涉及的信源平台
+const availablePlatforms = computed(() => {
+  if (!selectedEventId.value) return PLATFORMS; // 未选事件时显示全部
+  const event = eventsStore.events.find((e: any) => e.id === selectedEventId.value);
+  if (!event?.platforms?.length) return PLATFORMS;
+  return PLATFORMS.filter(p => event.platforms.includes(p.name));
+});
+
 function handleEventChange() {
+  selectedPlatform.value = ""; // 切换事件时重置平台选择
   messages.value = [];
   loadHistory();
 }
