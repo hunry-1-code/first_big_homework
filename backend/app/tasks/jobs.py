@@ -11,7 +11,7 @@ from app.extensions import db
 from app.models import HotSeedExpansion
 from app.services.article_pipeline_service import persist_raw_document
 from app.services.crawl_service import CrawlService
-from app.services.task_service import get_task, update_task
+from app.services.task_service import get_task, update_task, record_stage, build_summary
 
 
 def _first_present(item: dict, *keys: str):
@@ -69,6 +69,7 @@ def crawl_job(task_id: int, registry: CrawlerRegistry | None = None) -> dict:
         mode=mode,
     )
     update_task(task_id, progress=30, message=f"采集完成，获得 {len(batch.documents)} 条原始数据。")
+    record_stage(task_id, "crawl", "done", f"{len(batch.documents)}篇")
 
     processed = 0
     failed = 0
@@ -287,6 +288,7 @@ def crawl_job(task_id: int, registry: CrawlerRegistry | None = None) -> dict:
         )
 
         update_task(task_id, progress=96, message="正在执行搜索语料内容分析。")
+        record_stage(task_id, "preprocess", "done", f"{processed}篇")
         effective_platforms = platforms or list(batch.platform_counts.keys())
         analysis_run, analysis_reused = create_analysis_run(
             list(dict.fromkeys(persisted_article_ids)),
@@ -327,6 +329,16 @@ def crawl_job(task_id: int, registry: CrawlerRegistry | None = None) -> dict:
         update_task(task_id, status="failed", progress=100, message="采集任务失败。", result=summary)
     else:
         update_task(task_id, status="success", progress=100, message="采集和预处理完成。", result=summary)
+        record_stage(task_id, "done", "done", f"事件{summary.get('event_count',summary.get('cluster_count','?'))}个")
+        from app.services.task_service import build_summary
+        # 最终摘要
+        s = build_summary(task_id)
+        if s:
+            from app.models import Task
+            t = db.session.get(Task, task_id)
+            if t:
+                t.summary = s
+                db.session.commit()
     return summary
 
 

@@ -82,19 +82,35 @@
       </el-col>
     </el-row>
 
-    <!-- 底部：系统全局异步任务列表 -->
+    <!-- 底部：全链路进程管理器 -->
     <el-card shadow="never" class="!border-slate-200/60 dark:!border-slate-800/60 rounded-xl">
       <template #header>
-        <div class="font-bold text-slate-800 dark:text-slate-100">
-          ⚙️ 系统全局异步任务调度中心 (Global Task Scheduler)
+        <div class="flex justify-between items-center">
+          <div class="flex items-center gap-4">
+            <span class="font-bold text-slate-800 dark:text-slate-100">⚙️ 全链路进程管理器</span>
+            <div class="flex items-center gap-3 text-xs">
+              <span class="text-slate-400">总计 <b class="text-slate-600">{{ allTasks.length }}</b></span>
+              <span class="text-blue-500">运行中 <b>{{ runningCount }}</b></span>
+              <span class="text-emerald-500">完成 <b>{{ doneCount }}</b></span>
+              <span class="text-red-500">失败 <b>{{ failedCount }}</b></span>
+            </div>
+          </div>
+          <div class="flex gap-2">
+            <el-button size="small" @click="loadData" :loading="tasksLoading">刷新</el-button>
+            <el-popconfirm title="清理所有失败任务？" @confirm="cleanFailed">
+              <template #reference>
+                <el-button size="small" type="danger" plain>清理失败</el-button>
+              </template>
+            </el-popconfirm>
+          </div>
         </div>
       </template>
 
       <div v-loading="tasksLoading">
         <TaskList :tasks="allTasks" />
         <div v-if="allTasks.length === 0" class="flex flex-col items-center justify-center py-10 text-slate-400 text-sm">
-          <span>📭</span>
-          <p class="mt-2">系统当前没有任何后台任务调度记录</p>
+          <span class="text-4xl mb-2">📭</span>
+          <p>暂无进程记录</p>
         </div>
       </div>
     </el-card>
@@ -102,12 +118,13 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { onMounted, ref, computed } from "vue";
 import { getCrawlerStatus, triggerCrawler } from "@/api/crawler";
 import { importJsonDocuments } from "@/api/importData";
 import { getAllTasks } from "@/api/tasks";
 import TaskList from "@/components/TaskList.vue";
 import { message } from "@/utils/message";
+import { http } from "@/utils/http";
 
 defineOptions({
   name: "OpinionAdmin"
@@ -120,6 +137,19 @@ const jsonText = ref("[]");
 const statusLoading = ref(false);
 const tasksLoading = ref(false);
 const importing = ref(false);
+
+const runningCount = computed(() => allTasks.value.filter(t => t.status === 'running').length);
+const doneCount = computed(() => allTasks.value.filter(t => t.status === 'success' || t.status === 'completed').length);
+const failedCount = computed(() => allTasks.value.filter(t => t.status === 'failed').length);
+
+async function cleanFailed() {
+  let ok = 0;
+  for (const t of allTasks.value.filter(t => t.status === 'failed')) {
+    try { await http.request('delete', '/api/tasks/' + t.id); ok++; } catch {}
+  }
+  message(`清理完成：${ok} 个`, { type: 'success' });
+  loadData();
+}
 
 onMounted(() => {
   loadData();

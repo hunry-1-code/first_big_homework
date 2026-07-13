@@ -19,6 +19,19 @@ def task_detail(task_id: int):
     return ok(sanitize_task(task))
 
 
+@tasks_bp.delete("/<int:task_id>")
+@admin_required
+def delete_task(task_id: int):
+    from app.extensions import db
+    from app.models.task import Task
+    t = db.session.get(Task, task_id)
+    if t is None:
+        return fail("任务不存在", 404)
+    db.session.delete(t)
+    db.session.commit()
+    return ok(message="已删除")
+
+
 @tasks_bp.get("/my")
 @login_required
 def my_tasks():

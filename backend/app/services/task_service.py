@@ -74,6 +74,9 @@ def _serialize(task) -> dict:
         "message": task.message,
         "payload": task.payload or {},
         "result": task.result,
+        "parent_task_id": task.parent_task_id,
+        "stages": task.stages or [],
+        "summary": task.summary or build_summary(task.id),
         "created_by": task.created_by,
         "created_at": task.created_at.isoformat(timespec="seconds") if task.created_at else None,
         "started_at": task.started_at.isoformat(timespec="seconds") if task.started_at else None,
@@ -355,6 +358,41 @@ def create_or_reuse_recent_task(
 def reset_task_store() -> None:
     with _LOCK:
         _TASKS.clear()
+
+
+def record_stage(task_id: int, stage: str, status: str = "done", detail: str = "") -> None:
+    """记录任务流水线阶段，用于运维面板全链路可视化。"""
+    from app.models.task import Task
+    task = db.session.get(Task, task_id)
+    if task is None:
+        return
+    stages = list(task.stages or [])
+    stages.append({
+        "stage": stage,
+        "status": status,
+        "at": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(timespec="seconds"),
+        "detail": str(detail)[:200],
+    })
+    task.stages = stages
+    db.session.commit()
+
+
+def build_summary(task_id: int) -> str:
+    """根据 stages 生成人可读的任务摘要。"""
+    from app.models.task import Task
+    task = db.session.get(Task, task_id)
+    if task is None or not task.stages:
+        return ""
+    names = {"crawl":"采集","preprocess":"预处理","content_analysis":"内容分析",
+             "aggregation":"事件聚合","sentiment":"情感分析","publish":"发布",
+             "dedup":"LLM去重","enrich":"热点补全"}
+    parts = []
+    for s in (task.stages or []):
+        n = names.get(s["stage"], s["stage"])
+        d = f"({s['detail']})" if s.get("detail") else ""
+        i = "OK" if s["status"] == "done" else "FAIL" if s["status"] == "failed" else "..."
+        parts.append(f"[{i}]{n}{d}")
+    return " > ".join(parts)
 
 
 def get_task(task_id: int) -> dict | None:
