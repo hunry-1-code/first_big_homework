@@ -192,27 +192,27 @@ Commit keyword implementation and tests.
 - Modify: `backend/tests/test_sentiment_algorithms.py`
 - Modify: `backend/tests/test_sentiment_service.py`
 
-- [ ] **Step 1: Add failing tests**
+- [x] **Step 1: Add failing tests**
 
 Assert the hottest article's spread factor is at most 1.5. Add a fake LLM client call counter and assert event summary generation does not cause an additional chat call after article analysis.
 
-- [ ] **Step 2: Run and verify RED**
+- [x] **Step 2: Run and verify RED**
 
-- [ ] **Step 3: Cap the factor**
+- [x] **Step 3: Cap the factor**
 
 ```python
 spread_factor = min(1.5, 1.0 + normalized_log_heat * 0.5)
 ```
 
-- [ ] **Step 4: Generate deterministic snapshot summary**
+- [x] **Step 4: Generate deterministic snapshot summary**
 
 Build one sentence from dominant label, weighted ratios, average score and the top representative reasons. Store it inside `calculation_details` or the report payload without calling LLM again.
 
-- [ ] **Step 5: Mark SnowNLP domain fallback**
+- [x] **Step 5: Mark SnowNLP domain fallback**
 
 Add `DOMAIN_MISMATCH_FALLBACK` and enforce the configured confidence cap. Keep a provider interface for an optional transformer, but do not add a mandatory model.
 
-- [ ] **Step 6: Run tests and commit**
+- [x] **Step 6: Run tests and commit**
 
 ```powershell
 python -m pytest backend/tests/test_sentiment_algorithms.py backend/tests/test_sentiment_service.py -q

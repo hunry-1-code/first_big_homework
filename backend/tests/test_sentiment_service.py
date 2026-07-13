@@ -216,16 +216,31 @@ class SentimentServiceTest(unittest.TestCase):
             calls.append(args[0])
             return llm_result()
 
-        run_sentiment_analysis(run.id, llm_analyzer=analyzer)
+        class SummaryLLMClient:
+            chat_calls = 0
+
+            def __init__(self, **kwargs):
+                pass
+
+            def chat(self, messages, **kwargs):
+                type(self).chat_calls += 1
+                return {"content": "负面情绪占主导，需要持续关注事件处置进展。"}
+
+        with patch("app.llm.client.LLMClient", SummaryLLMClient):
+            run_sentiment_analysis(run.id, llm_analyzer=analyzer)
 
         self.assertEqual(len(calls), 1)
+        self.assertEqual(SummaryLLMClient.chat_calls, 0)
         results = ArticleSentimentResult.query.order_by(ArticleSentimentResult.article_id).all()
         self.assertEqual([item.method for item in results], ["llm", "inherited"])
         self.assertEqual(results[1].inherited_from_result_id, results[0].id)
         self.assertEqual(event.sentiment_negative, 1.0)
         self.assertIsNotNone(event.current_sentiment_snapshot_id)
         self.assertIsNotNone(representative.current_sentiment_result_id)
-        self.assertEqual(get_event_sentiment(event.id)["raw_counts"]["negative"], 2)
+        snapshot_data = get_event_sentiment(event.id)
+        self.assertEqual(snapshot_data["raw_counts"]["negative"], 2)
+        self.assertIsInstance(snapshot_data["summary"], str)
+        self.assertIn("测试判断依据", snapshot_data["calculation_details"]["summary"])
         self.assertEqual(get_event_detail(event.id)["sentiment"]["raw_counts"]["negative"], 2)
 
     def test_llm_failure_uses_fallback(self):

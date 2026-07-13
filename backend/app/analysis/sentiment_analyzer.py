@@ -140,7 +140,7 @@ def analyze_with_snownlp(
         "reason": "LLM 不可用，使用 SnowNLP 概率模型降级判断。",
         "method": "snownlp",
         "model_name": "snownlp",
-        "warnings": ["SNOWNLP_FALLBACK"],
+        "warnings": ["SNOWNLP_FALLBACK", "DOMAIN_MISMATCH_FALLBACK"],
     }
 
 

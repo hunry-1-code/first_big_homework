@@ -40,8 +40,8 @@ def article_sentiment_weight(
     heat = max(0.0, float(item.heat_contribution or 0.0))
     spread = 1.0
     if event_max_heat > 0 and heat > 0:
-        spread += math.log1p(heat) / math.log1p(event_max_heat)
-    spread = _clamp(spread, 1.0, 2.0)
+        normalized_log_heat = math.log1p(heat) / math.log1p(event_max_heat)
+        spread = min(1.5, 1.0 + normalized_log_heat * 0.5)
     weight = quality * spam * duplicate * spread
     return weight, {
         "quality_weight": quality,
@@ -53,7 +53,10 @@ def article_sentiment_weight(
 
 
 def summarize_sentiment(
-    items: Iterable[SentimentAggregateItem], config: SentimentConfig
+    items: Iterable[SentimentAggregateItem],
+    config: SentimentConfig,
+    *,
+    representative_reasons: Iterable[str] | None = None,
 ) -> dict:
     rows = [item for item in items if item.label in LABELS]
     raw_counts = {label: 0 for label in LABELS}
@@ -74,42 +77,58 @@ def summarize_sentiment(
         for label in LABELS
     }
     dominant = max(LABELS, key=lambda label: (ratios[label], -LABELS.index(label))) if rows else None
+    average_score = score_total / total_weight if total_weight else 0.0
     return {
         "article_count": len(rows),
         "representative_count": representative_count,
         "raw_counts": raw_counts,
         "weighted_ratios": ratios,
-        "average_score": score_total / total_weight if total_weight else 0.0,
+        "average_score": average_score,
         "dominant_label": dominant,
         "effective_weight": total_weight,
-        "summary": _generate_sentiment_summary(ratios, dominant, len(rows)),
+        "summary": _generate_sentiment_summary(
+            ratios,
+            dominant,
+            len(rows),
+            average_score=average_score,
+            representative_reasons=representative_reasons,
+        ),
     }
 
 
-def _generate_sentiment_summary(ratios: dict, dominant: str | None, total: int) -> str | None:
-    """用 LLM 生成情感分析自然语言总结。"""
-    try:
-        from flask import current_app
-        from app.llm.client import LLMClient
-        client = LLMClient(
-            api_key=current_app.config.get("LLM_API_KEY", ""),
-            base_url=current_app.config.get("LLM_BASE_URL", ""),
-            model_name=current_app.config.get("LLM_MODEL_NAME", ""),
-            timeout=10,
-        )
-        pos = round(ratios.get("positive", 0) * 100)
-        neg = round(ratios.get("negative", 0) * 100)
-        neu = round(ratios.get("neutral", 0) * 100)
-        resp = client.chat([
-            {"role": "system", "content": "你是舆情分析师。用一句话（≤40字）总结情感倾向分布。"},
-            {"role": "user", "content": f"正面{pos}%、负面{neg}%、中立{neu}%，共{total}篇，主导情感是{dominant}。请一句话总结："}
-        ], temperature=0.3, max_tokens=60)
-        result = resp["content"].strip()
-        if 5 <= len(result) <= 60:
-            return result
-    except Exception:
-        pass
-    return None
+def _generate_sentiment_summary(
+    ratios: dict,
+    dominant: str | None,
+    total: int,
+    *,
+    average_score: float = 0.0,
+    representative_reasons: Iterable[str] | None = None,
+) -> str:
+    """Build a deterministic, persistable summary without another model call."""
+    label_names = {
+        "positive": "正面",
+        "negative": "负面",
+        "neutral": "中立",
+    }
+    dominant_name = label_names.get(dominant, "暂无")
+    positive = round(float(ratios.get("positive", 0.0)) * 100, 1)
+    negative = round(float(ratios.get("negative", 0.0)) * 100, 1)
+    neutral = round(float(ratios.get("neutral", 0.0)) * 100, 1)
+    summary = (
+        f"共分析{int(total)}篇文章，主导情感为{dominant_name}；"
+        f"正面{positive}%、负面{negative}%、中立{neutral}%，"
+        f"加权平均分{float(average_score):.3f}。"
+    )
+    reasons = []
+    for reason in representative_reasons or []:
+        cleaned = " ".join(str(reason or "").split())
+        if cleaned and cleaned not in reasons:
+            reasons.append(cleaned[:120])
+        if len(reasons) >= 3:
+            break
+    if reasons:
+        summary += "代表性判断依据：" + "；".join(reasons) + "。"
+    return summary
 
 
 def build_daily_sentiment(

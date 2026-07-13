@@ -283,16 +283,8 @@ def _result_values(result: dict, run: SentimentRun) -> dict:
 
 def _serialize_snapshot(snapshot: EventSentimentSnapshot) -> dict:
     daily_trend = snapshot.daily_trend or []
-    # 情感文字总结（运行时生成，不持久化）
-    sentiment_summary = None
-    try:
-        from app.analysis.sentiment_aggregator import _generate_sentiment_summary
-        from collections import Counter
-        ratios = snapshot.weighted_ratios or {}
-        dominant = max(ratios, key=ratios.get) if ratios else None
-        sentiment_summary = _generate_sentiment_summary(ratios, dominant, snapshot.article_count or 0)
-    except Exception:
-        pass
+    calculation_details = snapshot.calculation_details or {}
+    sentiment_summary = calculation_details.get("summary")
 
     return {
         "snapshot_id": snapshot.id,
@@ -316,7 +308,7 @@ def _serialize_snapshot(snapshot: EventSentimentSnapshot) -> dict:
         "daily": daily_trend,
         "platform_distribution": snapshot.platform_distribution or [],
         "time_confidence": snapshot.time_confidence,
-        "calculation_details": snapshot.calculation_details or {},
+        "calculation_details": calculation_details,
         "algorithm_version": snapshot.algorithm_version,
         "warnings": snapshot.warnings or [],
     }
@@ -537,7 +529,16 @@ def run_sentiment_analysis(
                     article.sentiment_content_identity = result_row.content_identity
                     article.current_sentiment_result_id = result_row.id
                     article.sentiment_analyzed_at = now
-                summary = summarize_sentiment(items, config)
+                representative_reasons = [
+                    result_row.reason
+                    for result_row in target_results
+                    if result_row.reason and result_row.method != "inherited"
+                ][:3]
+                summary = summarize_sentiment(
+                    items,
+                    config,
+                    representative_reasons=representative_reasons,
+                )
                 daily = build_daily_sentiment(items, config)
                 platforms = build_platform_sentiment(items, config)
                 reliable = sum(item.publish_time is not None for item in items)
@@ -569,6 +570,8 @@ def run_sentiment_analysis(
                     calculation_details={
                         "effective_weight": summary["effective_weight"],
                         "config_hash": run.config_hash,
+                        "summary": summary["summary"],
+                        "representative_reasons": representative_reasons,
                     },
                     algorithm_version=config.algorithm_version,
                     warnings=warnings,

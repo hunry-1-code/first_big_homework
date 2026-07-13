@@ -12,6 +12,7 @@ if str(BACKEND_ROOT) not in sys.path:
 
 from app.analysis.sentiment_aggregator import (
     SentimentAggregateItem,
+    article_sentiment_weight,
     build_daily_sentiment,
     build_platform_sentiment,
     summarize_sentiment,
@@ -115,6 +116,7 @@ class SentimentAnalyzerTest(unittest.TestCase):
         self.assertEqual((negative["label"], negative["score"]), ("negative", -0.6))
         self.assertLessEqual(positive["confidence"], SentimentConfig().snownlp_confidence_cap)
         self.assertIn("SNOWNLP_FALLBACK", positive["warnings"])
+        self.assertIn("DOMAIN_MISMATCH_FALLBACK", positive["warnings"])
 
 
 class SentimentAggregatorTest(unittest.TestCase):
@@ -168,6 +170,14 @@ class SentimentAggregatorTest(unittest.TestCase):
         self.assertLess(result["weighted_ratios"]["negative"], 0.5)
         self.assertGreaterEqual(result["average_score"], -1.0)
         self.assertLessEqual(result["average_score"], 1.0)
+        self.assertIsInstance(result["summary"], str)
+
+    def test_hottest_article_spread_factor_is_capped_at_one_point_five(self):
+        item = self._item(1, "positive", 0.8, heat_contribution=1000)
+
+        _weight, details = article_sentiment_weight(item, event_max_heat=1000)
+
+        self.assertLessEqual(details["spread_factor"], 1.5)
 
     def test_daily_trend_prefers_publish_time_and_marks_observed_fallback(self):
         items = [
