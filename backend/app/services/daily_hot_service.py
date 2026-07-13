@@ -378,9 +378,66 @@ def create_daily_hot_enrichment_tasks(
     return tasks
 
 
+def deduplicate_hot_topics(items: list[DailyHotItem]) -> list[DailyHotItem]:
+    """LLM 主题聚合：语义去重，合并描述同一事件的标题。返回主条目列表。"""
+    if len(items) <= 1:
+        return items
+
+    titles = [item.title for item in items]
+    try:
+        from flask import current_app
+        from app.llm.client import LLMClient
+        client = LLMClient(
+            api_key=current_app.config.get("LLM_API_KEY", ""),
+            base_url=current_app.config.get("LLM_BASE_URL", ""),
+            model_name=current_app.config.get("LLM_MODEL_NAME", ""),
+            timeout=20,
+        )
+        joined = "\n".join(f"{i+1}. {t}" for i, t in enumerate(titles))
+        resp = client.chat([
+            {"role": "system", "content": (
+                "你是热榜去重助手。以下热榜标题可能描述同一事件。"
+                "将它们分组，每组用 canonical_name 命名，提取 3-5 个关键词。"
+                "返回 JSON: [{\"canonical_name\":\"规范名称\",\"keywords\":[\"词1\",\"词2\"],\"merged_indices\":[1,3,5]}]"
+                "未合并的标题单独成组。只输出 JSON 数组。"
+            )},
+            {"role": "user", "content": f"热榜标题：\n{joined}\n\n请分组去重："}
+        ], temperature=0.2, max_tokens=500)
+        text = resp["content"].strip()
+        fenced = re.fullmatch(r"```(?:json)?\s*(.*?)\s*```", text, re.DOTALL | re.IGNORECASE)
+        if fenced: text = fenced.group(1)
+        groups = json.loads(text)
+
+        if not isinstance(groups, list) or not groups:
+            return items
+
+        # 应用分组：保留每组的第一个作为主条目，其余标记为 merged
+        merged_set = set()
+        canonical_map = {}
+        for g in groups:
+            if not isinstance(g, dict): continue
+            indices = g.get("merged_indices", [])
+            if not indices: continue
+            canonical_idx = indices[0] - 1  # 1-indexed -> 0-indexed
+            if 0 <= canonical_idx < len(items):
+                canonical_item = items[canonical_idx]
+                canonical_item.topic_keywords = g.get("keywords", [])
+                canonical_map[canonical_idx] = canonical_item
+                for idx in indices[1:]:
+                    merged_idx = idx - 1
+                    if 0 <= merged_idx < len(items):
+                        items[merged_idx].merged_into_item_id = canonical_item.id
+                        merged_set.add(merged_idx)
+
+        return [item for i, item in enumerate(items) if i not in merged_set]
+    except Exception:
+        return items  # LLM 失败时回退：全部保留
+
+
 __all__ = [
     "collect_daily_hot",
     "create_daily_hot_enrichment_tasks",
+    "deduplicate_hot_topics",
     "get_today_hotspots",
     "serialize_daily_hot_run",
 ]

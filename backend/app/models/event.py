@@ -50,6 +50,8 @@ class Event(db.Model):
     metadata_confidence = db.Column(db.Float, nullable=False, default=0.0)
     metadata_evidence = db.Column(db.JSON)
     metadata_updated_at = db.Column(db.DateTime)
+    source = db.Column(db.String(20), nullable=False, default="search")  # search / daily_hot / manual
+    ttl_days = db.Column(db.Integer, nullable=True)  # 热点事件 7 天过期，搜索事件 null=永久
     center_vector = db.Column(db.JSON)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())

@@ -698,6 +698,8 @@ def run_event_aggregation(
                             title=_cluster_title(cluster),
                             topic_category=cluster.topic_category,
                             topic_name=cluster.topic_name,
+                            source="search" if run.mode != "hot" else "daily_hot",
+                            ttl_days=7 if run.mode == "hot" else None,
                             first_publish_time=min(
                                 (item.effective_time for item in cluster.documents if item.effective_time),
                                 default=None,
@@ -1057,6 +1059,8 @@ def publish_cluster(
         title=source.title,
         topic_category=source.topic_category,
         topic_name=source.topic_name,
+        source=publish_run.mode if publish_run.mode != "hot" else "daily_hot",
+        ttl_days=7 if publish_run.mode == "hot" else None,
         first_publish_time=source.first_publish_time,
         last_activity_time=source.last_activity_time,
     )

@@ -72,6 +72,8 @@ class DailyHotItem(db.Model):
         db.ForeignKey("task.id"),
         nullable=True,
     )
+    merged_into_item_id = db.Column(db.Integer, nullable=True, index=True)  # LLM 去重后合并到主条目
+    topic_keywords = db.Column(db.JSON)  # LLM 提取的关键词列表
     error_code = db.Column(db.String(64))
     error_message = db.Column(db.String(500))
     created_at = db.Column(db.DateTime, server_default=db.func.now())

@@ -382,6 +382,16 @@ def daily_hot_job(task_id: int, registry: CrawlerRegistry | None = None) -> dict
         force=bool(payload.get("force", False)),
         progress_callback=report,
     )
+    # LLM 主题去重
+    if run.status in {"success", "partial"}:
+        from app.services.daily_hot_service import deduplicate_hot_topics
+        from app.models import DailyHotItem
+        items = DailyHotItem.query.filter_by(run_id=run.id, merged_into_item_id=None)\
+            .order_by(DailyHotItem.rank).all()
+        if items:
+            update_task(task_id, progress=80, message=f"正在 LLM 主题去重 ({len(items)} 条)...")
+            canonical = deduplicate_hot_topics(items)
+            update_task(task_id, progress=85, message=f"去重完成: {len(items)} → {len(canonical)} 个主题")
     enrichment_tasks = []
     if run.status in {"success", "partial"}:
         enrichment_tasks = enqueue_daily_hot_enrichments(
