@@ -136,8 +136,16 @@ const dailyHotLoading = ref(false);
 const dateList = computed(() => {
   const map: Record<string, number> = {};
   for (const e of allEvents.value) {
-    const d = (e.first_publish_time || "").slice(0, 10);
-    if (d) map[d] = (map[d] || 0) + 1;
+    const first = (e.first_publish_time || "").slice(0, 10);
+    const last = (e.last_activity_time || e.first_publish_time || "").slice(0, 10);
+    if (!first) continue;
+    // 事件覆盖的每一天都计数
+    const start = new Date(first);
+    const end = new Date(last);
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      const key = d.toISOString().slice(0, 10);
+      map[key] = (map[key] || 0) + 1;
+    }
   }
   return Object.entries(map)
     .sort((a, b) => b[0].localeCompare(a[0]))
@@ -168,9 +176,12 @@ async function filterByDate(date: string) {
       allEvents.value = [...eventsStore.events];
       realTotal.value = eventsStore.total;
     }
-    eventsStore.events = allEvents.value.filter(e =>
-      (e.first_publish_time || "").startsWith(date)
-    );
+    eventsStore.events = allEvents.value.filter(e => {
+      const first = e.first_publish_time || "";
+      const last = e.last_activity_time || first;
+      // 事件区间 [first, last] 覆盖该日期即显示
+      return first.slice(0, 10) <= date && last.slice(0, 10) >= date;
+    });
   } else {
     await eventsStore.loadEvents({ size: 200 });
     allEvents.value = [...eventsStore.events];
