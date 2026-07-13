@@ -315,10 +315,24 @@ def crawl_job(task_id: int, registry: CrawlerRegistry | None = None) -> dict:
         )
         if not sentiment_reused or sentiment_run.status != "success":
             run_sentiment_analysis(sentiment_run.id, task_id=task_id)
+        # 自动发布事件簇 → 用户可直接在看板看到结果
+        from app.services.event_aggregation_service import publish_cluster
+        from app.models import AggregationCluster
+        publish_count = 0
+        for cluster in AggregationCluster.query.filter_by(
+            aggregation_run_id=aggregation_run.id
+        ).order_by(AggregationCluster.member_count.desc()).all():
+            try:
+                publish_cluster(cluster.id, user_id=task.get("created_by"))
+                publish_count += 1
+            except Exception:
+                pass
+        record_stage(task_id, "publish", "done", f"{publish_count}个事件")
         summary.update(
             analysis_run_id=analysis_run.id,
             aggregation_run_id=aggregation_run.id,
             sentiment_run_id=sentiment_run.id,
+            event_count=publish_count,
             search_cache_expires_at=(
                 aggregation_run.cache_expires_at.isoformat()
                 if aggregation_run.cache_expires_at
