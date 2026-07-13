@@ -85,15 +85,24 @@ def build_crawler_registry(config) -> CrawlerRegistry:
 
     feed_urls = _setting(config, "RSS_FEED_URL", "")
     if feed_urls:
-        for idx, feed_url in enumerate([u.strip() for u in str(feed_urls).split(",") if u.strip()]):
-            host = urlsplit(feed_url).hostname
-            if host:
-                # 每个 RSS 源一个唯一 platform 名
-                plat_name = f"rss_{host.split('.')[0]}"
-                if idx > 0:
-                    plat_name += f"_{idx}"
-                registry.register(RssCrawler(
-                    _client(host, timeout, plat_name, max_response_bytes),
-                    feed_url, platform=plat_name
-                ))
+        _rss_names = {
+            "www.people.com.cn": "rss_people",
+            "people.com.cn": "rss_people",
+            "36kr.com": "rss_36kr",
+            "www.36kr.com": "rss_36kr",
+            "thepaper.cn": "rss_thepaper",
+            "www.thepaper.cn": "rss_thepaper",
+        }
+        _rss_counters = {}
+        for feed_url in [u.strip() for u in str(feed_urls).split(",") if u.strip()]:
+            host = urlsplit(feed_url).hostname or ""
+            if not host:
+                continue
+            base = _rss_names.get(host, f"rss_{host.split('.')[0]}")
+            _rss_counters[base] = _rss_counters.get(base, 0) + 1
+            plat_name = base if _rss_counters[base] == 1 else f"{base}{_rss_counters[base]}"
+            registry.register(RssCrawler(
+                _client(host, timeout, plat_name, max_response_bytes),
+                feed_url, platform=plat_name
+            ))
     return registry
