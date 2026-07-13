@@ -131,6 +131,136 @@ def _score(document: AggregationDocument, cluster: EventCluster, config):
     )
 
 
+def _best_match(document: AggregationDocument, clusters, config):
+    best_cluster = None
+    best_score = None
+    for candidate in rank_candidates(document, clusters, config.candidate_limit):
+        result = _score(document, candidate, config)
+        if best_score is None or result.final_score > best_score.final_score:
+            best_cluster, best_score = candidate, result
+        elif (
+            result.final_score == best_score.final_score
+            and best_cluster is not None
+            and candidate.cluster_index < best_cluster.cluster_index
+        ):
+            best_cluster, best_score = candidate, result
+    return best_cluster, best_score
+
+
+def _create_cluster(document: AggregationDocument, clusters) -> EventCluster:
+    cluster = EventCluster(cluster_index=len(clusters), documents=[document])
+    cluster.recompute()
+    clusters.append(cluster)
+    return cluster
+
+
+def _apply_assignment(assignment, cluster, action, score) -> None:
+    assignment.cluster_index = cluster.cluster_index
+    assignment.action = action
+    assignment.similarity = score.final_score if score else 0.0
+    assignment.component_scores = score.component_scores if score else {}
+    assignment.reasons = score.reasons if score else []
+    assignment.warnings = score.warnings if score else []
+
+
+def _recompute_and_renumber(clusters, assignments) -> None:
+    clusters.sort(
+        key=lambda cluster: (
+            min(
+                (
+                    item.effective_time is None,
+                    item.effective_time or datetime.max,
+                    item.article_id,
+                )
+                for item in cluster.documents
+            ),
+            min(item.article_id for item in cluster.documents),
+        )
+    )
+    assignment_by_article = {item.article_id: item for item in assignments}
+    for cluster_index, cluster in enumerate(clusters):
+        cluster.cluster_index = cluster_index
+        cluster.documents.sort(
+            key=lambda item: (
+                item.effective_time is None,
+                item.effective_time or datetime.max,
+                item.article_id,
+            )
+        )
+        cluster.recompute()
+        for document in cluster.documents:
+            assignment_by_article[document.article_id].cluster_index = cluster_index
+
+
+def _refine_assignments(documents, clusters, assignments, config) -> None:
+    document_by_id = {item.article_id: item for item in documents}
+    for assignment in assignments:
+        if assignment.action != "ambiguous":
+            continue
+        document = document_by_id[assignment.article_id]
+        best_cluster, best_score = _best_match(document, clusters, config)
+        if (
+            best_cluster is not None
+            and best_score is not None
+            and not best_score.hard_conflict
+            and best_score.final_score >= config.attach_threshold
+        ):
+            best_cluster.documents.append(document)
+            best_cluster.recompute()
+            _apply_assignment(assignment, best_cluster, "attach", best_score)
+            continue
+
+        cluster = _create_cluster(document, clusters)
+        _apply_assignment(assignment, cluster, "create", best_score)
+        if best_score is not None and not best_score.hard_conflict:
+            assignment.reasons = [*assignment.reasons, "AMBIGUOUS_AFTER_REFINEMENT"]
+
+    for assignment in assignments:
+        if assignment.action != "attach":
+            continue
+        document = document_by_id[assignment.article_id]
+        current_cluster = next(
+            (
+                cluster
+                for cluster in clusters
+                if any(item.article_id == document.article_id for item in cluster.documents)
+            ),
+            None,
+        )
+        if current_cluster is None or len(current_cluster.documents) <= 1:
+            continue
+        current_members = [
+            item
+            for item in current_cluster.documents
+            if item.article_id != document.article_id
+        ]
+        current_without_document = EventCluster(
+            cluster_index=current_cluster.cluster_index,
+            documents=current_members,
+            formal_event_id=current_cluster.formal_event_id,
+        )
+        current_without_document.recompute()
+        current_score = _score(document, current_without_document, config)
+        other_clusters = [cluster for cluster in clusters if cluster is not current_cluster]
+        best_cluster, best_score = _best_match(document, other_clusters, config)
+        if (
+            best_cluster is None
+            or best_score is None
+            or best_score.hard_conflict
+            or best_score.final_score < config.attach_threshold
+            or best_score.final_score - current_score.final_score < config.move_margin
+        ):
+            continue
+        current_cluster.documents = current_members
+        current_cluster.recompute()
+        best_cluster.documents.append(document)
+        best_cluster.recompute()
+        _apply_assignment(assignment, best_cluster, "moved", best_score)
+        assignment.reasons = [*assignment.reasons, "MOVE_MARGIN_MET"]
+
+    _recompute_and_renumber(clusters, assignments)
+
+
 def cluster_documents(
     documents: Iterable[AggregationDocument], config: AggregationConfig
 ) -> ClusterResult:
@@ -156,12 +286,7 @@ def cluster_documents(
                 )
             )
             continue
-        best_cluster = None
-        best_score = None
-        for candidate in rank_candidates(document, clusters, config.candidate_limit):
-            result = _score(document, candidate, config)
-            if best_score is None or result.final_score > best_score.final_score:
-                best_cluster, best_score = candidate, result
+        best_cluster, best_score = _best_match(document, clusters, config)
         if (
             best_cluster is not None
             and best_score is not None
@@ -182,9 +307,25 @@ def cluster_documents(
                 )
             )
             continue
-        cluster = EventCluster(cluster_index=len(clusters), documents=[document])
-        cluster.recompute()
-        clusters.append(cluster)
+        if (
+            best_cluster is not None
+            and best_score is not None
+            and not best_score.hard_conflict
+            and best_score.final_score >= config.create_threshold
+        ):
+            assignments.append(
+                ClusterAssignment(
+                    article_id=document.article_id,
+                    cluster_index=None,
+                    action="ambiguous",
+                    similarity=best_score.final_score,
+                    component_scores=best_score.component_scores,
+                    reasons=best_score.reasons,
+                    warnings=best_score.warnings,
+                )
+            )
+            continue
+        cluster = _create_cluster(document, clusters)
         assignments.append(
             ClusterAssignment(
                 article_id=document.article_id,
@@ -196,6 +337,7 @@ def cluster_documents(
                 warnings=best_score.warnings if best_score else [],
             )
         )
+    _refine_assignments(ordered, clusters, assignments, config)
     return ClusterResult(clusters=clusters, assignments=assignments)
 
 

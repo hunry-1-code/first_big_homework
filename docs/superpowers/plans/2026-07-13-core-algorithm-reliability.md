@@ -62,7 +62,7 @@ git commit -m "fix: 修正事件相似度与时间衰减" -m "Co-Authored-By: Cl
 - Modify: `backend/app/analysis/event_clusterer.py`
 - Modify: `backend/tests/test_event_aggregation_algorithms.py`
 
-- [ ] **Step 1: Add failing ambiguity and order-independence tests**
+- [x] **Step 1: Add failing ambiguity and order-independence tests**
 
 Create documents whose best score is between `create_threshold` and `attach_threshold`; assert they are reconsidered after later clusters exist. Add a shuffled-input test asserting the final `article_id -> cluster member ids` partition is identical across permutations.
 
@@ -76,13 +76,13 @@ def partition(result):
     )
 ```
 
-- [ ] **Step 2: Run and verify RED**
+- [x] **Step 2: Run and verify RED**
 
 ```powershell
 python -m pytest backend/tests/test_event_aggregation_algorithms.py::EventClustererTest -q
 ```
 
-- [ ] **Step 3: Extract focused helpers**
+- [x] **Step 3: Extract focused helpers**
 
 Add:
 
@@ -108,13 +108,13 @@ else:
 
 Refinement attaches ambiguous documents only above `attach_threshold`; clearly distinct documents create new clusters. Reassignment of existing members requires an improvement of at least `move_margin`.
 
-- [ ] **Step 4: Run algorithm and aggregation service tests**
+- [x] **Step 4: Run algorithm and aggregation service tests**
 
 ```powershell
 python -m pytest backend/tests/test_event_aggregation_algorithms.py backend/tests/test_event_aggregation_service.py -q
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add backend/app/analysis/event_clusterer.py backend/tests/test_event_aggregation_algorithms.py

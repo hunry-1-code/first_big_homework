@@ -89,6 +89,13 @@ class EventSimilarityTest(unittest.TestCase):
 
 
 class EventClustererTest(unittest.TestCase):
+    @staticmethod
+    def _partition(result):
+        return sorted(
+            sorted(item.article_id for item in cluster.documents)
+            for cluster in result.clusters
+        )
+
     def _document(
         self,
         article_id,
@@ -144,6 +151,71 @@ class EventClustererTest(unittest.TestCase):
 
         self.assertGreater(score, 0.0)
         self.assertLess(score, 0.5)
+
+    def test_ambiguous_document_is_reconsidered_after_later_cluster_exists(self):
+        config = AggregationConfig(
+            attach_threshold=0.80,
+            create_threshold=0.40,
+            bge_weight=0.0,
+            tfidf_weight=1.0,
+            entity_weight=0.0,
+            time_weight=0.0,
+        )
+        documents = [
+            self._document(1, "事件甲", 0, [1.0, 0.0], location=""),
+            self._document(2, "待判定报道", 1, [0.6, 0.8], location=""),
+            self._document(3, "事件乙", 2, [0.0, 1.0], location=""),
+        ]
+
+        result = cluster_documents(documents, config)
+        assignments = {item.article_id: item for item in result.assignments}
+
+        self.assertEqual(self._partition(result), [[1], [2, 3]])
+        self.assertEqual(assignments[2].action, "attach")
+        self.assertEqual(assignments[3].action, "create")
+
+    def test_final_partition_is_independent_of_input_order(self):
+        config = AggregationConfig(
+            attach_threshold=0.80,
+            create_threshold=0.40,
+            bge_weight=0.0,
+            tfidf_weight=1.0,
+            entity_weight=0.0,
+            time_weight=0.0,
+        )
+        documents = [
+            self._document(1, "事件甲", 0, [1.0, 0.0], location=""),
+            self._document(2, "待判定报道", 1, [0.6, 0.8], location=""),
+            self._document(3, "事件乙", 2, [0.0, 1.0], location=""),
+        ]
+
+        expected = self._partition(cluster_documents(documents, config))
+        shuffled = self._partition(cluster_documents([documents[2], documents[0], documents[1]], config))
+
+        self.assertEqual(expected, shuffled)
+
+    def test_existing_attachment_moves_only_for_clear_improvement(self):
+        config = AggregationConfig(
+            attach_threshold=0.75,
+            create_threshold=0.40,
+            move_margin=0.10,
+            bge_weight=0.0,
+            tfidf_weight=1.0,
+            entity_weight=0.0,
+            time_weight=0.0,
+        )
+        documents = [
+            self._document(1, "重庆事件", 0, [1.0, 0.0], location="重庆"),
+            self._document(2, "待重分配报道", 1, [0.8, 0.6], location=""),
+            self._document(3, "广东事件", 2, [0.8, 0.6], location="广东"),
+        ]
+
+        result = cluster_documents(documents, config)
+        assignments = {item.article_id: item for item in result.assignments}
+
+        self.assertEqual(self._partition(result), [[1], [2, 3]])
+        self.assertEqual(assignments[2].action, "moved")
+        self.assertGreaterEqual(assignments[2].similarity, 1.0)
 
     def test_different_locations_remain_separate_despite_semantic_similarity(self):
         documents = [
