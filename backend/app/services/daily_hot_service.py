@@ -396,17 +396,29 @@ def deduplicate_hot_topics(items: list[DailyHotItem]) -> list[DailyHotItem]:
         joined = "\n".join(f"{i+1}. {t}" for i, t in enumerate(titles))
         resp = client.chat([
             {"role": "system", "content": (
-                "你是热榜去重助手。以下热榜标题可能描述同一事件。"
-                "将它们分组，每组用 canonical_name 命名，提取 3-5 个关键词。"
-                "返回 JSON: [{\"canonical_name\":\"规范名称\",\"keywords\":[\"词1\",\"词2\"],\"merged_titles\":[\"原标题1\",\"原标题2\"]}]"
-                "未合并的标题单独成组，merged_titles 里放同组所有原标题（精确匹配）。只输出 JSON 数组。"
+                "你是热榜去重助手。以下热榜标题可能描述同一事件，将其分组去重。"
+                "每组用 canonical_name 命名，提取 3-5 个关键词。"
+                "只输出 JSON 数组，不要 markdown 包裹：\n"
+                '[{"canonical_name":"规范名","keywords":["词"],"merged_titles":["原标题"]}]\n'
+                "merged_titles 里放精确匹配的原标题。只输出有 >=2 个标题的组（单个不输出）。"
+                "标题含引号时内部用单引号。"
             )},
-            {"role": "user", "content": f"热榜标题：\n{joined}\n\n请分组去重："}
-        ], temperature=0.2, max_tokens=500)
+            {"role": "user", "content": f"热榜标题：\n{joined}\n\n分组去重（只输出 JSON）："}
+        ], temperature=0.2, max_tokens=400)
         text = resp["content"].strip()
         fenced = re.fullmatch(r"```(?:json)?\s*(.*?)\s*```", text, re.DOTALL | re.IGNORECASE)
         if fenced: text = fenced.group(1)
-        groups = json.loads(text)
+        # 容错：尝试修复常见 JSON 错误
+        text = text.replace('\n', ' ').replace('\r', '')
+        try:
+            groups = json.loads(text)
+        except json.JSONDecodeError:
+            # 尝试截取到最后一个合法 ]
+            idx = text.rfind(']')
+            if idx > 0:
+                groups = json.loads(text[:idx+1])
+            else:
+                raise
 
         if not isinstance(groups, list) or not groups:
             return items
@@ -429,7 +441,15 @@ def deduplicate_hot_topics(items: list[DailyHotItem]) -> list[DailyHotItem]:
                 if merged_item and merged_item.id != canonical_item.id:
                     merged_item.merged_into_item_id = canonical_item.id
 
+        # 补充 LLM 未返回的单独标题（singletons）
+        merged_ids = {item.id for item in items if item.merged_into_item_id is not None}
+        merged_ids.update({c.id for c in canonical})  # canonical 自身
+        for item in items:
+            if item.id not in merged_ids:
+                canonical.append(item)
         if canonical:
+            # 按原始排名重排
+            canonical.sort(key=lambda x: x.rank)
             return canonical
         return items
     except Exception as e:
