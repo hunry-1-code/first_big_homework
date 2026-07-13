@@ -225,7 +225,7 @@ Commit service and tests with a focused Chinese `fix:` message.
 - Modify: `backend/app/analysis/trend_predictor.py`
 - Modify: `backend/tests/test_trend_predictor.py`
 
-- [ ] **Step 1: Correct stale enum tests and add structured-result tests**
+- [x] **Step 1: Correct stale enum tests and add structured-result tests**
 
 Replace `衰退期` expectations with `消退期`. Add:
 
@@ -238,13 +238,13 @@ self.assertLess(prediction.confidence, 0.5)
 
 Add monotonic tests ensuring a previous `高潮期` cannot silently return `成长期` and a previous `消退期` remains `消退期` unless an explicit reactivation flag is returned.
 
-- [ ] **Step 2: Run and verify RED**
+- [x] **Step 2: Run and verify RED**
 
 ```powershell
 python -m pytest backend/tests/test_trend_predictor.py -q
 ```
 
-- [ ] **Step 3: Introduce a result dataclass**
+- [x] **Step 3: Introduce a result dataclass**
 
 ```python
 @dataclass(frozen=True)
@@ -263,7 +263,7 @@ def predict_lifecycle_stage(daily_counts):
     return analyze_lifecycle(daily_counts).stage
 ```
 
-- [ ] **Step 4: Tune only against explicit cases**
+- [x] **Step 4: Tune only against explicit cases**
 
 Required outcomes:
 
@@ -272,7 +272,7 @@ Required outcomes:
 - `[80,100,120,115,118,116,114]` → `高潮期`.
 - sustained fall from peak → `消退期`.
 
-- [ ] **Step 5: Run tests and commit**
+- [x] **Step 5: Run tests and commit**
 
 ```powershell
 python -m pytest backend/tests/test_trend_predictor.py -q

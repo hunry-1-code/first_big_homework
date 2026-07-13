@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import dataclass
 
 
 WINDOW_SIZE = 3
@@ -11,6 +12,123 @@ GROWTH_RATE_MIN = 0.30
 PEAK_STABLE_RATE = 0.15
 DECLINE_FROM_PEAK = 0.50     # 当前值 < 峰值 ×0.5 → 消退期
 DECLINE_CONSECUTIVE_DAYS = 3
+
+
+@dataclass(frozen=True, slots=True)
+class LifecyclePrediction:
+    stage: str
+    status: str
+    confidence: float
+    evidence: dict
+    reactivated: bool = False
+
+
+def analyze_lifecycle(
+    daily_counts: Sequence[int | float], previous_stage: str | None = None
+) -> LifecyclePrediction:
+    counts = _normalized(daily_counts)
+    canonical_previous = (
+        previous_stage
+        if previous_stage in {"潜伏期", "成长期", "高潮期", "消退期"}
+        else None
+    )
+    point_count = len(counts)
+    total = sum(counts)
+    if point_count < 4:
+        stage = canonical_previous or "潜伏期"
+        return LifecyclePrediction(
+            stage=stage,
+            status="data_insufficient",
+            confidence=min(0.45, 0.15 + point_count * 0.08),
+            evidence={
+                "point_count": point_count,
+                "total_count": total,
+                "minimum_points": 4,
+                "reason": "有效日序列不足，沿用已有阶段或潜伏期",
+            },
+        )
+
+    peak = max(counts)
+    current = counts[-1]
+    peak_index = max(range(point_count), key=counts.__getitem__)
+    recent = counts[-min(4, point_count) :]
+    recent_average = sum(counts[-3:]) / min(3, point_count)
+    recent_slope = _linear_slope(recent)
+    normalized_slope = recent_slope / max(1.0, peak)
+    peak_ratio = current / peak if peak else 0.0
+    recent_peak_ratio = recent_average / peak if peak else 0.0
+    recent_variation = (max(recent) - min(recent)) / max(1.0, peak)
+    sustained_decline = _has_sustained_decline(counts)
+    fallen_from_peak = (
+        peak > 0
+        and peak_index < point_count - 2
+        and current <= peak * (1.0 - DECLINE_FROM_PEAK)
+    )
+    reactivated = (
+        len(counts) >= 3
+        and counts[-3] < counts[-2] < counts[-1]
+        and normalized_slope >= 0.08
+        and peak_ratio >= 0.50
+    )
+    low_volume = peak <= 5 and total <= max(25.0, point_count * 5.0)
+    stable_near_peak = (
+        recent_peak_ratio >= 0.85
+        and recent_variation <= 0.20
+        and abs(normalized_slope) <= 0.08
+    )
+
+    if sustained_decline or fallen_from_peak:
+        stage = "消退期"
+        confidence = 0.82
+    elif low_volume:
+        stage = "潜伏期"
+        confidence = 0.68
+    elif stable_near_peak:
+        stage = "高潮期"
+        confidence = 0.78
+    elif normalized_slope > 0.05 and current >= counts[0]:
+        stage = "成长期"
+        confidence = min(0.90, 0.62 + normalized_slope)
+    elif peak <= LATENT_MAX_DAILY * PEAK_TO_GROWTH_RATIO:
+        stage = "潜伏期"
+        confidence = 0.56
+    else:
+        stage = "成长期"
+        confidence = 0.55
+
+    if canonical_previous == "高潮期" and stage in {"潜伏期", "成长期"}:
+        stage = "高潮期"
+        confidence = min(confidence, 0.60)
+    elif canonical_previous == "消退期":
+        if reactivated:
+            stage = "成长期"
+            confidence = max(confidence, 0.72)
+        else:
+            stage = "消退期"
+            confidence = max(confidence, 0.70)
+    elif canonical_previous == "成长期" and stage == "潜伏期":
+        stage = "成长期"
+        confidence = min(confidence, 0.60)
+
+    return LifecyclePrediction(
+        stage=stage,
+        status="sufficient",
+        confidence=round(max(0.0, min(1.0, confidence)), 3),
+        reactivated=bool(canonical_previous == "消退期" and reactivated),
+        evidence={
+            "point_count": point_count,
+            "total_count": round(total, 3),
+            "peak": round(peak, 3),
+            "current": round(current, 3),
+            "peak_index": peak_index,
+            "peak_ratio": round(peak_ratio, 6),
+            "recent_peak_ratio": round(recent_peak_ratio, 6),
+            "normalized_recent_slope": round(normalized_slope, 6),
+            "recent_variation": round(recent_variation, 6),
+            "sustained_decline": sustained_decline,
+            "low_volume": low_volume,
+        },
+    )
 
 
 def _normalized(values: Sequence[int | float]) -> list[float]:
@@ -47,6 +165,21 @@ def _growth_rate(values: Sequence[int | float]) -> list[float]:
     return rates
 
 
+def _linear_slope(values: Sequence[int | float]) -> float:
+    numbers = _normalized(values)
+    if len(numbers) < 2:
+        return 0.0
+    x_mean = (len(numbers) - 1) / 2
+    y_mean = sum(numbers) / len(numbers)
+    denominator = sum((index - x_mean) ** 2 for index in range(len(numbers)))
+    if denominator == 0:
+        return 0.0
+    return sum(
+        (index - x_mean) * (value - y_mean)
+        for index, value in enumerate(numbers)
+    ) / denominator
+
+
 def _has_sustained_decline(values: Sequence[float]) -> bool:
     if len(values) < DECLINE_CONSECUTIVE_DAYS + 1:
         return False
@@ -57,44 +190,7 @@ def _has_sustained_decline(values: Sequence[float]) -> bool:
 
 
 def predict_lifecycle_stage(daily_counts: list[int]) -> str:
-    counts = _normalized(daily_counts)
-    if not counts:
-        return "潜伏期"
-
-    smoothed = _smooth(counts)
-    current = smoothed[-1]
-    peak = max(smoothed)
-    total = sum(counts)
-
-    # 潜伏期：数据量极小
-    if max(counts) <= LATENT_MAX_DAILY and total <= LATENT_MAX_TOTAL:
-        return "潜伏期"
-
-    # 消退期：当前值明显低于峰值
-    if peak > 0 and current <= peak * (1.0 - DECLINE_FROM_PEAK):
-        return "消退期"
-    if _has_sustained_decline(smoothed):
-        return "消退期"
-
-    rates = _growth_rate(smoothed)
-    recent_rates = rates[-3:] if len(rates) >= 3 else rates
-    positive_recent = [rate for rate in recent_rates if rate > 0]
-    is_currently_rising = len(counts) >= 2 and counts[-1] > counts[-2]
-
-    # 成长期：快速上升中
-    if is_currently_rising:
-        if positive_recent and (max(positive_recent) >= GROWTH_RATE_MIN or len(positive_recent) >= 2):
-            return "成长期"
-    if peak > LATENT_MAX_DAILY * PEAK_TO_GROWTH_RATIO and total > LATENT_MAX_TOTAL and current >= peak * 0.4:
-        return "成长期"
-
-    # 高潮期：高位稳定或接近峰值
-    near_peak = peak > 0 and current >= peak * (1.0 - PEAK_STABLE_RATE)
-    stable = len(recent_rates) >= 2 and all(abs(rate) <= PEAK_STABLE_RATE for rate in recent_rates)
-    if near_peak or stable:
-        return "高潮期"
-
-    return "成长期"
+    return analyze_lifecycle(daily_counts).stage
 
 
 def get_lifecycle_change_points(
@@ -104,9 +200,11 @@ def get_lifecycle_change_points(
     if length < 2:
         return []
     points = []
-    previous_stage = predict_lifecycle_stage(list(daily_counts[:1]))
+    previous_stage = analyze_lifecycle(list(daily_counts[:1])).stage
     for index in range(1, length):
-        current_stage = predict_lifecycle_stage(list(daily_counts[: index + 1]))
+        current_stage = analyze_lifecycle(
+            list(daily_counts[: index + 1]), previous_stage=previous_stage
+        ).stage
         if current_stage != previous_stage:
             points.append(
                 {

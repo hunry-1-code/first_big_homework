@@ -1,6 +1,6 @@
 """趋势预测（生命周期判定）单元测试。
 
-覆盖：潜伏期/成长期/高潮期/衰退期判定 + 阶段切换点 + 滑动窗口平滑 + 边界条件
+覆盖：潜伏期/成长期/高潮期/消退期判定 + 阶段切换点 + 滑动窗口平滑 + 边界条件
 """
 import sys
 import unittest
@@ -16,6 +16,7 @@ from app.analysis.trend_predictor import (
     WINDOW_SIZE,
     _growth_rate,
     _smooth,
+    analyze_lifecycle,
     get_lifecycle_change_points,
     predict_lifecycle_stage,
 )
@@ -80,11 +81,46 @@ class LifecycleStageTest(unittest.TestCase):
 
     def test_decline_from_peak(self):
         counts = [120, 115, 110, 105, 100, 50, 40]
-        self.assertEqual(predict_lifecycle_stage(counts), "衰退期")
+        self.assertEqual(predict_lifecycle_stage(counts), "消退期")
 
     def test_decline_three_consecutive_days(self):
         counts = [130, 120, 115, 110, 100, 80, 60, 50, 45, 40]
-        self.assertEqual(predict_lifecycle_stage(counts), "衰退期")
+        self.assertEqual(predict_lifecycle_stage(counts), "消退期")
+
+    def test_structured_result_marks_short_series_insufficient(self):
+        prediction = analyze_lifecycle([1, 2, 3], previous_stage="潜伏期")
+
+        self.assertEqual(prediction.stage, "潜伏期")
+        self.assertEqual(prediction.status, "data_insufficient")
+        self.assertLess(prediction.confidence, 0.5)
+        self.assertIn("point_count", prediction.evidence)
+
+    def test_peak_cannot_silently_move_back_to_growth(self):
+        prediction = analyze_lifecycle(
+            [50, 80, 100, 105, 110],
+            previous_stage="高潮期",
+        )
+
+        self.assertEqual(prediction.stage, "高潮期")
+        self.assertFalse(prediction.reactivated)
+
+    def test_decline_remains_sticky_without_clear_reactivation(self):
+        prediction = analyze_lifecycle(
+            [120, 100, 70, 50, 48, 50],
+            previous_stage="消退期",
+        )
+
+        self.assertEqual(prediction.stage, "消退期")
+        self.assertFalse(prediction.reactivated)
+
+    def test_decline_can_reactivate_on_sustained_rebound(self):
+        prediction = analyze_lifecycle(
+            [120, 90, 50, 20, 30, 50, 80],
+            previous_stage="消退期",
+        )
+
+        self.assertEqual(prediction.stage, "成长期")
+        self.assertTrue(prediction.reactivated)
 
 
 class LifecycleChangePointsTest(unittest.TestCase):
