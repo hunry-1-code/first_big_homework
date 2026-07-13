@@ -5,27 +5,12 @@ from datetime import datetime
 
 from sqlalchemy import or_
 
-from app.analysis.event_similarity import set_similarity
 from app.analysis.fake_detector import _build_context, batch_assess_articles
 from app.analysis.trend_predictor import get_lifecycle_change_points, predict_lifecycle_stage
 from app.extensions import db
 from app.models import AnalysisRunArticle, Article, Event, EventHeatSnapshot, Report
 from app.services.event_similarity_service import search_historical_events
 from app.services.api_contract_service import api_platform_name,api_lifecycle_stage,normalized_sentiment,api_sentiment_label,clamp_heat,clamp_ratio,short_date,trend_key_points
-
-
-def _title_bigrams(title: str | None) -> list[str]:
-    """提取标题的字符级 bigram（适用于中文文本相似度比较）。"""
-    if not title:
-        return []
-    text = str(title).strip()
-    if len(text) < 2:
-        return [text]
-    return [text[i:i + 2] for i in range(len(text) - 1)]
-
-
-_SIMILARITY_MIN = 0.05   # 标题相似度最低阈值
-_MAX_EDGES = 50          # 最大边数，防止 O(n²) 爆炸
 
 # 文章级关键词缓存（避免同一 event detail 请求中重复查询）
 _keywords_cache: dict[int, list[dict]] = {}
@@ -418,8 +403,6 @@ def get_propagation_data(event_id: int) -> dict | None:
 
     规格依据：项目需求规格说明书 §6.2 事件溯源与关键传播路径
     """
-    from app.analysis.fake_detector import _match_official_media
-
     event = Event.query.get(event_id)
     if event is None:
         return None
@@ -430,151 +413,6 @@ def get_propagation_data(event_id: int) -> dict | None:
     from app.propagation import build_propagation_graph
     from app.services.api_contract_service import api_platform_name
     return build_propagation_graph(articles, platform_mapper=api_platform_name)
-
-    if not articles:
-        return {"key_nodes": [], "graph": {"nodes": [], "links": []}}
-
-    # ── 关键节点识别 ──────────────────────────────
-    key_nodes = []
-
-    # 1. 初始爆料：发布时间最早的报道
-    origin = articles[0]
-    key_nodes.append({
-        "type": "origin",
-        "type_label": "初始爆料",
-        "article_id": origin.id,
-        "author": origin.author or "匿名用户",
-        "platform": origin.platform,
-        "title": origin.title,
-        "publish_time": origin.publish_time.isoformat() if origin.publish_time else None,
-    })
-
-    # 2. 首次大V转发：followers >= 500k 且非官媒，最早发布
-    big_v_articles = [
-        a for a in articles
-        if (a.author_followers or 0) >= 500000
-        and not _match_official_media(a.author or "")
-    ]
-    if big_v_articles:
-        bv = big_v_articles[0]
-        key_nodes.append({
-            "type": "influencer",
-            "type_label": "首次大V转发",
-            "article_id": bv.id,
-            "author": bv.author,
-            "platform": bv.platform,
-            "title": bv.title,
-            "followers": bv.author_followers,
-            "publish_time": bv.publish_time.isoformat() if bv.publish_time else None,
-        })
-
-    # 3. 首次官方媒体介入：匹配白名单，最早发布
-    official_articles = [
-        a for a in articles
-        if _match_official_media(a.author or "")
-    ]
-    if official_articles:
-        off = official_articles[0]
-        key_nodes.append({
-            "type": "official_media",
-            "type_label": "首次官方媒体介入",
-            "article_id": off.id,
-            "author": off.author,
-            "platform": off.platform,
-            "title": off.title,
-            "publish_time": off.publish_time.isoformat() if off.publish_time else None,
-        })
-
-    # ── 构建图结构 ──────────────────────────────
-    # 节点：每篇报道为一个节点
-    nodes = []
-    for a in articles:
-        author = a.author or "匿名用户"
-        followers = a.author_followers or 0
-        is_official = _match_official_media(author)
-
-        # 分类：0=初始爆料, 1=大V, 2=官方媒体, 3=普通
-        if a.id == origin.id:
-            category = 0
-            symbol_size = 35
-        elif is_official:
-            category = 2
-            symbol_size = 30
-        elif followers >= 500000:
-            category = 1
-            symbol_size = 25
-        else:
-            category = 3
-            symbol_size = 15
-
-        interactions = (a.comments_count or 0) + (a.reposts_count or 0) + (a.likes_count or 0)
-        size = symbol_size + min(20, interactions // 50)
-
-        nodes.append({
-            "id": a.id,
-            "name": author,
-            "category": category,
-            "symbolSize": size,
-            "platform": a.platform,
-            "followers": followers,
-            "publish_time": a.publish_time.isoformat() if a.publish_time else None,
-            "title": a.title,
-        })
-
-    # 边：基于标题相似度构建传播关系
-    links = []
-    # 预计算所有标题的 bigram 集合
-    bigram_sets = {a.id: set(_title_bigrams(a.title)) for a in articles}
-    origin_id = origin.id
-
-    for i in range(len(articles)):
-        for j in range(i + 1, len(articles)):
-            if len(links) >= _MAX_EDGES:
-                break
-            sim = set_similarity(
-                list(bigram_sets[articles[i].id]),
-                list(bigram_sets[articles[j].id]),
-            )
-            if sim is None or sim < _SIMILARITY_MIN:
-                continue
-            links.append({
-                "source": articles[i].id,
-                "target": articles[j].id,
-                "relation": "inferred",
-                "confidence": round(float(sim), 2),
-                "evidence": f"标题关键词重叠（相似度 {sim:.0%}）",
-            })
-
-    # 确保 origin 至少有一条出边，避免传播图孤立
-    if not any(l["source"] == origin_id for l in links):
-        # 找到与 origin 最近似的文章，否则连接到第二篇
-        target = articles[1].id if len(articles) > 1 else None
-        best_sim = 0.0
-        if target:
-            for a in articles[1:]:
-                sim = set_similarity(
-                    list(bigram_sets[origin_id]),
-                    list(bigram_sets[a.id]),
-                )
-                if sim is not None and sim > best_sim:
-                    best_sim = sim
-                    target = a.id
-        if target:
-            links.insert(0, {
-                "source": origin_id,
-                "target": target,
-                "relation": "inferred",
-                "confidence": round(best_sim, 2) if best_sim > 0 else 0.1,
-                "evidence": "基于时间先后推测" if best_sim <= 0 else f"标题相似度 {best_sim:.0%}",
-            })
-
-    return {
-        "key_nodes": key_nodes,
-        "graph": {
-            "nodes": nodes,
-            "links": links,
-        },
-    }
 
 
 def delete_event(event_id: int) -> None:

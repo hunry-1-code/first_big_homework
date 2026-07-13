@@ -191,7 +191,7 @@ git commit -m "fix: 提高传播路径推断证据门槛" -m "Co-Authored-By: Cl
 - Modify: `backend/tests/test_propagation.py`
 - Modify or create: `backend/tests/test_event_api.py` if no existing event propagation API contract test exists.
 
-- [ ] **Step 1: Add a failing service/API shape test**
+- [x] **Step 1: Add a failing service/API shape test**
 
 Assert propagation data contains:
 
@@ -203,19 +203,19 @@ self.assertIsInstance(data["limitations"], list)
 
 For unrelated articles assert `coverage_status == "insufficient"` and empty links.
 
-- [ ] **Step 2: Run and verify RED**
+- [x] **Step 2: Run and verify RED**
 
-- [ ] **Step 3: Delete the unreachable implementation after the early return**
+- [x] **Step 3: Delete the unreachable implementation after the early return**
 
 Keep `build_propagation_graph()` as the only graph authority. Add coverage fields based on node/edge/evidence counts; do not force an origin edge.
 
-- [ ] **Step 4: Run propagation and event service/API tests**
+- [x] **Step 4: Run propagation and event service/API tests**
 
 ```powershell
 python -m pytest backend/tests/test_propagation.py backend/tests -q -k "event and propagation"
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 Commit service and tests with a focused Chinese `fix:` message.
 

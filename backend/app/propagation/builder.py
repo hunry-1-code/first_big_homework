@@ -155,7 +155,18 @@ def build_propagation_graph(articles, platform_mapper=lambda value: value, max_n
     links = [link for link in links if link["source"] in ids and link["target"] in ids]
     explicit_count = sum(link["evidence_type"] == "explicit" for link in links)
     inferred_count = sum(link["evidence_type"] == "inferred" for link in links)
+    coverage_status = "sufficient" if links else "insufficient"
+    limitations = []
+    if not nodes:
+        limitations.append("当前事件没有可用于传播分析的报道")
+    elif not links:
+        limitations.append("现有报道之间缺少足够的显式或推断传播证据")
+    elif not explicit_count:
+        limitations.append("当前传播边均为推断关系，尚无平台原始转发或引用证据")
     return {
+        "coverage_status": coverage_status,
+        "graph_mode": "propagation",
+        "limitations": limitations,
         "summary": {
             "node_count": len(nodes),
             "edge_count": len(links),

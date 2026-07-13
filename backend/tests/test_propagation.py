@@ -188,6 +188,9 @@ class PropagationBuilderTest(unittest.TestCase):
         result=build_propagation_graph([self._article(1,'暴雨预警',0),self._article(2,'电影票房增长',1)])
         self.assertEqual(result['graph']['links'],[])
         self.assertEqual(result['summary']['origin_candidate_count'],2)
+        self.assertEqual(result['coverage_status'], 'insufficient')
+        self.assertEqual(result['graph_mode'], 'propagation')
+        self.assertIsInstance(result['limitations'], list)
 
     def test_textual_weibo_repost_is_explicit_evidence(self):
         from app.propagation.builder import build_propagation_graph
@@ -217,6 +220,7 @@ class PropagationBuilderTest(unittest.TestCase):
         self.assertGreaterEqual(edge['evidence_components']['semantic'], 0.20)
         self.assertGreaterEqual(edge['evidence_components']['final_score'], 0.38)
         self.assertTrue(edge['evidence_components']['entity_or_keyword'] > 0)
+        self.assertEqual(result['coverage_status'], 'sufficient')
 
     def test_missing_author(self):
         """缺少作者使用默认值。"""
