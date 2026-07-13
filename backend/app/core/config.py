@@ -211,6 +211,28 @@ class Config:
     )
     HEAT_FORMULA_VERSION = os.getenv("HEAT_FORMULA_VERSION", "v1")
 
+    DAILY_HOT_SOURCES = [
+        source.strip().casefold()
+        for source in os.getenv(
+            "DAILY_HOT_SOURCES",
+            "weibo_hot,baidu_hot,zhihu_hot",
+        ).split(",")
+        if source.strip()
+    ]
+    DAILY_HOT_SOURCE_LIMIT = min(
+        100,
+        max(1, int(os.getenv("DAILY_HOT_SOURCE_LIMIT", "30"))),
+    )
+    DAILY_HOT_RESULT_LIMIT = min(
+        100,
+        max(1, int(os.getenv("DAILY_HOT_RESULT_LIMIT", "10"))),
+    )
+    DAILY_HOT_RRF_K = max(1, int(os.getenv("DAILY_HOT_RRF_K", "60")))
+    DAILY_HOT_TTL_SECONDS = max(
+        60,
+        int(os.getenv("DAILY_HOT_TTL_SECONDS", "900")),
+    )
+
     EVENT_AGGREGATION_ATTACH_THRESHOLD = min(
         1.0,
         max(0.0, float(os.getenv("EVENT_AGGREGATION_ATTACH_THRESHOLD", "0.55"))),

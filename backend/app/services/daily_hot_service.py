@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 
 from flask import current_app
 from sqlalchemy import func
@@ -28,7 +28,7 @@ _BEARER_VALUE = re.compile(r"Bearer\s+[A-Za-z0-9._~+/=-]+", flags=re.IGNORECASE)
 
 
 def _utcnow() -> datetime:
-    return datetime.utcnow()
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 def _sanitize_payload(value):
@@ -237,4 +237,89 @@ def collect_daily_hot(
     return run
 
 
-__all__ = ["collect_daily_hot"]
+def serialize_daily_hot_run(
+    run: DailyHotRun | None,
+    *,
+    limit: int,
+    ttl_seconds: int,
+    now: datetime | None = None,
+) -> dict:
+    now = now or _utcnow()
+    if run is None:
+        return {
+            "run_id": None,
+            "date": now.date().isoformat(),
+            "generated_at": None,
+            "status": "empty",
+            "stale": True,
+            "available_sources": [],
+            "failed_sources": [],
+            "errors": {},
+            "items": [],
+            "total": 0,
+        }
+    items = (
+        DailyHotItem.query.filter_by(run_id=run.id)
+        .order_by(DailyHotItem.rank, DailyHotItem.id)
+        .limit(max(1, min(int(limit), 100)))
+        .all()
+    )
+    stale = (
+        run.completed_at is None
+        or (now - run.completed_at).total_seconds() > max(0, int(ttl_seconds))
+    )
+    return {
+        "run_id": run.id,
+        "date": run.run_date.isoformat(),
+        "generated_at": run.completed_at.isoformat() if run.completed_at else None,
+        "status": run.status,
+        "stale": stale,
+        "available_sources": run.available_sources or [],
+        "failed_sources": run.failed_sources or [],
+        "errors": run.errors or {},
+        "items": [
+            {
+                "id": item.id,
+                "rank": item.rank,
+                "title": item.title,
+                "fused_score": float(item.fused_score),
+                "source_ranks": item.source_ranks or {},
+                "source_urls": {
+                    source: payload.get("source_url")
+                    for source, payload in (item.source_payloads or {}).items()
+                    if isinstance(payload, dict) and payload.get("source_url")
+                },
+                "enrichment_status": item.enrichment_status,
+                "event_id": item.event_id,
+                "analysis_task_id": item.analysis_task_id,
+            }
+            for item in items
+        ],
+        "total": int(run.item_count or 0),
+    }
+
+
+def get_today_hotspots(
+    *,
+    limit: int = 10,
+    ttl_seconds: int = 900,
+    now: datetime | None = None,
+) -> dict:
+    run = DailyHotRun.query.order_by(
+        DailyHotRun.run_date.desc(),
+        DailyHotRun.attempt.desc(),
+        DailyHotRun.id.desc(),
+    ).first()
+    return serialize_daily_hot_run(
+        run,
+        limit=limit,
+        ttl_seconds=ttl_seconds,
+        now=now,
+    )
+
+
+__all__ = [
+    "collect_daily_hot",
+    "get_today_hotspots",
+    "serialize_daily_hot_run",
+]

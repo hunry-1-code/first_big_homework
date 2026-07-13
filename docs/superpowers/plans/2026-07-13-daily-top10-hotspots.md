@@ -112,13 +112,13 @@ Reuse a successful fresh run within `DAILY_HOT_TTL_SECONDS`; create a new attemp
 - Modify: `backend/.env.example`
 - Create: `backend/tests/test_daily_hot_api.py`
 
-- [ ] **Step 1: Write failing API tests**
+- [x] **Step 1: Write failing API tests**
 
 Cover login requirement, default limit 10, limit validation, empty state, stale cached state, partial source failure and administrator-only refresh.
 
-- [ ] **Step 2: Run and verify RED**
+- [x] **Step 2: Run and verify RED**
 
-- [ ] **Step 3: Add configuration**
+- [x] **Step 3: Add configuration**
 
 ```python
 DAILY_HOT_SOURCES = ["weibo_hot", "baidu_hot", "zhihu_hot"]
@@ -130,7 +130,7 @@ DAILY_HOT_TTL_SECONDS = 900
 
 Parse source list from environment and bound numeric values.
 
-- [ ] **Step 4: Add endpoints**
+- [x] **Step 4: Add endpoints**
 
 ```python
 @hotspots_bp.get("/today")
@@ -144,7 +144,7 @@ def refresh_today_hotspots(): ...
 
 Use the common `{code,message,data}` response. Return date, generated time, stale flag, source diagnostics and items.
 
-- [ ] **Step 5: Run API tests and commit**
+- [x] **Step 5: Run API tests and commit**
 
 ### Task 5: Add a leased background refresh job
 

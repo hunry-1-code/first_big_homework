@@ -13,6 +13,11 @@ from app.services.hotspot_service import (
     get_hotspot_run,
     list_hotspot_runs,
 )
+from app.services.daily_hot_service import (
+    collect_daily_hot,
+    get_today_hotspots,
+    serialize_daily_hot_run,
+)
 from app.services.task_service import create_task
 from app.tasks.jobs import hotspot_job
 from app.tasks.runner import submit_background_job
@@ -102,3 +107,50 @@ def current_hotspots():
     except (TypeError, ValueError):
         return fail("limit 必须是整数", 400)
     return ok(get_current_hotspots(limit))
+
+
+@hotspots_bp.get("/today")
+@login_required
+def today_hotspots():
+    raw_limit = request.args.get(
+        "limit",
+        current_app.config.get("DAILY_HOT_RESULT_LIMIT", 10),
+    )
+    try:
+        limit = int(raw_limit)
+    except (TypeError, ValueError):
+        return fail("limit 必须是 1 到 100 的整数", 400)
+    if not 1 <= limit <= 100:
+        return fail("limit 必须是 1 到 100 的整数", 400)
+    return ok(
+        get_today_hotspots(
+            limit=limit,
+            ttl_seconds=current_app.config.get("DAILY_HOT_TTL_SECONDS", 900),
+        )
+    )
+
+
+@hotspots_bp.post("/today/refresh")
+@admin_required
+def refresh_today_hotspots():
+    run = collect_daily_hot(
+        sources=list(
+            current_app.config.get(
+                "DAILY_HOT_SOURCES",
+                ["weibo_hot", "baidu_hot", "zhihu_hot"],
+            )
+        ),
+        source_limit=current_app.config.get("DAILY_HOT_SOURCE_LIMIT", 30),
+        result_limit=current_app.config.get("DAILY_HOT_RESULT_LIMIT", 10),
+        rrf_k=current_app.config.get("DAILY_HOT_RRF_K", 60),
+        ttl_seconds=current_app.config.get("DAILY_HOT_TTL_SECONDS", 900),
+        force=True,
+    )
+    return ok(
+        serialize_daily_hot_run(
+            run,
+            limit=current_app.config.get("DAILY_HOT_RESULT_LIMIT", 10),
+            ttl_seconds=current_app.config.get("DAILY_HOT_TTL_SECONDS", 900),
+        ),
+        message="今日热点已刷新。",
+    )
