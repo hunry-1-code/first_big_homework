@@ -1,6 +1,6 @@
 <template>
   <div class="welcome-container p-6 space-y-6">
-    <!-- 头部横幅与手动采集 -->
+    <!-- 头部横幅 -->
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-gradient-to-r from-blue-500/10 to-indigo-500/5 p-6 rounded-2xl border border-blue-500/10">
       <div>
         <h1 class="text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
@@ -10,58 +10,39 @@
           实时监测、清洗与智能分析全网舆情热点事件。
         </p>
       </div>
-      <el-button
-        v-if="isAdmin"
-        type="primary"
-        size="large"
-        class="shadow-md shadow-blue-500/20"
-        @click="triggerCrawl"
-      >
-        <span class="flex items-center gap-1.5">
-          <span>手动触发全网采集</span>
-        </span>
-      </el-button>
-    </div>
-
-    <!-- 搜索与排序工具栏 -->
-    <div class="flex flex-col md:flex-row gap-4 items-stretch md:items-center bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/60 dark:border-slate-800/60 shadow-sm">
       <div class="flex gap-2">
-        <el-input
-          v-model="keyword"
-          placeholder="输入事件关键词搜索"
-          clearable
-          size="large"
-          @keyup.enter="handleSearch"
-          class="w-[280px]"
-        >
-          <template #prefix>
-            <span class="text-slate-400">🔍</span>
-          </template>
-        </el-input>
-        <el-button type="primary" size="large" @click="handleSearch">
-          搜索 / 采集
-        </el-button>
         <el-button
+          v-if="isAdmin"
           type="primary"
           size="large"
-          plain
-          @click="$router.push('/analysis')"
-        >
+          @click="triggerCrawl"
+        >手动触发全网采集</el-button>
+        <el-button type="primary" size="large" plain @click="$router.push('/analysis')">
           新建事件分析 →
         </el-button>
       </div>
+    </div>
 
-      <div class="flex items-center gap-2 shrink-0">
-        <span class="text-sm text-slate-400 dark:text-slate-500 whitespace-nowrap">排序依据:</span>
-        <el-select v-model="sortBy" size="large" style="min-width: 180px">
-          <el-option label="按发布时间" value="time" />
-          <el-option label="按综合热度" value="heat" />
-        </el-select>
+    <!-- 日期导航条 -->
+    <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/60 dark:border-slate-800/60 shadow-sm p-3">
+      <div class="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
+        <span
+          class="shrink-0 text-xs px-3 py-1.5 rounded-full cursor-pointer font-medium transition-colors"
+          :class="activeDate === '' ? 'bg-blue-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'"
+          @click="filterByDate('')"
+        >全部 ({{ eventsStore.total }})</span>
+        <span
+          v-for="d in dateList"
+          :key="d.date"
+          class="shrink-0 text-xs px-3 py-1.5 rounded-full cursor-pointer transition-colors"
+          :class="activeDate === d.date ? 'bg-blue-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'"
+          @click="filterByDate(d.date)"
+        >{{ formatDate(d.date) }} ({{ d.count }})</span>
       </div>
     </div>
 
     <!-- 今日热点 Top10 -->
-    <div v-if="dailyHot.length > 0" class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/60 dark:border-slate-800/60 shadow-sm p-4">
+    <div v-if="dailyHot.length > 0 && activeDate === ''" class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/60 dark:border-slate-800/60 shadow-sm p-4">
       <div class="flex items-center gap-2 mb-3">
         <span class="font-bold text-slate-800 dark:text-slate-100">🔥 今日热点</span>
         <span class="text-xs text-slate-400">实时热榜 Top10</span>
@@ -75,9 +56,35 @@
           @click="searchDailyHot(item.title)"
         >
           <span class="font-bold">{{ idx + 1 }}</span>
-          {{ item.title?.slice(0, 20) }}{{ (item.title || '').length > 20 ? '...' : '' }}
+          {{ item.title?.slice(0, 18) }}{{ (item.title || '').length > 18 ? '...' : '' }}
         </span>
         <span v-if="dailyHotLoading" class="text-xs text-slate-400">加载中...</span>
+      </div>
+    </div>
+
+    <!-- 搜索 + 排序 + 清除 -->
+    <div class="flex flex-col md:flex-row gap-3 items-stretch md:items-center bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/60 dark:border-slate-800/60 shadow-sm">
+      <div class="flex gap-2 flex-1">
+        <el-input
+          v-model="keyword"
+          placeholder="输入事件关键词搜索"
+          clearable
+          size="large"
+          @keyup.enter="handleSearch"
+          @clear="clearFilter"
+          class="max-w-[280px]"
+        >
+          <template #prefix><span class="text-slate-400">🔍</span></template>
+        </el-input>
+        <el-button type="primary" size="large" @click="handleSearch">搜索</el-button>
+        <el-button v-if="keyword || activeDate" size="large" @click="clearFilter">清除筛选</el-button>
+      </div>
+      <div class="flex items-center gap-2 shrink-0">
+        <span class="text-sm text-slate-400 whitespace-nowrap">排序:</span>
+        <el-select v-model="sortBy" size="large" style="min-width: 160px">
+          <el-option label="按综合热度" value="heat" />
+          <el-option label="按发布时间" value="time" />
+        </el-select>
       </div>
     </div>
 
@@ -90,10 +97,9 @@
           :event="event"
         />
       </div>
-      
       <div v-else class="flex flex-col items-center justify-center py-20 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/60 dark:border-slate-800/60">
         <span class="text-4xl">📭</span>
-        <p class="text-slate-400 mt-4 text-sm">暂无舆情事件，请输入关键词并点击搜索/采集。</p>
+        <p class="text-slate-400 mt-4 text-sm">{{ keyword ? '未找到匹配事件' : '暂无舆情事件，请输入关键词并点击搜索。' }}</p>
       </div>
     </div>
   </div>
@@ -117,13 +123,31 @@ const userStore = useUserStore();
 
 const keyword = ref("");
 const sortBy = ref<"time" | "heat">("heat");
+const activeDate = ref(""); // 空 = 全部
+const allEvents = ref<any[]>([]); // 缓存全部事件用于日期提取
 
-const isAdmin = computed(() => {
-  return userStore.roles.includes("admin");
-});
+const isAdmin = computed(() => userStore.roles.includes("admin"));
 
 const dailyHot = ref<any[]>([]);
 const dailyHotLoading = ref(false);
+
+// 从事件提取日期列表
+const dateList = computed(() => {
+  const map: Record<string, number> = {};
+  for (const e of allEvents.value) {
+    const d = (e.first_publish_time || "").slice(0, 10);
+    if (d) map[d] = (map[d] || 0) + 1;
+  }
+  return Object.entries(map)
+    .sort((a, b) => b[0].localeCompare(a[0]))
+    .slice(0, 14)
+    .map(([date, count]) => ({ date, count }));
+});
+
+function formatDate(iso: string) {
+  const d = new Date(iso);
+  return `${d.getMonth() + 1}/${d.getDate()}`;
+}
 
 async function loadDailyHot() {
   dailyHotLoading.value = true;
@@ -134,54 +158,72 @@ async function loadDailyHot() {
   finally { dailyHotLoading.value = false; }
 }
 
-async function searchDailyHot(title: string) {
-  keyword.value = title;
-  // 只搜索已有事件，不触发爬取
-  await eventsStore.loadEvents({ keyword: title });
+async function filterByDate(date: string) {
+  activeDate.value = date;
+  keyword.value = "";
+  if (date) {
+    // 用日期过滤（后端 API 支持 keyword 参数的模糊匹配不够精确，客户端过滤）
+    await eventsStore.loadEvents({ size: 100 });
+    allEvents.value = [...eventsStore.events];
+    eventsStore.events = allEvents.value.filter(e =>
+      (e.first_publish_time || "").startsWith(date)
+    );
+    eventsStore.total = eventsStore.events.length;
+  } else {
+    await eventsStore.loadEvents();
+    allEvents.value = [...eventsStore.events];
+  }
 }
 
-onMounted(() => {
-  eventsStore.loadEvents();
+async function searchDailyHot(title: string) {
+  keyword.value = title;
+  activeDate.value = "";
+  await eventsStore.loadEvents({ keyword: title });
+  allEvents.value = [...eventsStore.events];
+}
+
+function clearFilter() {
+  keyword.value = "";
+  activeDate.value = "";
+  eventsStore.loadEvents().then(() => { allEvents.value = [...eventsStore.events]; });
+}
+
+onMounted(async () => {
+  await eventsStore.loadEvents({ size: 100 });
+  allEvents.value = [...eventsStore.events];
   loadDailyHot();
 });
 
-// 搜索/采集
 async function handleSearch() {
   const kw = keyword.value.trim();
+  activeDate.value = "";
   try {
     if (kw) {
-      message(`已向系统提交「${kw}」敏感词采集任务...`, { type: "info" });
+      message(`已向系统提交「${kw}」采集任务...`, { type: "info" });
       await searchCrawler(kw);
     }
-    await eventsStore.loadEvents({ keyword: kw });
+    await eventsStore.loadEvents({ keyword: kw, size: 100 });
+    allEvents.value = [...eventsStore.events];
     message("事件看板刷新成功", { type: "success" });
-  } catch (err) {
-    message("操作失败，请重试", { type: "error" });
-  }
+  } catch { message("操作失败", { type: "error" }); }
 }
 
-// 手动采集
 async function triggerCrawl() {
   try {
-    message("正在创建后台网络爬虫采集任务...", { type: "info" });
-    const response = await triggerCrawler({});
-    message(`采集任务启动成功！任务ID: ${response.data.task_id}`, { type: "success" });
-    await eventsStore.loadEvents();
-  } catch (err) {
-    message("启动采集任务失败", { type: "error" });
-  }
+    message("正在创建后台爬虫任务...", { type: "info" });
+    const resp = await triggerCrawler({});
+    message(`任务已启动 ID: ${resp.data.task_id}`, { type: "success" });
+    await eventsStore.loadEvents({ size: 100 });
+    allEvents.value = [...eventsStore.events];
+  } catch { message("启动失败", { type: "error" }); }
 }
 
-// 排序逻辑
 const sortedEvents = computed(() => {
   const list = [...eventsStore.events];
   if (sortBy.value === "time") {
-    // 越新的ID越靠前（表示最新时间）
-    return list.sort((a, b) => b.id - a.id);
-  } else {
-    // 综合热度降序
-    return list.sort((a, b) => (b.heat_index || 0) - (a.heat_index || 0));
+    return list.sort((a, b) => new Date(b.first_publish_time || 0).getTime() - new Date(a.first_publish_time || 0).getTime());
   }
+  return list.sort((a, b) => (b.heat_index || 0) - (a.heat_index || 0));
 });
 </script>
 
