@@ -263,7 +263,7 @@ function initTrendChart() {
   const keyPoints = buildKeyPoints(dates, counts);
 
   trendChart.setOption({
-    grid: { top: 30, right: 30, bottom: 30, left: 45 },
+    grid: { top: 40, right: 30, bottom: 40, left: 55 },
     tooltip: {
       trigger: "axis",
       backgroundColor: dark ? "rgba(17,24,39,0.95)" : "rgba(255,255,255,0.95)",
@@ -359,7 +359,7 @@ function initSentimentTrendChart() {
 
 function getSentimentAreaOption(dark: boolean, c: any, dates: string[], raw: any[]) {
   return {
-    grid: { top: 10, right: 30, bottom: 30, left: 45 },
+    grid: { top: 30, right: 30, bottom: 35, left: 55 },
     tooltip: {
       trigger: "axis",
       backgroundColor: dark ? "rgba(17,24,39,0.95)" : "rgba(255,255,255,0.95)",
@@ -1149,11 +1149,11 @@ function getProgressColor(heat: number) {
         </template>
         <div class="border-b border-slate-100 dark:border-slate-800/60 pb-4 mb-4">
           <div class="text-xs text-slate-400 dark:text-slate-500 mb-2">报道量趋势</div>
-          <div ref="trendRef" class="w-full h-[200px]" />
+          <div ref="trendRef" class="w-full h-[260px]" />
         </div>
         <div>
           <div class="text-xs text-slate-400 dark:text-slate-500 mb-2">情感分布变化（正面 · 中立 · 负面）</div>
-          <div ref="sentimentTrendRef" class="w-full h-[200px]" />
+          <div ref="sentimentTrendRef" class="w-full h-[260px]" />
         </div>
       </el-card>
 
