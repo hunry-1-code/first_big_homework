@@ -62,17 +62,22 @@
       </div>
     </div>
 
-    <!-- 排序 + 清除 -->
-    <div class="flex items-center justify-between bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/60 dark:border-slate-800/60 shadow-sm">
-      <div>
-        <span class="text-sm text-slate-500 dark:text-slate-400">共 {{ realTotal }} 个事件</span>
-        <el-button v-if="activeDate" size="small" class="ml-3" @click="clearFilter">显示全部</el-button>
+    <!-- 搜索 + 排序 -->
+    <div class="flex flex-col md:flex-row gap-3 items-stretch md:items-center bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/60 dark:border-slate-800/60 shadow-sm">
+      <div class="flex gap-2 flex-1">
+        <el-input v-model="keyword" placeholder="搜索事件标题或摘要" clearable size="large"
+          @keyup.enter="doSearch" @clear="clearFilter" class="max-w-[300px]">
+          <template #prefix><span class="text-slate-400">🔍</span></template>
+        </el-input>
+        <el-button type="primary" size="large" @click="doSearch">搜索</el-button>
+        <el-button v-if="keyword || activeDate" size="large" @click="clearFilter">清除</el-button>
       </div>
-      <div class="flex items-center gap-2">
-        <span class="text-sm text-slate-400">排序:</span>
-        <el-select v-model="sortBy" size="large" style="min-width: 160px">
-          <el-option label="按综合热度" value="heat" />
-          <el-option label="按发布时间" value="time" />
+      <div class="flex items-center gap-2 shrink-0">
+        <span class="text-sm text-slate-500 self-center">{{ keyword ? '搜索结果' : '共 ' + realTotal + ' 个事件' }}</span>
+        <span class="text-sm text-slate-400 ml-2">排序:</span>
+        <el-select v-model="sortBy" size="large" style="min-width: 140px">
+          <el-option label="按热度" value="heat" />
+          <el-option label="按时间" value="time" />
         </el-select>
       </div>
     </div>
@@ -97,19 +102,16 @@
 <script setup lang="ts">
 import { onMounted, ref, computed } from "vue";
 import { useEventsStore } from "@/store/modules/events";
-import { useUserStore } from "@/store/modules/user";
-import { searchCrawler, triggerCrawler } from "@/api/crawler";
 import { getTodayHotspots } from "@/api/dailyHot";
 import EventCard from "@/components/EventCard.vue";
-import { message } from "@/utils/message";
 
 defineOptions({
   name: "OpinionBoard"
 });
 
 const eventsStore = useEventsStore();
-const userStore = useUserStore();
 
+const keyword = ref("");
 const sortBy = ref<"time" | "heat">("heat");
 const activeDate = ref(""); // 空 = 全部
 const allEvents = ref<any[]>([]); // 缓存全部事件用于日期提取
@@ -176,17 +178,30 @@ async function filterByDate(date: string) {
   }
 }
 
-async function searchDailyHot(title: string) {
+function filterByKeyword(title: string) {
   keyword.value = title;
   activeDate.value = "";
-  await eventsStore.loadEvents({ keyword: title });
+  eventsStore.loadEvents({ keyword: title, size: 200 }).then(() => {
+    allEvents.value = [...eventsStore.events];
+    realTotal.value = eventsStore.total;
+  });
+}
+
+async function doSearch() {
+  activeDate.value = "";
+  const kw = keyword.value.trim();
+  await eventsStore.loadEvents(kw ? { keyword: kw, size: 200 } : { size: 200 });
   allEvents.value = [...eventsStore.events];
+  realTotal.value = eventsStore.total;
 }
 
 function clearFilter() {
   keyword.value = "";
   activeDate.value = "";
-  eventsStore.loadEvents().then(() => { allEvents.value = [...eventsStore.events]; });
+  eventsStore.loadEvents({ size: 200 }).then(() => {
+    allEvents.value = [...eventsStore.events];
+    realTotal.value = eventsStore.total;
+  });
 }
 
 onMounted(async () => {
@@ -195,30 +210,6 @@ onMounted(async () => {
   realTotal.value = eventsStore.total;
   loadDailyHot();
 });
-
-async function handleSearch() {
-  const kw = keyword.value.trim();
-  activeDate.value = "";
-  try {
-    if (kw) {
-      message(`已向系统提交「${kw}」采集任务...`, { type: "info" });
-      await searchCrawler(kw);
-    }
-    await eventsStore.loadEvents({ keyword: kw, size: 100 });
-    allEvents.value = [...eventsStore.events];
-    message("事件看板刷新成功", { type: "success" });
-  } catch { message("操作失败", { type: "error" }); }
-}
-
-async function triggerCrawl() {
-  try {
-    message("正在创建后台爬虫任务...", { type: "info" });
-    const resp = await triggerCrawler({});
-    message(`任务已启动 ID: ${resp.data.task_id}`, { type: "success" });
-    await eventsStore.loadEvents({ size: 100 });
-    allEvents.value = [...eventsStore.events];
-  } catch { message("启动失败", { type: "error" }); }
-}
 
 const sortedEvents = computed(() => {
   const list = [...eventsStore.events];
