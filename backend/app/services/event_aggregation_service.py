@@ -109,13 +109,21 @@ def _postprocess_published_event(event_id: int, publish_run_id: int, user_id: in
         from app.services.event_service import _event_keywords
 
         event_keyword_payload = _event_keywords(event)
-        overview = event.summary or _ai_generate_summary(
+        ai_report = _ai_generate_report(
             event.title or '未命名事件',
             Article.query.filter_by(event_id=event.id).limit(10).all(),
             platforms,
             event_keywords=event_keyword_payload,
         )
-        if overview is None:
+        if ai_report:
+            event.time_code = ai_report.get("time_code") or event.time_code
+            event.location = ai_report.get("location") or event.location
+            event.key_figures = ai_report.get("key_figures") or event.key_figures
+            event.cause = ai_report.get("cause") or event.cause
+            overview = ai_report.get("overview", "")
+        else:
+            overview = event.summary
+        if not overview:
             overview = '事件「' + (event.title or '未命名事件') + '」已聚合 ' + str(article_count) + ' 篇报道，覆盖 ' + str(platforms) + ' 个平台。'
         report = Report.query.filter_by(event_id=event.id).order_by(Report.id.desc()).first()
         if report is None:
@@ -453,41 +461,63 @@ def _ai_generate_title(titles: list[str]) -> str | None:
     return None
 
 
-def _ai_generate_summary(
+def _ai_generate_report(
     title: str,
     articles: list,
     platform_count: int,
     *,
     event_keywords: dict | None = None,
-) -> str | None:
-    """用 LLM 生成事件研判摘要，融入结构化关键词数据。"""
+) -> dict | None:
+    """一次 LLM 调用生成结构化研判报告（摘要+时间+地点+起因+人物+舆论焦点）。
+
+    领域无关提示词，适用自然灾害/政治/经济/娱乐等所有事件类型。
+    """
     try:
         client = _llm_client()
         samples = "\n".join(f"- [{a.platform}] {a.title}" for a in articles[:8] if a.title)
         kw_context = ""
-        ek = event_keywords or {}
-        if ek and ek.get("keywords"):
-            neg_kw = [k["word"] for k in ek["keywords"] if k.get("sentiment") == "negative"][:5]
-            pos_kw = [k["word"] for k in ek["keywords"] if k.get("sentiment") == "positive"][:5]
-            loc_kw = [k["word"] for k in ek["keywords"] if k.get("entity_type") == "location"][:5]
-            kw_parts = []
-            if neg_kw: kw_parts.append("负面焦点: " + ", ".join(neg_kw))
-            if pos_kw: kw_parts.append("正面焦点: " + ", ".join(pos_kw))
-            if loc_kw: kw_parts.append("涉及地域: " + ", ".join(loc_kw))
-            if kw_parts: kw_context = "\n关键词分析:\n" + "\n".join(kw_parts)
+        if event_keywords and event_keywords.get("keywords"):
+            kw_list = event_keywords["keywords"][:10]
+            kw_context = "关键词: " + ", ".join(k["word"] for k in kw_list)
         resp = client.chat([
             {"role": "system", "content": (
-                "你是舆情分析师。根据事件标题、关键词分析和相关报道，"
-                "写一段100-200字的事件研判摘要，包含事件性质、关键信息、舆论焦点。"
+                "你是舆情分析师。根据事件信息和相关报道，生成一份结构化研判报告。"
+                "只返回 JSON 对象，字段如下：\n"
+                '{\n  "overview": "100-200字事件概述（事件性质、核心内容、传播规模）",\n'
+                '  "time_code": "发生时间（如可推断，否则用报道最早时间）",\n'
+                '  "location": "涉及地点（多个用逗号分隔，无则留空）",\n'
+                '  "key_figures": "关键人物/机构（多个用逗号分隔，无则留空）",\n'
+                '  "cause": "事件起因/背景（50字以内）",\n'
+                '  "focus": "舆论焦点（网民/媒体主要关注什么）",\n'
+                '  "trend": "发展趋势判断（上升/平稳/下降）"\n'
+                '}\n'
+                "不要加解释文字，只输出 JSON。"
             )},
             {"role": "user", "content": (
-                f"事件：{title}\n{kw_context}\n相关报道：\n{samples}\n\n"
-                "请写一段事件研判摘要（100-200字）："
+                f"事件标题：{title}\n"
+                f"覆盖平台：{platform_count}个\n"
+                f"{kw_context}\n"
+                f"相关报道：\n{samples}\n\n"
+                "请生成结构化研判报告（JSON）："
             )}
-        ], temperature=0.5, max_tokens=300)
+        ], temperature=0.3, max_tokens=400)
         result = resp["content"].strip()
-        if 20 <= len(result) <= 500:
-            return result
+        import json as _json
+        fenced = _json.loads.__doc__ and __import__('re').fullmatch(
+            r"```(?:json)?\s*(.*?)\s*```", result, __import__('re').DOTALL | __import__('re').IGNORECASE
+        )
+        if fenced: result = fenced.group(1)
+        data = _json.loads(result)
+        if isinstance(data, dict) and data.get("overview"):
+            return {
+                "overview": str(data.get("overview", ""))[:300],
+                "time_code": str(data.get("time_code", ""))[:50],
+                "location": str(data.get("location", ""))[:100],
+                "key_figures": str(data.get("key_figures", ""))[:200],
+                "cause": str(data.get("cause", ""))[:200],
+                "focus": str(data.get("focus", ""))[:200],
+                "trend": str(data.get("trend", ""))[:20],
+            }
     except Exception:
         pass
     return None
