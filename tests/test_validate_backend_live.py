@@ -1,4 +1,5 @@
 import json
+import shutil
 import sys
 import tempfile
 import unittest
@@ -174,6 +175,42 @@ class BackendLiveValidatorTest(unittest.TestCase):
             },
         )
         serialize.assert_called_once_with(run, limit=1, ttl_seconds=900)
+
+    def test_daily_hot_probe_releases_temporary_sqlite_file(self):
+        directory = Path(tempfile.mkdtemp(prefix="live-validator-test-"))
+        database = directory / "validation.db"
+
+        class BaseConfig:
+            TESTING = True
+            SECRET_KEY = "test"
+            JWT_SECRET_KEY = "test"
+            SQLALCHEMY_TRACK_MODIFICATIONS = False
+            FRONTEND_ORIGINS = ["http://localhost"]
+
+        config = make_isolated_config(
+            BaseConfig,
+            f"sqlite:///{database.as_posix()}",
+        )
+        run = SimpleNamespace(
+            status="success",
+            available_sources=["weibo_hot"],
+            failed_sources=[],
+            item_count=1,
+        )
+        try:
+            with patch(
+                "app.services.daily_hot_service.collect_daily_hot",
+                return_value=run,
+            ), patch(
+                "app.services.daily_hot_service.serialize_daily_hot_run",
+                return_value={"items": [{"event_id": None}]},
+            ):
+                run_daily_hot_probe(config)
+
+            database.unlink()
+            self.assertFalse(database.exists())
+        finally:
+            shutil.rmtree(directory, ignore_errors=True)
 
     def test_llm_probe_makes_one_minimal_structured_call(self):
         class Config:

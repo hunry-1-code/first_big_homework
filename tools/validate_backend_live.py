@@ -134,47 +134,53 @@ def configured_secrets(config) -> list[str]:
 
 def run_daily_hot_probe(config_class) -> dict[str, Any]:
     from app import create_app
+    from app.extensions import db
     from app.services.daily_hot_service import (
         collect_daily_hot,
         serialize_daily_hot_run,
     )
 
     app = create_app(config_class)
-    database_uri = str(app.config.get("SQLALCHEMY_DATABASE_URI", ""))
-    scheduler_started = "task_recovery_scheduler" in app.extensions
-    if (
-        app.config.get("TASK_RECOVER_ON_STARTUP")
-        or not app.config.get("TASKS_RUN_SYNC")
-        or app.config.get("BGE_ENABLED")
-        or not database_uri.startswith("sqlite:")
-        or scheduler_started
-    ):
-        raise RuntimeError("isolated validation runtime is invalid")
+    try:
+        database_uri = str(app.config.get("SQLALCHEMY_DATABASE_URI", ""))
+        scheduler_started = "task_recovery_scheduler" in app.extensions
+        if (
+            app.config.get("TASK_RECOVER_ON_STARTUP")
+            or not app.config.get("TASKS_RUN_SYNC")
+            or app.config.get("BGE_ENABLED")
+            or not database_uri.startswith("sqlite:")
+            or scheduler_started
+        ):
+            raise RuntimeError("isolated validation runtime is invalid")
 
-    with app.app_context():
-        run = collect_daily_hot(
-            sources=["weibo_hot", "baidu_hot", "zhihu_hot"],
-            source_limit=1,
-            result_limit=1,
-            rrf_k=60,
-            ttl_seconds=0,
-            force=True,
-        )
-        payload = serialize_daily_hot_run(
-            run,
-            limit=1,
-            ttl_seconds=900,
-        )
-        return {
-            "status": run.status,
-            "available_sources": run.available_sources or [],
-            "failed_sources": run.failed_sources or [],
-            "item_count": int(run.item_count or 0),
-            "returned_items": len(payload["items"]),
-            "has_event_id_field": bool(payload["items"])
-            and "event_id" in payload["items"][0],
-            "scheduler_started": scheduler_started,
-        }
+        with app.app_context():
+            run = collect_daily_hot(
+                sources=["weibo_hot", "baidu_hot", "zhihu_hot"],
+                source_limit=1,
+                result_limit=1,
+                rrf_k=60,
+                ttl_seconds=0,
+                force=True,
+            )
+            payload = serialize_daily_hot_run(
+                run,
+                limit=1,
+                ttl_seconds=900,
+            )
+            return {
+                "status": run.status,
+                "available_sources": run.available_sources or [],
+                "failed_sources": run.failed_sources or [],
+                "item_count": int(run.item_count or 0),
+                "returned_items": len(payload["items"]),
+                "has_event_id_field": bool(payload["items"])
+                and "event_id" in payload["items"][0],
+                "scheduler_started": scheduler_started,
+            }
+    finally:
+        with app.app_context():
+            db.session.remove()
+            db.engine.dispose()
 
 
 def run_llm_probe(config_class, *, client_factory=None) -> dict[str, Any]:
