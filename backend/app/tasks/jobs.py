@@ -392,13 +392,14 @@ def daily_hot_job(task_id: int, registry: CrawlerRegistry | None = None) -> dict
             update_task(task_id, progress=80, message=f"正在 LLM 主题去重 ({len(items)} 条)...")
             canonical = deduplicate_hot_topics(items)
             update_task(task_id, progress=85, message=f"去重完成: {len(items)} → {len(canonical)} 个主题")
+    # 限制 enrichment 数量：最多 10 个，避免僵尸堆积
     enrichment_tasks = []
     if run.status in {"success", "partial"}:
         enrichment_tasks = enqueue_daily_hot_enrichments(
             run.id,
             created_by=task.get("created_by"),
             registry=registry,
-        )
+        )[:10]
     summary = {
         "run_id": run.id,
         "status": run.status,

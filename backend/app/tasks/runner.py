@@ -6,7 +6,7 @@ from typing import Callable
 
 
 _EXECUTOR = ThreadPoolExecutor(max_workers=2, thread_name_prefix="opinion-task")
-_PENDING_SLOTS = BoundedSemaphore(100)
+_PENDING_SLOTS = BoundedSemaphore(5)  # 限制排队：最多 5 个等待任务，防僵尸堆积
 
 
 def _heartbeat_loop(app, task_id: int, lease_token: str, stop_event, interval: int) -> None:
@@ -195,9 +195,10 @@ def start_recovery_scheduler(app, scheduler=None):
         coalesce=True,
         replace_existing=True,
     )
-    from app.tasks.scheduler import register_daily_hot_refresh
-
-    register_daily_hot_refresh(app, scheduler)
+    # daily_hot 定时调度已禁用（避免自动爬虫消耗 API 配额）
+    # 如需开启，取消下面两行注释：
+    # from app.tasks.scheduler import register_daily_hot_refresh
+    # register_daily_hot_refresh(app, scheduler)
     scheduler.start()
     app.extensions["task_recovery_scheduler"] = scheduler
     return scheduler
