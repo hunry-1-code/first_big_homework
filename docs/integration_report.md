@@ -650,5 +650,14 @@ idle → startAnalysis() → running (2s 轮询 GET /api/tasks/:id)
 
 关键设计选择：传播路径证据不足时允许空边，不使用关键词共现图冒充传播关系；生命周期继续保持四阶段枚举；今日 Top10 先保存快速热榜快照，再异步补齐正式事件分析。
 
+实施工作拆分为四份计划：
+
+- `docs/superpowers/plans/2026-07-13-backend-baseline-and-contract-repair.md`
+- `docs/superpowers/plans/2026-07-13-core-algorithm-reliability.md`
+- `docs/superpowers/plans/2026-07-13-analysis-quality-and-persistence.md`
+- `docs/superpowers/plans/2026-07-13-daily-top10-hotspots.md`
+
+2026-07-13 实施前重新运行全量自动化测试，基线仍为 `244 passed, 31 failed, 5 warnings`。失败分组与交接总结一致：内容分析 JSON 序列化造成主要连锁失败，另外包含 API 枚举、聚合默认值、传播误连和生命周期算法/命名问题。
+
 ---
 
