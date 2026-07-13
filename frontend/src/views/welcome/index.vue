@@ -10,17 +10,9 @@
           实时监测、清洗与智能分析全网舆情热点事件。
         </p>
       </div>
-      <div class="flex gap-2">
-        <el-button
-          v-if="isAdmin"
-          type="primary"
-          size="large"
-          @click="triggerCrawl"
-        >手动触发全网采集</el-button>
-        <el-button type="primary" size="large" plain @click="$router.push('/analysis')">
-          新建事件分析 →
-        </el-button>
-      </div>
+      <el-button type="primary" size="large" plain @click="$router.push('/analysis')">
+        新建事件分析 →
+      </el-button>
     </div>
 
     <!-- 日期导航条 -->
