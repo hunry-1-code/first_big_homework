@@ -217,13 +217,13 @@ Assert `GET /api/hotspots` continues returning analyzed formal events, while `/t
 - Modify: `docs/integration_report.md`
 - Modify: `docs/后端系统现状与接口说明.md`
 
-- [ ] **Step 1: Run automated Top10 suites**
+- [x] **Step 1: Run automated Top10 suites**
 
 ```powershell
 python -m pytest backend/tests/test_daily_hot.py backend/tests/test_daily_hot_migration.py backend/tests/test_daily_hot_service.py backend/tests/test_daily_hot_api.py backend/tests/test_daily_hot_enrichment.py backend/tests/test_jobs.py backend/tests/test_hotspot_service.py -q
 ```
 
-- [ ] **Step 2: Run the full suite**
+- [x] **Step 2: Run the full suite**
 
 ```powershell
 python -m pytest backend/tests tests -q
@@ -231,7 +231,7 @@ python -m pytest backend/tests tests -q
 
 Expected: zero automated failures before live validation.
 
-- [ ] **Step 3: Run secret-safe live hot-list validation**
+- [x] **Step 3: Run secret-safe live hot-list validation**
 
 Use `backend/.env` without printing it:
 
@@ -241,10 +241,10 @@ python tools\validate_live_crawlers.py --platform weibo_hot --platform baidu_hot
 
 Then call the refresh endpoint or service with the smallest supported limits. Classify authentication, quota, network, platform blocking and empty responses separately.
 
-- [ ] **Step 4: Update documentation with exact results**
+- [x] **Step 4: Update documentation with exact results**
 
 Record available/failed sources, fused item count, timestamps, automated test count and known external limitations. Never include keys or Authorization values.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 Commit validator, safe result artifact and documents after inspecting for secrets.

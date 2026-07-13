@@ -343,7 +343,7 @@ git commit -m "test: record low-volume backend live validation" -m "Co-Authored-
 - Reference: `docs/后端系统现状与接口说明.md`
 - Reference: backend algorithm and service modules
 
-- [ ] **Step 1: Build an evidence inventory**
+- [x] **Step 1: Build an evidence inventory**
 
 For each of the 13 modules in the approved design, record:
 
@@ -357,7 +357,7 @@ For each of the 13 modules in the approved design, record:
 
 Use `rg` to locate configuration parameters, warnings, versions and test cases. Do not infer empirical accuracy from test count.
 
-- [ ] **Step 2: Write the score matrix**
+- [x] **Step 2: Write the score matrix**
 
 Create a matrix with columns:
 
@@ -376,7 +376,7 @@ Scoring rules:
 
 No current module may receive evidence above E3 unless the repository contains a representative labeled evaluation or online experiment.
 
-- [ ] **Step 3: Write per-module assessments**
+- [x] **Step 3: Write per-module assessments**
 
 Each module section must contain:
 
@@ -400,7 +400,7 @@ Explicitly state:
 - propagation edges are evidence-weighted inferences, not verified repost links;
 - LLM metadata, QA and report text can hallucinate and require evidence display.
 
-- [ ] **Step 4: Add prioritized validation roadmap**
+- [x] **Step 4: Add prioritized validation roadmap**
 
 Define:
 
@@ -417,7 +417,7 @@ For each proposed dataset, name the unit of annotation and metrics:
 - propagation: directed article pair, edge precision/recall;
 - Top10: daily human relevance ordering, nDCG@10 and source coverage.
 
-- [ ] **Step 5: Self-review the document**
+- [x] **Step 5: Self-review the document**
 
 Check:
 
@@ -435,7 +435,7 @@ Check:
 - Modify: `docs/superpowers/plans/2026-07-13-daily-top10-hotspots.md`
 - Modify: `docs/superpowers/plans/2026-07-13-final-validation-and-algorithm-self-audit.md`
 
-- [ ] **Step 1: Record exact automated results**
+- [x] **Step 1: Record exact automated results**
 
 Record:
 
@@ -444,19 +444,19 @@ Record:
 - warning count and categories;
 - compatibility contract result.
 
-- [ ] **Step 2: Record live results conservatively**
+- [x] **Step 2: Record live results conservatively**
 
 Record each platform status, combined Top10 status, item count, LLM status/model and timestamp. External failures must retain their classification. Do not describe one successful call as permanent availability.
 
-- [ ] **Step 3: Record the isolated-validation correction**
+- [x] **Step 3: Record the isolated-validation correction**
 
 Document that the first direct service probe succeeded but incorrectly started the production recovery scheduler and modified the development SQLite file. State that the final validator uses a temporary database and disables long-running services, and that the tracked database was restored.
 
-- [ ] **Step 4: Mark all plan checkboxes accurately**
+- [x] **Step 4: Mark all plan checkboxes accurately**
 
 Mark Daily Top10 Task 8 complete only after automated tests, live checks, secret scan and documentation are all finished.
 
-- [ ] **Step 5: Commit audit and records**
+- [x] **Step 5: Commit audit and records**
 
 ```powershell
 git add docs/后端算法科学性合理性完整性自评.md `
