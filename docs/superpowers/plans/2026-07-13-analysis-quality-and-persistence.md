@@ -306,22 +306,22 @@ Run hotspot and aggregation suites, then commit.
 - Modify: `docs/integration_report.md`
 - Modify: `docs/后端系统现状与接口说明.md`
 
-- [ ] **Step 1: Run analysis-focused suites**
+- [x] **Step 1: Run analysis-focused suites**
 
 ```powershell
 python -m pytest backend/tests/test_fake_detector.py backend/tests/test_content_analysis_features.py backend/tests/test_content_analysis_service.py backend/tests/test_sentiment_algorithms.py backend/tests/test_sentiment_service.py backend/tests/test_event_aggregation_service.py backend/tests/test_hotspot_service.py -q
 ```
 
-- [ ] **Step 2: Run full automated suite**
+- [x] **Step 2: Run full automated suite**
 
 ```powershell
 python -m pytest backend/tests tests -q
 ```
 
-- [ ] **Step 3: Update documents with exact evidence**
+- [x] **Step 3: Update documents with exact evidence**
 
 Mark each audit issue as fixed, partially addressed or deliberately replaced, with test names and limitations. Record the exact full-suite result.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 Commit only after fresh verification output is available.
