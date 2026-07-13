@@ -16,7 +16,7 @@
 - Modify: `backend/app/services/content_analysis_service.py`
 - Modify: `backend/tests/test_content_analysis_service.py`
 
-- [ ] **Step 1: Strengthen the failing persistence test**
+- [x] **Step 1: Strengthen the failing persistence test**
 
 Add JSON serialization assertions after the existing keyword persistence assertions:
 
@@ -29,7 +29,7 @@ for row in rows:
     self.assertTrue(all("term" in item and "score" in item for item in row.keywords))
 ```
 
-- [ ] **Step 2: Run the focused tests and verify RED**
+- [x] **Step 2: Run the focused tests and verify RED**
 
 Run:
 
@@ -39,7 +39,7 @@ python -m pytest backend/tests/test_content_analysis_service.py::ContentAnalysis
 
 Expected: JSON persistence fails with `ArticleKeyword is not JSON serializable`; encoder call count remains zero.
 
-- [ ] **Step 3: Add one JSON-boundary conversion helper**
+- [x] **Step 3: Add one JSON-boundary conversion helper**
 
 Add near the service helpers:
 
@@ -67,11 +67,11 @@ json_keyword_map = {
 
 Assign `row.keywords` only from `json_keyword_map` in both the normal path and BGE rollback path.
 
-- [ ] **Step 4: Run the focused tests and verify GREEN**
+- [x] **Step 4: Run the focused tests and verify GREEN**
 
 Run the same command. Expected: both tests pass; `encoder.calls == 1`.
 
-- [ ] **Step 5: Run the whole content-analysis service suite**
+- [x] **Step 5: Run the whole content-analysis service suite**
 
 ```powershell
 python -m pytest backend/tests/test_content_analysis_service.py -q
@@ -79,7 +79,7 @@ python -m pytest backend/tests/test_content_analysis_service.py -q
 
 Expected: all tests pass.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```powershell
 git add backend/app/services/content_analysis_service.py backend/tests/test_content_analysis_service.py

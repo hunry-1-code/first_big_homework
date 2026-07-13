@@ -1,3 +1,4 @@
+import json
 import sys
 import unittest
 from datetime import timedelta
@@ -179,6 +180,12 @@ class ContentAnalysisServiceTest(unittest.TestCase):
         ).all()
         self.assertTrue(all(row.feature_status == "success" for row in rows))
         self.assertTrue(all(row.keywords for row in rows))
+        for row in rows:
+            json.dumps(row.keywords, ensure_ascii=False)
+            self.assertTrue(all(isinstance(item, dict) for item in row.keywords))
+            self.assertTrue(
+                all("term" in item and "score" in item for item in row.keywords)
+            )
         self.assertTrue(
             all(
                 DocumentFeatures.query.filter_by(article_id=article.id).one().tfidf_vector

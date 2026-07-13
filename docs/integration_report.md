@@ -659,5 +659,17 @@ idle → startAnalysis() → running (2s 轮询 GET /api/tasks/:id)
 
 2026-07-13 实施前重新运行全量自动化测试，基线仍为 `244 passed, 31 failed, 5 warnings`。失败分组与交接总结一致：内容分析 JSON 序列化造成主要连锁失败，另外包含 API 枚举、聚合默认值、传播误连和生命周期算法/命名问题。
 
+### 21.1 内容分析 JSON 持久化修复
+
+根因确认：`extract_article_keywords()` 返回 `ArticleKeyword` 领域对象，服务正常路径将对象直接赋给 `AnalysisRunArticle.keywords`。SQLAlchemy 在 BGE 缓存查询或最终提交时自动刷新 JSON 字段，导致序列化异常，并使编码器调用次数保持为 0。
+
+修复方式：在内容分析服务持久化边界统一将关键词转换为普通字典，正常路径和 BGE 降级回滚路径复用同一份 JSON-safe 映射。
+
+验证：
+
+- 聚焦红色测试修复前稳定失败，错误为 `ArticleKeyword is not JSON serializable` 和 `encoder.calls == 0`；
+- 修复后聚焦测试 `2 passed`；
+- `backend/tests/test_content_analysis_service.py` 完整套件 `11 passed`。
+
 ---
 

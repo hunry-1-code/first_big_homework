@@ -41,6 +41,20 @@ def _sha256(value) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
+def _json_keywords(items) -> list[dict]:
+    output = []
+    for item in items or []:
+        if hasattr(item, "as_dict"):
+            output.append(item.as_dict())
+        elif isinstance(item, dict):
+            output.append(dict(item))
+        else:
+            raise TypeError(
+                f"unsupported keyword value: {type(item).__name__}"
+            )
+    return output
+
+
 def _normalized_platforms(platforms: Iterable[str] | None) -> list[str]:
     return sorted(
         {
@@ -340,9 +354,13 @@ def run_content_analysis(
                 keyword_map = _merge_llm_keywords(llm_map, keyword_map)
         except Exception:
             pass
+        json_keyword_map = {
+            article_id: _json_keywords(items)
+            for article_id, items in keyword_map.items()
+        }
         assert_task_lease(task_id)
         for row in representative_rows:
-            row.keywords = keyword_map.get(row.article_id, [])
+            row.keywords = json_keyword_map.get(row.article_id, [])
             row.feature_status = "success"
             row.warnings = list(
                 dict.fromkeys((row.warnings or []) + documents[representative_rows.index(row)].warnings)
@@ -372,7 +390,7 @@ def run_content_analysis(
                 ).all()
                 representative_rows = [row for row in rows if row.is_representative]
                 for row in representative_rows:
-                    row.keywords = [item.as_dict() for item in keyword_map[row.article_id]]
+                    row.keywords = json_keyword_map.get(row.article_id, [])
                     row.feature_status = "success"
                 warnings.append("BGE_UNAVAILABLE")
 
