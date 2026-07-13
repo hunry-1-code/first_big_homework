@@ -398,8 +398,8 @@ def deduplicate_hot_topics(items: list[DailyHotItem]) -> list[DailyHotItem]:
             {"role": "system", "content": (
                 "你是热榜去重助手。以下热榜标题可能描述同一事件。"
                 "将它们分组，每组用 canonical_name 命名，提取 3-5 个关键词。"
-                "返回 JSON: [{\"canonical_name\":\"规范名称\",\"keywords\":[\"词1\",\"词2\"],\"merged_indices\":[1,3,5]}]"
-                "未合并的标题单独成组。只输出 JSON 数组。"
+                "返回 JSON: [{\"canonical_name\":\"规范名称\",\"keywords\":[\"词1\",\"词2\"],\"merged_titles\":[\"原标题1\",\"原标题2\"]}]"
+                "未合并的标题单独成组，merged_titles 里放同组所有原标题（精确匹配）。只输出 JSON 数组。"
             )},
             {"role": "user", "content": f"热榜标题：\n{joined}\n\n请分组去重："}
         ], temperature=0.2, max_tokens=500)
@@ -411,27 +411,31 @@ def deduplicate_hot_topics(items: list[DailyHotItem]) -> list[DailyHotItem]:
         if not isinstance(groups, list) or not groups:
             return items
 
-        # 应用分组：保留每组的第一个作为主条目，其余标记为 merged
-        merged_set = set()
-        canonical_map = {}
+        # 用标题精确匹配做去重（避免 index 映射 bug）
+        title_to_item = {item.title: item for item in items}
+        canonical = []
         for g in groups:
             if not isinstance(g, dict): continue
-            indices = g.get("merged_indices", [])
-            if not indices: continue
-            canonical_idx = indices[0] - 1  # 1-indexed -> 0-indexed
-            if 0 <= canonical_idx < len(items):
-                canonical_item = items[canonical_idx]
-                canonical_item.topic_keywords = g.get("keywords", [])
-                canonical_map[canonical_idx] = canonical_item
-                for idx in indices[1:]:
-                    merged_idx = idx - 1
-                    if 0 <= merged_idx < len(items):
-                        items[merged_idx].merged_into_item_id = canonical_item.id
-                        merged_set.add(merged_idx)
+            merged_titles = g.get("merged_titles", [])
+            if not merged_titles: continue
+            # 第一个标题 = 主条目
+            canonical_item = title_to_item.get(merged_titles[0])
+            if canonical_item is None: continue
+            canonical_item.topic_keywords = g.get("keywords", [])
+            canonical.append(canonical_item)
+            # 其余标记为 merged
+            for mt in merged_titles[1:]:
+                merged_item = title_to_item.get(mt)
+                if merged_item and merged_item.id != canonical_item.id:
+                    merged_item.merged_into_item_id = canonical_item.id
 
-        return [item for i, item in enumerate(items) if i not in merged_set]
-    except Exception:
-        return items  # LLM 失败时回退：全部保留
+        if canonical:
+            return canonical
+        return items
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("LLM topic dedup failed: %s", e)
+        return items
 
 
 __all__ = [
