@@ -68,7 +68,7 @@ class BilibiliCrawler:
             f"{self.base_url}/x/web-interface/search/type",
             headers=headers,
             params={
-                "search_type": "video",
+                "search_type": "article",
                 "keyword": request.keyword or "",
                 "page": request.extra.get("page", 1),
                 "page_size": min(50, request.limit),
@@ -78,17 +78,17 @@ class BilibiliCrawler:
         items = (payload.get("data") or {}).get("result") or []
         documents = []
         for item in items[: request.limit]:
-            bvid = str(item.get("bvid") or item.get("aid") or "")
-            if not bvid:
+            art_id = str(item.get("id") or item.get("cvid") or item.get("bvid") or item.get("aid") or "")
+            if not art_id:
                 continue
-            publish_time = item.get("pubdate")
+            publish_time = item.get("pubdate") or item.get("ctime")
             if isinstance(publish_time, (int, float)):
                 publish_time = datetime.fromtimestamp(publish_time, timezone.utc).isoformat()
             documents.append(
                 RawDocument(
                     platform=self.platform,
-                    source_url=f"https://www.bilibili.com/video/{bvid}",
-                    source_article_id=bvid,
+                    source_url=f"https://www.bilibili.com/read/cv{art_id}" if str(item.get('id')).isdigit() else f"https://www.bilibili.com/video/{art_id}",
+                    source_article_id=art_id,
                     title=_plain(item.get("title")),
                     raw_content=_plain(item.get("description")),
                     source_type="social",
