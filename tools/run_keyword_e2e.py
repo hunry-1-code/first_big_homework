@@ -76,6 +76,11 @@ def summarize_task(task: dict) -> dict[str, Any]:
     }
 
 
+def analysis_success_visible(text: str) -> bool:
+    value = str(text or "")
+    return any(marker in value for marker in ("已完成", "成功", "100%"))
+
+
 def _write_json(
     path: Path,
     value,
@@ -753,7 +758,7 @@ def run_browser_cycle(
                 "url": driver.current_url,
                 "has_keyword": "功夫女足" in analysis_body,
                 "has_history": "我的分析任务历史" in analysis_body,
-                "has_success_state": "成功" in analysis_body or "100%" in analysis_body,
+                "has_success_state": analysis_success_visible(analysis_body),
             }
             _save_full_page_screenshot(driver, artifact_dir / names["analysis"])
 
@@ -1384,6 +1389,7 @@ def browser_console_issues(entries: list[dict] | None) -> list[dict]:
 
 
 __all__ = [
+    "analysis_success_visible",
     "assess_frontend_data_quality",
     "build_backend_environment",
     "build_search_payload",

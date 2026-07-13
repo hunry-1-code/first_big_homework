@@ -7,6 +7,7 @@ from pathlib import Path
 
 from tools.run_keyword_e2e import (
     assess_frontend_data_quality,
+    analysis_success_visible,
     build_backend_environment,
     browser_artifact_names,
     browser_console_issues,
@@ -19,6 +20,11 @@ from tools.run_keyword_e2e import (
 
 
 class KeywordE2EDriverTest(unittest.TestCase):
+    def test_analysis_success_detection_accepts_localized_completed_state(self):
+        self.assertTrue(analysis_success_visible("状态 已完成 进度"))
+        self.assertTrue(analysis_success_visible("分析成功"))
+        self.assertFalse(analysis_success_visible("进行中 60%"))
+
     def test_cli_help_runs_from_repository_root(self):
         root = Path(__file__).resolve().parents[1]
         result = subprocess.run(
