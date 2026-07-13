@@ -64,23 +64,23 @@ Commit pure algorithm and tests.
 - Create: `backend/migrations/migrate_daily_hot.py`
 - Create: `backend/tests/test_daily_hot_migration.py`
 
-- [ ] **Step 1: Write failing schema tests**
+- [x] **Step 1: Write failing schema tests**
 
 Assert `db.create_all()` includes `daily_hot_run` and `daily_hot_item`, unique run/source/date constraints, JSON source ranks/errors and nullable event/task references.
 
-- [ ] **Step 2: Run and verify RED**
+- [x] **Step 2: Run and verify RED**
 
-- [ ] **Step 3: Define models**
+- [x] **Step 3: Define models**
 
 `DailyHotRun` fields: id, run_date, status, available_sources, failed_sources, errors, item_count, config_hash, created_at, completed_at.
 
 `DailyHotItem` fields: id, run_id, normalized_key, title, fused_score, rank, source_ranks, source_payloads, first_seen_at, last_seen_at, enrichment_status, event_id, analysis_task_id, error_code, error_message.
 
-- [ ] **Step 4: Write idempotent SQL/Python migrations**
+- [x] **Step 4: Write idempotent SQL/Python migrations**
 
 Support MySQL production migration and SQLite model creation tests. Do not mutate existing Event rows.
 
-- [ ] **Step 5: Run migration tests and commit**
+- [x] **Step 5: Run migration tests and commit**
 
 ### Task 3: Collect direct platform hot lists with failure isolation
 

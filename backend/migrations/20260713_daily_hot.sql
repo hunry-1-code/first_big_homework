@@ -1,0 +1,43 @@
+CREATE TABLE IF NOT EXISTS daily_hot_run (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    run_date DATE NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    available_sources JSON NULL,
+    failed_sources JSON NULL,
+    errors JSON NULL,
+    item_count INT NOT NULL DEFAULT 0,
+    config_hash VARCHAR(64) NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    completed_at DATETIME NULL,
+    CONSTRAINT uq_daily_hot_run_date_config UNIQUE (run_date, config_hash),
+    INDEX ix_daily_hot_run_status_created (status, created_at),
+    INDEX ix_daily_hot_run_date (run_date),
+    INDEX ix_daily_hot_run_config_hash (config_hash)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS daily_hot_item (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    run_id BIGINT NOT NULL,
+    normalized_key VARCHAR(255) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    fused_score DOUBLE NOT NULL,
+    rank INT NOT NULL,
+    source_ranks JSON NULL,
+    source_payloads JSON NULL,
+    first_seen_at DATETIME NOT NULL,
+    last_seen_at DATETIME NOT NULL,
+    enrichment_status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    event_id INT NULL,
+    analysis_task_id BIGINT NULL,
+    error_code VARCHAR(64) NULL,
+    error_message VARCHAR(500) NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_daily_hot_item_run_key UNIQUE (run_id, normalized_key),
+    CONSTRAINT uq_daily_hot_item_run_rank UNIQUE (run_id, rank),
+    INDEX ix_daily_hot_item_run (run_id),
+    INDEX ix_daily_hot_item_enrichment (enrichment_status, last_seen_at),
+    CONSTRAINT fk_daily_hot_item_run FOREIGN KEY (run_id) REFERENCES daily_hot_run(id) ON DELETE CASCADE,
+    CONSTRAINT fk_daily_hot_item_event FOREIGN KEY (event_id) REFERENCES event(id),
+    CONSTRAINT fk_daily_hot_item_task FOREIGN KEY (analysis_task_id) REFERENCES task(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+

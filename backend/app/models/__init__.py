@@ -3,6 +3,7 @@ from app.models.article import Article
 from app.models.article_embedding import ArticleEmbedding
 from app.models.article_snapshot import ArticleSnapshot
 from app.models.crawl_source import CrawlSource
+from app.models.daily_hot import DailyHotItem, DailyHotRun
 from app.models.document_features import DocumentFeatures
 from app.models.event import Event
 from app.models.event_aggregation import (
@@ -44,6 +45,8 @@ __all__ = [
     "ArticleSnapshot",
     "ArticleSentimentResult",
     "CrawlSource",
+    "DailyHotItem",
+    "DailyHotRun",
     "DocumentFeatures",
     "Event",
     "EventArticleMembership",
