@@ -78,28 +78,61 @@ class BilibiliCrawler:
         items = (payload.get("data") or {}).get("result") or []
         documents = []
         for item in items[: request.limit]:
-            art_id = str(item.get("id") or item.get("cvid") or item.get("bvid") or item.get("aid") or "")
+            art_id = str(item.get("id") or item.get("cvid") or item.get("bid") or "")
             if not art_id:
                 continue
             publish_time = item.get("pubdate") or item.get("ctime")
             if isinstance(publish_time, (int, float)):
                 publish_time = datetime.fromtimestamp(publish_time, timezone.utc).isoformat()
+
+            # 两阶段获取：先搜索拿元数据，再调详情 API 拉全文
+            full_content = _plain(item.get("description") or "")
+            author_name = item.get("author") or ""
+            author_mid = str(item.get("mid")) if item.get("mid") is not None else ""
+            view_count = item.get("play")
+            like_count = item.get("favorites")
+            reply_count = item.get("review")
+
+            # 拉取专栏全文（仅纯数字ID的文章有 detail API）
+            try:
+                    detail = self.client.get_json(
+                        f"{self.base_url}/x/article/view",
+                        headers=headers,
+                        params={"id": int(art_id)},
+                    )
+                    if detail.get("code") == 0:
+                        d = detail.get("data") or {}
+                        full_content = d.get("content") or full_content
+                        author_name = d.get("author_name") or author_name
+                        author_mid = str(d.get("mid")) if d.get("mid") else author_mid
+                        stats = d.get("stats") or {}
+                        view_count = stats.get("view") or view_count
+                        like_count = stats.get("like") or like_count
+                        reply_count = stats.get("reply") or reply_count
+            except Exception:
+                pass  # detail API 失败时用搜索元数据兜底
+
             documents.append(
                 RawDocument(
                     platform=self.platform,
-                    source_url=f"https://www.bilibili.com/read/cv{art_id}" if str(item.get('id')).isdigit() else f"https://www.bilibili.com/video/{art_id}",
+                    source_url=f"https://www.bilibili.com/read/cv{art_id}",
                     source_article_id=art_id,
                     title=_plain(item.get("title")),
-                    raw_content=_plain(item.get("description")),
+                    raw_content=full_content,
                     source_type="social",
-                    author=item.get("author"),
-                    author_id=str(item.get("mid")) if item.get("mid") is not None else None,
+                    author=author_name,
+                    author_id=author_mid,
                     publish_time=publish_time,
-                    likes_count=item.get("favorites"),
-                    comments_count=item.get("review"),
-                    views_count=item.get("play"),
+                    likes_count=like_count,
+                    comments_count=reply_count,
+                    views_count=view_count,
                     content_type="text",
                     raw_json=item,
                 )
             )
         return documents
+
+    @staticmethod
+    def _article_id_pattern(art_id: str) -> bool:
+        """判断 ID 是否是专栏文章格式（纯数字ID）。"""
+        return art_id.isdigit() and len(art_id) >= 6
