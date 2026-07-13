@@ -382,12 +382,20 @@ def daily_hot_job(task_id: int, registry: CrawlerRegistry | None = None) -> dict
         force=bool(payload.get("force", False)),
         progress_callback=report,
     )
+    enrichment_tasks = []
+    if run.status in {"success", "partial"}:
+        enrichment_tasks = enqueue_daily_hot_enrichments(
+            run.id,
+            created_by=task.get("created_by"),
+            registry=registry,
+        )
     summary = {
         "run_id": run.id,
         "status": run.status,
         "item_count": int(run.item_count or 0),
         "available_sources": run.available_sources or [],
         "failed_sources": run.failed_sources or [],
+        "enrichment_task_count": len(enrichment_tasks),
     }
     task_status = "failed" if run.status == "failed" else "success"
     update_task(
@@ -402,6 +410,198 @@ def daily_hot_job(task_id: int, registry: CrawlerRegistry | None = None) -> dict
         result=summary,
     )
     return summary
+
+
+def _run_daily_hot_enrichment_chain(
+    task_id: int,
+    item,
+    task: dict,
+    *,
+    registry: CrawlerRegistry | None = None,
+) -> int | None:
+    registry = registry or build_crawler_registry(current_app.config)
+    search_platforms = (task.get("payload") or {}).get("platforms") or [
+        name
+        for name in registry.platforms()
+        if name not in {"sample", "rss"} and not name.endswith("_hot")
+    ]
+    if not search_platforms:
+        return None
+    service = CrawlService(
+        registry,
+        default_target_count=current_app.config.get(
+            "DAILY_HOT_ENRICH_TARGET_COUNT", 20
+        ),
+        maximum_target_count=current_app.config.get("CRAWL_MAX_TARGET_COUNT", 200),
+        preferred_platform_limit=current_app.config.get(
+            "CRAWL_PLATFORM_PREFERRED_LIMIT", 50
+        ),
+    )
+    batch = service.collect(
+        keyword=item.title,
+        platforms=search_platforms,
+        target_count=current_app.config.get("DAILY_HOT_ENRICH_TARGET_COUNT", 20),
+        mode="search",
+    )
+    article_ids = []
+    for document in batch.documents:
+        article, _output = persist_raw_document(document, task_id)
+        article_ids.append(article.id)
+    if not article_ids:
+        if batch.errors:
+            raise RuntimeError("ENRICHMENT_CRAWL_FAILED")
+        return None
+
+    from app.models import AggregationCluster
+    from app.services.content_analysis_service import (
+        create_analysis_run,
+        run_content_analysis,
+    )
+    from app.services.event_aggregation_service import (
+        create_aggregation_run,
+        publish_cluster,
+        run_event_aggregation,
+    )
+
+    analysis_run, reused = create_analysis_run(
+        list(dict.fromkeys(article_ids)),
+        user_id=task.get("created_by"),
+        mode="search",
+        keyword=item.title,
+        platforms=search_platforms,
+        source_task_id=task_id,
+    )
+    if not reused or analysis_run.status != "success":
+        run_content_analysis(analysis_run.id, task_id=task_id)
+    aggregation_run, aggregation_reused = create_aggregation_run(
+        analysis_run.id,
+        user_id=task.get("created_by"),
+        source_task_id=task_id,
+    )
+    if not aggregation_reused or aggregation_run.status != "success":
+        run_event_aggregation(aggregation_run.id, task_id=task_id)
+    cluster = (
+        AggregationCluster.query.filter_by(aggregation_run_id=aggregation_run.id)
+        .order_by(
+            AggregationCluster.member_count.desc(),
+            AggregationCluster.confidence.desc(),
+            AggregationCluster.id,
+        )
+        .first()
+    )
+    if cluster is None:
+        return None
+    published = publish_cluster(
+        cluster.id,
+        user_id=task.get("created_by"),
+    )
+    return int(published["event_id"]) if published.get("event_id") else None
+
+
+def daily_hot_enrichment_job(
+    task_id: int,
+    *,
+    registry: CrawlerRegistry | None = None,
+    processor=None,
+) -> dict:
+    task = get_task(task_id)
+    if task is None:
+        raise KeyError(f"task not found: {task_id}")
+    item_id = (task.get("payload") or {}).get("daily_hot_item_id")
+    if not isinstance(item_id, int):
+        raise ValueError("daily hot enrichment task requires daily_hot_item_id")
+    from app.models import DailyHotItem, Event
+
+    item = db.session.get(DailyHotItem, item_id)
+    if item is None:
+        raise KeyError(f"daily hot item not found: {item_id}")
+    update_task(
+        task_id,
+        status="running",
+        progress=10,
+        message="正在补全热点事件语料。",
+    )
+    item.enrichment_status = "running"
+    item.error_code = None
+    item.error_message = None
+    db.session.commit()
+    try:
+        event_id = (
+            processor(item)
+            if processor is not None
+            else _run_daily_hot_enrichment_chain(
+                task_id,
+                item,
+                task,
+                registry=registry,
+            )
+        )
+        if event_id is not None and db.session.get(Event, int(event_id)) is None:
+            raise ValueError("enrichment returned unknown event")
+    except Exception as exc:
+        item.enrichment_status = "failed"
+        item.error_code = type(exc).__name__.upper()[:64]
+        item.error_message = "item enrichment failed"
+        db.session.commit()
+        result = {
+            "daily_hot_item_id": item.id,
+            "status": "failed",
+            "error_code": item.error_code,
+        }
+        update_task(
+            task_id,
+            status="failed",
+            progress=100,
+            message="热点条目补全失败。",
+            result=result,
+        )
+        return result
+
+    item.event_id = int(event_id) if event_id is not None else None
+    item.enrichment_status = "completed" if event_id is not None else "no_event"
+    db.session.commit()
+    result = {
+        "daily_hot_item_id": item.id,
+        "status": item.enrichment_status,
+        "event_id": item.event_id,
+    }
+    update_task(
+        task_id,
+        status="success",
+        progress=100,
+        message=(
+            "热点条目已关联正式事件。"
+            if event_id is not None
+            else "热点条目暂未形成正式事件。"
+        ),
+        result=result,
+    )
+    return result
+
+
+def enqueue_daily_hot_enrichments(
+    run_id: int,
+    *,
+    created_by: int,
+    registry: CrawlerRegistry | None = None,
+) -> list[dict]:
+    from app.services.daily_hot_service import create_daily_hot_enrichment_tasks
+    from app.tasks.runner import submit_background_job
+
+    tasks = create_daily_hot_enrichment_tasks(run_id, created_by=created_by)
+    app = current_app._get_current_object()
+    for task in tasks:
+        if task.get("reused"):
+            continue
+        submit_background_job(
+            app,
+            lambda task_id, current_registry=registry: daily_hot_enrichment_job(
+                task_id,
+                registry=current_registry,
+            ),
+            task["id"],
+        )
+    return tasks
 
 
 def import_job(task_id: int) -> dict:

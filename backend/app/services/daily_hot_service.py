@@ -17,7 +17,8 @@ from app.crawler.base import CrawlRequest, CrawlerRegistry
 from app.crawler.errors import CrawlerError
 from app.crawler.factory import build_crawler_registry
 from app.extensions import db
-from app.models import DailyHotItem, DailyHotRun
+from app.models import DailyHotItem, DailyHotRun, Task
+from app.services.task_service import create_or_reuse_recent_task
 
 
 _SENSITIVE_KEY = re.compile(
@@ -325,8 +326,61 @@ def get_today_hotspots(
     )
 
 
+def create_daily_hot_enrichment_tasks(
+    run_id: int,
+    *,
+    created_by: int,
+) -> list[dict]:
+    run = db.session.get(DailyHotRun, int(run_id))
+    if run is None:
+        raise KeyError(f"daily hot run not found: {run_id}")
+    tasks = []
+    items = DailyHotItem.query.filter_by(run_id=run.id).order_by(DailyHotItem.rank).all()
+    for item in items:
+        if item.enrichment_status in {"completed", "no_event"}:
+            continue
+        active = (
+            db.session.get(Task, item.analysis_task_id)
+            if item.analysis_task_id
+            else None
+        )
+        if active is not None and active.status in {"pending", "running"}:
+            task = {
+                "id": active.id,
+                "type": active.task_type,
+                "task_type": active.task_type,
+                "status": active.status,
+                "payload": active.payload or {},
+                "created_by": active.created_by,
+                "reused": True,
+            }
+            tasks.append(task)
+            continue
+        task, reused = create_or_reuse_recent_task(
+            "daily_hot_enrichment",
+            created_by=created_by,
+            payload={
+                "daily_hot_item_id": item.id,
+                "normalized_keyword": item.normalized_key,
+                "keyword": item.title,
+            },
+            within_seconds=24 * 3600,
+        )
+        task = dict(task)
+        task["reused"] = reused
+        item.analysis_task_id = task["id"]
+        if item.enrichment_status == "failed":
+            item.enrichment_status = "pending"
+            item.error_code = None
+            item.error_message = None
+        tasks.append(task)
+    db.session.commit()
+    return tasks
+
+
 __all__ = [
     "collect_daily_hot",
+    "create_daily_hot_enrichment_tasks",
     "get_today_hotspots",
     "serialize_daily_hot_run",
 ]

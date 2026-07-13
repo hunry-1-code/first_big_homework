@@ -867,5 +867,15 @@ TDD 覆盖第三方单源失败仍生成融合结果、密钥不进入 errors/pa
 
 新增 `DAILY_HOT_REFRESH_INTERVAL_SECONDS` 和 `DAILY_HOT_SYSTEM_USERNAME` 示例配置。聚焦 job/recovery/scheduler 测试 `5 passed`，Top10、任务和爬虫 API 联合结果 `43 passed, 1 warning`。
 
+### 21.26 Top10 条目独立事件补全
+
+每个 DailyHotItem 现在拥有独立 `daily_hot_enrichment` Task，状态为 `pending/running/completed/failed/no_event`。Run 采集成功或部分成功后为每个未完成条目创建任务；管理员手动刷新也会触发同一入队函数。Item 已关联 pending/running Task 时直接复用，不创建或重复提交另一个 active Task。
+
+默认补全链复用现有后端能力：以热榜标题作为查询词，调用已配置的非热榜搜索爬虫，持久化文章，创建搜索内容分析和共享聚合运行，选择证据最充分的事件簇并发布为正式 Event。只有发布或匹配得到正式事件 ID 后才写 `event_id`；无可用搜索平台或无事件簇时标记 `no_event`。
+
+单项异常只将该 Item 和 Task 标记为 failed，DailyHotRun 状态与其他条目不受影响。Item 仅保存异常类型码和固定消息 `item enrichment failed`，不会保存原始异常、Authorization 或密钥。`daily_hot_enrichment` 已加入默认恢复注册表。
+
+新增 `DAILY_HOT_ENRICH_TARGET_COUNT=20`。三条目隔离、active task 幂等与 API 入队聚焦测试 `10 passed`；Top10、任务和事件聚合联合验证 `56 passed, 3 warnings`。
+
 ---
 

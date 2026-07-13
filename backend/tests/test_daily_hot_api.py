@@ -164,7 +164,9 @@ class DailyHotApiTest(unittest.TestCase):
         with patch(
             "app.api.hotspots.collect_daily_hot",
             return_value=run,
-        ) as collect:
+        ) as collect, patch(
+            "app.tasks.jobs.enqueue_daily_hot_enrichments"
+        ) as enqueue:
             response = self.client.post(
                 "/api/hotspots/today/refresh",
                 headers=self.admin_headers,
@@ -181,6 +183,7 @@ class DailyHotApiTest(unittest.TestCase):
         self.assertEqual(kwargs["result_limit"], 10)
         self.assertEqual(kwargs["rrf_k"], 60)
         self.assertTrue(kwargs["force"])
+        enqueue.assert_called_once_with(run.id, created_by=1)
 
 
 if __name__ == "__main__":

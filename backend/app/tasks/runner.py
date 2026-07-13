@@ -130,6 +130,7 @@ def recover_background_jobs(app, job_registry: dict[str, Callable] | None = None
             analyze_job,
             crawl_job,
             daily_hot_job,
+            daily_hot_enrichment_job,
             hotspot_job,
             import_job,
             sentiment_job,
@@ -138,6 +139,7 @@ def recover_background_jobs(app, job_registry: dict[str, Callable] | None = None
         job_registry = {
             "crawl": crawl_job,
             "daily_hot": daily_hot_job,
+            "daily_hot_enrichment": daily_hot_enrichment_job,
             "import": import_job,
             "analysis": analyze_job,
             "hotspot": hotspot_job,

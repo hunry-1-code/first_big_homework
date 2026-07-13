@@ -240,6 +240,10 @@ class Config:
         "DAILY_HOT_SYSTEM_USERNAME",
         DEMO_ADMIN_USERNAME,
     ).strip()
+    DAILY_HOT_ENRICH_TARGET_COUNT = min(
+        100,
+        max(1, int(os.getenv("DAILY_HOT_ENRICH_TARGET_COUNT", "20"))),
+    )
 
     EVENT_AGGREGATION_ATTACH_THRESHOLD = min(
         1.0,

@@ -146,6 +146,12 @@ def refresh_today_hotspots():
         ttl_seconds=current_app.config.get("DAILY_HOT_TTL_SECONDS", 900),
         force=True,
     )
+    from app.tasks.jobs import enqueue_daily_hot_enrichments
+
+    enqueue_daily_hot_enrichments(
+        run.id,
+        created_by=g.current_user["id"],
+    )
     return ok(
         serialize_daily_hot_run(
             run,

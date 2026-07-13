@@ -179,21 +179,21 @@ Add `daily_hot` to the job registry. Scheduler creates or reuses an equivalent t
 - Modify: `backend/app/tasks/jobs.py`
 - Create: `backend/tests/test_daily_hot_enrichment.py`
 
-- [ ] **Step 1: Write failing isolation tests**
+- [x] **Step 1: Write failing isolation tests**
 
 Create three items; make one enrichment fail. Assert the other two progress and the failed item stores a sanitized error without failing the DailyHotRun.
 
-- [ ] **Step 2: Run and verify RED**
+- [x] **Step 2: Run and verify RED**
 
-- [ ] **Step 3: Implement item enrichment state transitions**
+- [x] **Step 3: Implement item enrichment state transitions**
 
 Allowed states: `pending`, `running`, `completed`, `failed`, `no_event`. Use the existing keyword crawl → content analysis → aggregation chain. Link `event_id` only after a formal event is published or matched.
 
-- [ ] **Step 4: Ensure idempotence**
+- [x] **Step 4: Ensure idempotence**
 
 Do not enqueue another active task for the same item and normalized keyword. Reuse compatible search cache results when present.
 
-- [ ] **Step 5: Run tests and commit**
+- [x] **Step 5: Run tests and commit**
 
 ### Task 7: Validate existing formal-hotspot compatibility
 
