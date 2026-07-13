@@ -472,19 +472,19 @@ git commit -m "docs: publish final backend algorithm self-assessment" -m "Co-Aut
 **Files:**
 - Verify all modified and created files
 
-- [ ] **Step 1: Run validator unit tests**
+- [x] **Step 1: Run validator unit tests**
 
 ```powershell
 python -m pytest tests/test_validate_backend_live.py tests/test_validate_live_crawlers.py -q
 ```
 
-- [ ] **Step 2: Run Top10 focused tests**
+- [x] **Step 2: Run Top10 focused tests**
 
 ```powershell
 python -m pytest backend/tests/test_daily_hot.py backend/tests/test_daily_hot_migration.py backend/tests/test_daily_hot_service.py backend/tests/test_daily_hot_api.py backend/tests/test_daily_hot_enrichment.py backend/tests/test_jobs.py backend/tests/test_hotspot_service.py -q
 ```
 
-- [ ] **Step 3: Run the full suite**
+- [x] **Step 3: Run the full suite**
 
 ```powershell
 python -m pytest backend/tests tests -q
@@ -492,7 +492,7 @@ python -m pytest backend/tests tests -q
 
 Expected: zero failures.
 
-- [ ] **Step 4: Verify repository and secret state**
+- [x] **Step 4: Verify repository and secret state**
 
 ```powershell
 git diff --check
@@ -507,7 +507,7 @@ Confirm:
 - only intended artifacts and documents are committed;
 - result JSON files contain no sensitive markers or configured secret values.
 
-- [ ] **Step 5: Complete plan and report**
+- [x] **Step 5: Complete plan and report**
 
 Mark this plan complete, commit any final checkbox-only update, and report:
 
