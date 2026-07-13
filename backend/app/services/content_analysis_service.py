@@ -189,6 +189,26 @@ def create_analysis_run(
     )
     db.session.add(run)
     db.session.flush()
+
+    # 搜索模式下过滤无关文章：标题必须包含关键词或其组成部分
+    if mode == "search" and keyword:
+        keyword_parts = [kw.strip() for kw in (keyword or "").split() if len(kw.strip()) >= 2]
+        filtered_ids = []
+        skipped = 0
+        for article_id in requested_ids:
+            article = articles_by_id.get(article_id)
+            if article is None:
+                continue
+            title = (article.title or "")
+            # 关键词整体或任一部分出现在标题中 → 保留
+            if keyword in title or any(part in title for part in keyword_parts if part):
+                filtered_ids.append(article_id)
+            else:
+                skipped += 1
+        if skipped:
+            run.warnings = (run.warnings or []) + [f"过滤 {skipped} 篇标题不含关键词的无关文章"]
+        requested_ids = filtered_ids
+
     representative_count = 0
     for article_id in requested_ids:
         article = articles_by_id[article_id]
