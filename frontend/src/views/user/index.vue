@@ -75,49 +75,61 @@
     </el-row>
 
     <el-row :gutter="24">
+      <!-- 分析统计 -->
+      <el-col :xs="24" :md="8" class="mb-6">
+        <el-card shadow="never" class="!border-slate-200/60 dark:!border-slate-800/60 rounded-xl">
+          <template #header><span class="font-bold text-slate-800 dark:text-slate-100">📊 分析统计</span></template>
+          <div class="grid grid-cols-2 gap-3 text-center">
+            <div class="bg-blue-50 dark:bg-blue-950/30 rounded-lg p-3">
+              <div class="text-2xl font-bold text-blue-600">{{ myTasks.length }}</div>
+              <div class="text-xs text-slate-500 mt-1">分析任务</div>
+            </div>
+            <div class="bg-emerald-50 dark:bg-emerald-950/30 rounded-lg p-3">
+              <div class="text-2xl font-bold text-emerald-600">{{ doneCount }}</div>
+              <div class="text-xs text-slate-500 mt-1">已完成</div>
+            </div>
+            <div class="bg-orange-50 dark:bg-orange-950/30 rounded-lg p-3">
+              <div class="text-2xl font-bold text-orange-600">{{ runningCount }}</div>
+              <div class="text-xs text-slate-500 mt-1">运行中</div>
+            </div>
+            <div class="bg-red-50 dark:bg-red-950/30 rounded-lg p-3">
+              <div class="text-2xl font-bold text-red-500">{{ failedCount }}</div>
+              <div class="text-xs text-slate-500 mt-1">失败</div>
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+
+      <!-- 最近任务 -->
+      <el-col :xs="24" :md="8" class="mb-6">
+        <el-card shadow="never" class="!border-slate-200/60 dark:!border-slate-800/60 rounded-xl">
+          <template #header><span class="font-bold text-slate-800 dark:text-slate-100">🕐 最近任务</span></template>
+          <div v-if="myTasks.length > 0" class="space-y-2">
+            <div v-for="t in myTasks.slice(0, 5)" :key="t.id" class="flex items-center justify-between text-xs">
+              <span class="text-slate-500 w-8">#{{ t.id }}</span>
+              <span class="text-blue-500 flex-1 truncate px-2">{{ t.payload?.keyword || t.summary || '-' }}</span>
+              <el-tag size="small" :type="t.status === 'success' ? 'success' : t.status === 'running' ? 'warning' : 'danger'">
+                {{ t.status === 'success' ? '完成' : t.status === 'running' ? '运行中' : '失败' }}
+              </el-tag>
+            </div>
+          </div>
+          <div v-else class="text-xs text-slate-400 py-4 text-center">暂无</div>
+        </el-card>
+      </el-col>
+
       <!-- 平台状态 -->
       <el-col :xs="24" :md="8" class="mb-6">
         <el-card shadow="never" class="!border-slate-200/60 dark:!border-slate-800/60 rounded-xl">
-          <template #header><span class="font-bold text-slate-800 dark:text-slate-100">📡 爬虫平台状态</span></template>
-          <div class="space-y-2">
-            <div v-for="p in platformStatus" :key="p.name" class="flex items-center justify-between text-sm">
-              <span class="text-slate-600 dark:text-slate-400">{{ p.name }}</span>
-              <el-tag size="small" :type="p.ok ? 'success' : 'warning'">{{ p.ok ? '可用' : p.status }}</el-tag>
-            </div>
-            <div v-if="platformStatus.length === 0" class="text-xs text-slate-400">加载中...</div>
-          </div>
-        </el-card>
-      </el-col>
-
-      <!-- 我的事件 -->
-      <el-col :xs="24" :md="8" class="mb-6">
-        <el-card shadow="never" class="!border-slate-200/60 dark:!border-slate-800/60 rounded-xl">
-          <template #header>
-            <span class="font-bold text-slate-800 dark:text-slate-100">📊 我的事件</span>
-          </template>
-          <div v-if="myEvents.length > 0" class="space-y-2">
-            <div v-for="e in myEvents" :key="e.id"
-              class="text-sm text-blue-500 cursor-pointer hover:underline truncate"
-              @click="router.push('/events/' + e.id)">
-              {{ e.title?.slice(0, 30) }}{{ (e.title || '').length > 30 ? '...' : '' }}
+          <template #header><span class="font-bold text-slate-800 dark:text-slate-100">📡 可用爬虫</span></template>
+          <div class="space-y-1.5">
+            <div v-for="p in ['bilibili','weibo','zhihu','rss_people','rss_36kr','baidu','douyin']" :key="p"
+              class="flex items-center justify-between text-xs">
+              <span class="text-slate-600 dark:text-slate-400">{{ p }}</span>
+              <span class="w-2 h-2 rounded-full"
+                :class="p === 'baidu' || p === 'douyin' ? 'bg-orange-400' : 'bg-emerald-400'"
+                :title="p === 'baidu' ? '限流' : p === 'douyin' ? '缺Key' : '正常'" />
             </div>
           </div>
-          <div v-else class="text-xs text-slate-400 py-4 text-center">
-            暂无，去<a href="/analysis" class="text-blue-500">分析页</a>创建
-          </div>
-        </el-card>
-      </el-col>
-
-      <!-- 修改密码 -->
-      <el-col :xs="24" :md="8" class="mb-6">
-        <el-card shadow="never" class="!border-slate-200/60 dark:!border-slate-800/60 rounded-xl">
-          <template #header><span class="font-bold text-slate-800 dark:text-slate-100">🔒 修改密码</span></template>
-          <el-form size="default" label-position="top">
-            <el-form-item label="新密码">
-              <el-input v-model="newPassword" type="password" show-password placeholder="6-128位" />
-            </el-form-item>
-            <el-button type="primary" size="small" @click="changePassword" :loading="changingPwd">确认修改</el-button>
-          </el-form>
         </el-card>
       </el-col>
     </el-row>
