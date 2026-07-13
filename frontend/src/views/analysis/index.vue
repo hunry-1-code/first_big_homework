@@ -83,7 +83,7 @@
         <!-- 采集数量 -->
         <div>
           <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-            采集数量：<span class="text-blue-500 font-bold">{{ targetCount }}</span> 条
+            采集总量：<span class="text-blue-500 font-bold">{{ targetCount }}</span> 条（所有平台合计）
           </label>
           <el-slider
             v-model="targetCount"

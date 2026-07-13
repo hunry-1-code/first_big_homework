@@ -1059,7 +1059,7 @@ def publish_cluster(
         title=source.title,
         topic_category=source.topic_category,
         topic_name=source.topic_name,
-        source=publish_run.mode if publish_run.mode != "hot" else "daily_hot",
+        source="daily_hot" if publish_run.mode == "hot" else "search",
         ttl_days=7 if publish_run.mode == "hot" else None,
         first_publish_time=source.first_publish_time,
         last_activity_time=source.last_activity_time,
