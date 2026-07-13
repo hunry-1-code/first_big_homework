@@ -13,6 +13,7 @@ class Article(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     event_id = db.Column(db.Integer, db.ForeignKey("event.id"), nullable=True)
+    crawl_task_id = db.Column(db.Integer, nullable=True, index=True)
     platform = db.Column(db.String(50), nullable=False)
     source_type = db.Column(db.String(20), nullable=False, default="news")
     source_article_id = db.Column(db.String(255), nullable=True)
