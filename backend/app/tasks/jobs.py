@@ -300,6 +300,7 @@ def crawl_job(task_id: int, registry: CrawlerRegistry | None = None) -> dict:
         )
         if not analysis_reused or analysis_run.status != "success":
             run_content_analysis(analysis_run.id, task_id=task_id)
+        record_stage(task_id, "content_analysis", "done", f"{analysis_run.representative_count}篇代表")
         update_task(task_id, progress=98, message="正在生成共享搜索事件。")
         aggregation_run, aggregation_reused = create_aggregation_run(
             analysis_run.id,
@@ -308,6 +309,7 @@ def crawl_job(task_id: int, registry: CrawlerRegistry | None = None) -> dict:
         )
         if not aggregation_reused or aggregation_run.status != "success":
             run_event_aggregation(aggregation_run.id, task_id=task_id)
+        record_stage(task_id, "aggregation", "done", f"{aggregation_run.statistics.get('cluster_count','?')}个簇")
         sentiment_run, sentiment_reused = create_sentiment_run(
             aggregation_run.id,
             source_task_id=task_id,
@@ -315,6 +317,7 @@ def crawl_job(task_id: int, registry: CrawlerRegistry | None = None) -> dict:
         )
         if not sentiment_reused or sentiment_run.status != "success":
             run_sentiment_analysis(sentiment_run.id, task_id=task_id)
+        record_stage(task_id, "sentiment", "done", f"{sentiment_run.statistics.get('result_count','?')}篇")
         # 自动发布事件簇 → 用户可直接在看板看到结果
         from app.services.event_aggregation_service import publish_cluster
         from app.models import AggregationCluster
