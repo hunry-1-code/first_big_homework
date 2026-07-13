@@ -83,9 +83,17 @@ def build_crawler_registry(config) -> CrawlerRegistry:
                     )
                 )
 
-    feed_url = _setting(config, "RSS_FEED_URL", "")
-    if feed_url:
-        host = urlsplit(feed_url).hostname
-        if host:
-            registry.register(RssCrawler(_client(host, timeout, "rss", max_response_bytes), feed_url))
+    feed_urls = _setting(config, "RSS_FEED_URL", "")
+    if feed_urls:
+        for idx, feed_url in enumerate([u.strip() for u in str(feed_urls).split(",") if u.strip()]):
+            host = urlsplit(feed_url).hostname
+            if host:
+                # 每个 RSS 源一个唯一 platform 名
+                plat_name = f"rss_{host.split('.')[0]}"
+                if idx > 0:
+                    plat_name += f"_{idx}"
+                registry.register(RssCrawler(
+                    _client(host, timeout, plat_name, max_response_bytes),
+                    feed_url, platform=plat_name
+                ))
     return registry

@@ -16,7 +16,8 @@ def _text(node, names: tuple[str, ...]) -> str | None:
 class RssCrawler:
     platform = "rss"
 
-    def __init__(self, client, feed_url: str):
+    def __init__(self, client, feed_url: str, platform: str = "rss"):
+        self.platform = platform
         self.client = client
         self.feed_url = feed_url
 
@@ -36,16 +37,31 @@ class RssCrawler:
                         break
             if not link:
                 continue
+            # 尝试从原文链接提取全文
+            full_text = ""
+            try:
+                import trafilatura
+                downloaded = trafilatura.fetch_url(link, timeout=10)
+                if downloaded:
+                    extracted = trafilatura.extract(downloaded, include_title=False,
+                        include_author=False, include_date=False, output_format="text")
+                    if extracted and len(extracted) > 200:
+                        full_text = extracted[:5000]
+            except Exception:
+                pass  # trafilatura 失败时用 RSS description 兜底
+            if not full_text:
+                full_text = content  # RSS description 作为 fallback
+
             documents.append(
                 RawDocument(
                     platform=self.platform,
                     source_url=link,
                     source_article_id=item_id or link,
                     title=title,
-                    raw_content=content,
+                    raw_content=full_text,
                     source_type="rss",
                     publish_time=_text(node, ("pubDate", "published", "updated")),
-                    content_type="html" if "<" in content else "text",
+                    content_type="html" if "<" in full_text else "text",
                     raw_json={"feed_url": self.feed_url, "id": item_id},
                 )
             )
