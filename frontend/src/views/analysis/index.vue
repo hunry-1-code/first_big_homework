@@ -308,15 +308,14 @@ function resetForm() {
   pipelineStage.value = 0;
 }
 
-// 根据任务消息推断流水线阶段
-function inferPipelineStage(msg: string, progress: number): number {
+function inferPipelineStage(stages: any[], progress: number): number {
   if (progress >= 100) return 4;
-  if (!msg) return 0;
-  if (msg.includes("情感") || progress >= 99) return 3;
-  if (msg.includes("聚合") || msg.includes("事件") || progress >= 98) return 2;
-  if (msg.includes("内容分析") || msg.includes("特征") || progress >= 96) return 1;
-  if (msg.includes("已处理") || msg.includes("采集完成") || msg.includes("准备")) return 0;
-  if (progress >= 30) return 0;
+  if (!stages || stages.length === 0) return 0;
+  const done = stages.filter((s: any) => s.status === 'done').map((s: any) => s.stage);
+  if (done.includes('sentiment') || done.includes('publish')) return 3;
+  if (done.includes('aggregation')) return 2;
+  if (done.includes('content_analysis')) return 1;
+  if (done.includes('crawl') || done.includes('preprocess')) return 0;
   return 0;
 }
 
@@ -330,8 +329,8 @@ function startPolling(taskId: number) {
       if (!task) return;
 
       taskProgress.value = task.progress || 0;
-      taskMessage.value = task.message || "";
-      pipelineStage.value = inferPipelineStage(task.message || "", task.progress || 0);
+      taskMessage.value = task.summary || task.message || "";
+      pipelineStage.value = inferPipelineStage(task.stages || [], task.progress || 0);
 
       if (task.status === "success") {
         taskResult.value = task.result || {};
