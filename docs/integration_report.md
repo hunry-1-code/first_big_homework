@@ -885,5 +885,15 @@ TDD 覆盖第三方单源失败仍生成融合结果、密钥不进入 errors/pa
 
 新增的两项兼容测试直接在现有实现上通过，因此本步骤未修改生产代码。`test_hotspot_service.py` 与 `test_daily_hot_api.py` 完整联合回归结果为 `20 passed, 1 warning`；警告来自既有 jieba/pkg_resources 弃用提示。
 
+### 21.28 隔离式后端真实验证工具
+
+首次直接使用默认 `create_app()` 进行最小 Top10 服务验证时，采集和融合成功，但默认 `TASK_RECOVER_ON_STARTUP=true` 同时启动了长期任务恢复调度器。短命令退出期间出现 APScheduler 解释器关闭异常、SQLite 锁竞争和非必要 BGE 模型加载。根因是一次性验证错误继承了生产后台服务配置，并非热榜爬虫或 RRF 融合失败。
+
+新增 `tools/validate_backend_live.py`。工具保留 `.env` 中的真实爬虫和 LLM 配置，但强制使用临时 SQLite、同步任务、关闭启动恢复和 BGE；Top10 只请求三个直接热榜来源各 1 条并返回 1 条融合结果，LLM 只发送一次最多 30 token 的固定 JSON 探针。输出只保留状态、来源、数量、模型名和契约布尔值，不保存标题、URL、原始平台 payload 或模型正文。
+
+写入结果文件前递归删除敏感字段，替换已配置密钥和 Bearer/header 值，并再次扫描已知密钥与 Authorization、Bearer、Cookie、API Key 等标记。认证、配额和网络失败作为外部状态记录；内部异常、格式错误或安全扫描失败才使验证命令非零退出。
+
+TDD 首先稳定复现模块缺失错误，随后覆盖隔离配置、递归脱敏、敏感文本扫描、LLM JSON 契约、外部错误分类、真实配置密钥集合、最小 Top10 参数、单次 LLM 调用和退出状态。验证工具与原爬虫验证器联合测试结果为 `14 passed, 5 subtests passed`。
+
 ---
 

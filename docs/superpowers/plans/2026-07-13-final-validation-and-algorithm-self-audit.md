@@ -17,7 +17,7 @@
 - Create: `tests/test_validate_backend_live.py`
 - Reuse: `tools/validate_live_crawlers.py`
 
-- [ ] **Step 1: Write failing isolation and sanitization tests**
+- [x] **Step 1: Write failing isolation and sanitization tests**
 
 Create tests for these public helpers:
 
@@ -68,7 +68,7 @@ def test_llm_probe_accepts_only_exact_minimal_json():
 
 Also test classification for HTTP 401/403, HTTP 429, connection/timeout, invalid JSON and unknown internal exceptions.
 
-- [ ] **Step 2: Run tests to verify RED**
+- [x] **Step 2: Run tests to verify RED**
 
 Run:
 
@@ -78,7 +78,7 @@ python -m pytest tests/test_validate_backend_live.py -q
 
 Expected: collection fails because `tools.validate_backend_live` does not exist.
 
-- [ ] **Step 3: Implement pure safety helpers**
+- [x] **Step 3: Implement pure safety helpers**
 
 Implement:
 
@@ -163,7 +163,7 @@ def classify_external_error(error: Exception) -> str:
 
 No helper may print configuration values or raw third-party response bodies.
 
-- [ ] **Step 4: Implement the isolated Top10 probe**
+- [x] **Step 4: Implement the isolated Top10 probe**
 
 Implement `run_daily_hot_probe(config_class)`:
 
@@ -198,7 +198,7 @@ force=True
 
 Do not enqueue item enrichment and do not include titles, URLs or raw source payloads in the artifact.
 
-- [ ] **Step 5: Implement the one-call LLM probe**
+- [x] **Step 5: Implement the one-call LLM probe**
 
 Instantiate `LLMClient` from the isolated app configuration. Send exactly one request:
 
@@ -217,7 +217,7 @@ Instantiate `LLMClient` from the isolated app configuration. Send exactly one re
 
 Use `temperature=0` and `max_tokens=30`. Return only status, model name and `content_valid`. On failure, return the fixed error classification and a sanitized fixed-length message.
 
-- [ ] **Step 6: Implement CLI and artifact safety gate**
+- [x] **Step 6: Implement CLI and artifact safety gate**
 
 CLI arguments:
 
@@ -238,7 +238,7 @@ Load the environment without printing it. Use `tempfile.TemporaryDirectory()` fo
 
 Exit non-zero only for `INTERNAL_ERROR`, `FORMAT_ERROR`, failed secret scan or invalid isolated runtime state. Authentication, quota and network failures remain documented external outcomes.
 
-- [ ] **Step 7: Run focused tests and commit**
+- [x] **Step 7: Run focused tests and commit**
 
 Run:
 
