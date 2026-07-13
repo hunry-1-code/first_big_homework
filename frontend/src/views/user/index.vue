@@ -122,7 +122,7 @@
         <el-card shadow="never" class="!border-slate-200/60 dark:!border-slate-800/60 rounded-xl">
           <template #header><span class="font-bold text-slate-800 dark:text-slate-100">📡 可用爬虫</span></template>
           <div class="space-y-1.5">
-            <div v-for="p in ['bilibili','weibo','zhihu','rss_people','rss_36kr','baidu','douyin']" :key="p"
+            <div v-for="p in crawlerPlatforms" :key="p"
               class="flex items-center justify-between text-xs">
               <span class="text-slate-600 dark:text-slate-400">{{ p }}</span>
               <span class="w-2 h-2 rounded-full"
@@ -153,6 +153,7 @@ const userStore = useUserStore();
 const keywordInput = ref("");
 const myKeywords = ref<string[]>([]);
 const myTasks = ref<any[]>([]);
+const crawlerPlatforms = ref<string[]>([]);
 const tasksLoading = ref(false);
 const saving = ref(false);
 
@@ -248,8 +249,9 @@ async function changePassword() {
 
 onMounted(() => {
   loadMyTasks();
-  loadPlatformStatus();
-  loadMyEvents();
+  http.request<any>("get", "/api/crawler/platforms").then(r => {
+    crawlerPlatforms.value = r.data?.platforms || [];
+  }).catch(() => {});
   try {
     http.request<any>("get", "/api/user/config").then(r => {
       myKeywords.value = r.data?.keywords || [];
