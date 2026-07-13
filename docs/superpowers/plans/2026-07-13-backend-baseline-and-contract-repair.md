@@ -244,7 +244,7 @@ git commit -m "fix: 统一事件聚合默认配置" -m "Co-Authored-By: Claude <
 - Modify: `docs/integration_report.md`
 - Modify: `docs/后端系统现状与接口说明.md`
 
-- [ ] **Step 1: Run the full automated suite**
+- [x] **Step 1: Run the full automated suite**
 
 ```powershell
 python -m pytest backend/tests tests -q
@@ -252,11 +252,11 @@ python -m pytest backend/tests tests -q
 
 Expected at this phase: serialization cascade, contract mismatch and configuration mismatch are gone. Propagation and lifecycle failures remain intentionally red for the next plan.
 
-- [ ] **Step 2: Record the exact result without claiming full completion**
+- [x] **Step 2: Record the exact result without claiming full completion**
 
 Add the command, pass/fail counts and remaining test names to the integration report. Replace stale `263 passed` text in the backend status document with the fresh result and a dated note.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```powershell
 git add docs/integration_report.md docs/后端系统现状与接口说明.md
