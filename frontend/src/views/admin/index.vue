@@ -82,6 +82,37 @@
       </el-col>
     </el-row>
 
+    <!-- 每日热点调度控制 -->
+    <el-card shadow="never" class="!border-slate-200/60 dark:!border-slate-800/60 rounded-xl">
+      <template #header>
+        <div class="flex justify-between items-center">
+          <span class="font-bold text-slate-800 dark:text-slate-100">🔥 每日热点定时调度</span>
+          <div class="flex items-center gap-2">
+            <el-switch v-model="dhEnabled" @change="toggleDH" :loading="dhLoading" active-text="启用" inactive-text="停用" />
+            <el-button size="small" type="primary" @click="triggerDH" :loading="dhRunning">手动触发</el-button>
+          </div>
+        </div>
+      </template>
+      <div class="flex items-center gap-6 text-sm">
+        <div class="flex items-center gap-2">
+          <span class="text-slate-400">采集间隔：</span>
+          <el-select v-model="dhInterval" size="small" style="width:120px" @change="setDHInterval">
+            <el-option :value="30" label="30 分钟" />
+            <el-option :value="60" label="1 小时" />
+            <el-option :value="120" label="2 小时" />
+            <el-option :value="360" label="6 小时" />
+            <el-option :value="720" label="12 小时" />
+          </el-select>
+        </div>
+        <div v-if="dhLastRun" class="text-slate-400">
+          上次：{{ dhLastRun }}
+        </div>
+        <div v-if="dhNextRun" class="text-slate-400">
+          下次：{{ dhNextRun }}
+        </div>
+      </div>
+    </el-card>
+
     <!-- 底部：全链路进程管理器 -->
     <el-card shadow="never" class="!border-slate-200/60 dark:!border-slate-800/60 rounded-xl">
       <template #header>
@@ -151,8 +182,49 @@ async function cleanFailed() {
   loadData();
 }
 
+// 每日热点控制
+const dhEnabled = ref(false);
+const dhInterval = ref(60);
+const dhLoading = ref(false);
+const dhRunning = ref(false);
+const dhLastRun = ref('');
+const dhNextRun = ref('');
+
+async function loadDHStatus() {
+  try {
+    const r = await http.request<any>('get', '/api/admin/daily-hot/status');
+    dhEnabled.value = r.data?.enabled ?? false;
+    dhInterval.value = r.data?.interval_minutes ?? 60;
+    dhLastRun.value = r.data?.last_run?.replace('T',' ').slice(0,16) || '';
+    dhNextRun.value = r.data?.next_run?.replace('T',' ').slice(0,16) || '';
+  } catch {}
+}
+
+async function toggleDH(v: boolean) {
+  dhLoading.value = true;
+  try { await http.request('post', '/api/admin/daily-hot/toggle', { data: { enabled: v } }); }
+  catch { dhEnabled.value = !v; message('操作失败', { type: 'error' }); }
+  finally { dhLoading.value = false; }
+}
+
+async function setDHInterval(v: number) {
+  try { await http.request('post', '/api/admin/daily-hot/interval', { data: { minutes: v } }); }
+  catch { message('设置失败', { type: 'error' }); }
+}
+
+async function triggerDH() {
+  dhRunning.value = true;
+  try {
+    const r = await http.request<any>('post', '/api/admin/daily-hot/run');
+    message(`已触发，任务 #${r.data?.task_id}`, { type: 'success' });
+    setTimeout(loadData, 3000);
+  } catch { message('触发失败', { type: 'error' }); }
+  finally { dhRunning.value = false; }
+}
+
 onMounted(() => {
   loadData();
+  loadDHStatus();
 });
 
 // 加载全局状态

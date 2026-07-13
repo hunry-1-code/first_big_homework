@@ -13,6 +13,7 @@ from app.api.sentiment import sentiment_bp
 from app.api.tasks import tasks_bp
 from app.api.user import user_bp
 from app.api.admin import admin_bp
+from app.api.daily_hot_admin import daily_hot_admin_bp
 
 
 def register_blueprints(app: Flask) -> None:
@@ -29,3 +30,4 @@ def register_blueprints(app: Flask) -> None:
     app.register_blueprint(crawler_bp, url_prefix="/api/crawler")
     app.register_blueprint(import_bp, url_prefix="/api/import")
     app.register_blueprint(tasks_bp, url_prefix="/api/tasks")
+    app.register_blueprint(daily_hot_admin_bp, url_prefix="/api/admin/daily-hot")
