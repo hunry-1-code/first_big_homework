@@ -47,7 +47,7 @@
           </label>
           <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
             <div
-              v-for="p in SEARCH_PLATFORMS"
+              v-for="p in availablePlatforms"
               :key="p.id"
               :class="[
                 'platform-card relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 cursor-pointer transition-all duration-200',
@@ -265,6 +265,7 @@ import IconifyIconOffline from "@/components/ReIcon/src/iconifyIconOffline";
 import TaskList from "@/components/TaskList.vue";
 import { message } from "@/utils/message";
 import { SEARCH_PLATFORMS } from "@/constants/platforms";
+import { apiClient } from "@/api/client";
 
 defineOptions({
   name: "EventAnalysis"
@@ -277,6 +278,17 @@ const route = useRoute();
 const keyword = ref((route.query.keyword as string) || "");
 const selectedPlatforms = ref<string[]>([]);
 const targetCount = ref(100);
+const availablePlatforms = ref(SEARCH_PLATFORMS); // 默认常量，API 加载后替换
+
+async function loadPlatforms() {
+  try {
+    const res = await apiClient.get("/crawler/platforms");
+    const ids: string[] = res.data?.platforms || [];
+    // 匹配 SEARCH_PLATFORMS 的显示名到后端 platform ID
+    const matched = SEARCH_PLATFORMS.filter(p => ids.includes(p.id));
+    if (matched.length > 0) availablePlatforms.value = matched;
+  } catch {}
+}
 
 // 任务状态
 const state = ref<"idle" | "running" | "completed" | "failed">("idle");
@@ -429,6 +441,7 @@ async function loadMyTasks() {
 }
 
 onMounted(() => {
+  loadPlatforms();
   loadMyTasks();
 });
 
