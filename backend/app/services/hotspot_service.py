@@ -414,12 +414,12 @@ def persist_event_heat_snapshot(
         # ── 热榜事件：排名为主要信号 ──
         best_rank = min(source_ranks.values())
         hot_platforms = len(source_ranks)
-        # 排名分：rank 1→70, rank 5→58, rank 10→46, rank 20→23, rank 30→2
-        rank_score = max(2, round((31 - min(30, best_rank)) / 30 * 70, 1))
-        # 跨平台加成：3平台×1.6, 2平台×1.3, 1平台×1.0
-        platform_mult = round(1.0 + (hot_platforms - 1) * 0.3, 1)
-        # 文章证据附加分（最多+15，反映实际采集质量）
-        article_bonus = min(15, total * 0.5)
+        # 排名分：rank 1→55, rank 3→48, rank 10→35, rank 20→18, rank 30→2
+        rank_score = max(2, round((31 - min(30, best_rank)) / 30 * 55, 1))
+        # 跨平台加成：3平台×1.4, 2平台×1.2, 1平台×1.0
+        platform_mult = round(1.0 + (hot_platforms - 1) * 0.2, 1)
+        # 文章证据附加分（最多+13，反映实际采集质量）
+        article_bonus = min(13, total * 0.4)
         time_decay = max(0.5, 1.0 - hours_ago / (24 * 14))
         final_heat = round(max(10, rank_score * platform_mult + article_bonus) * time_decay, 1)
         warnings = []
