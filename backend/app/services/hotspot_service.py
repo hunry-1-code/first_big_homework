@@ -29,6 +29,7 @@ from app.models import (
     AnalysisRunArticle,
     Article,
     ArticleSnapshot,
+    DailyHotItem,
     DocumentFeatures,
     Event,
     EventHeatSnapshot,
@@ -397,33 +398,66 @@ def persist_event_heat_snapshot(
             continue
         if rank > 0:
             hotlist_ranks.append(rank)
-    # 单事件热度：百分位排名公式在单事件时退化，改用绝对评分
+    # 统一热度算法：优先用热榜排名信号，其次用文章数据
     representative_articles = [
         article for article in articles if not bool(article.is_duplicate)
     ]
     total = len(representative_articles) or 1
-    platform_count = len({a.platform for a in articles if a.platform}) or 1
+    article_platform_count = len({a.platform for a in articles if a.platform}) or 1
     hours_ago = max(0, (calculated_at - (event.first_publish_time or calculated_at)).total_seconds() / 3600)
-    time_decay = max(0.15, 1.0 - hours_ago / (24 * 7))
-    # 基础分：文章数 × 平台多样性 × 时间衰减
-    raw_heat = min(100, total * 2.0 * (1 + platform_count * 0.3) * time_decay)
-    # 互动加成
-    total_engagement = 0
-    for article in articles:
-        total_engagement += (article.comments_count or 0) + (article.reposts_count or 0) + (article.likes_count or 0)
-    engagement_bonus = min(20, total_engagement / max(1, total) * 0.1)
-    final_heat = round(min(100, raw_heat + engagement_bonus), 1)
+
+    # 查找关联的热榜条目（daily hot 事件有，搜索事件没有）
+    hot_item = DailyHotItem.query.filter_by(event_id=event.id).first()
+    source_ranks = (hot_item.source_ranks or {}) if hot_item else {}
+
+    if source_ranks:
+        # ── 热榜事件：排名为主要信号 ──
+        best_rank = min(source_ranks.values())
+        hot_platforms = len(source_ranks)
+        # 排名分：rank 1→70, rank 5→58, rank 10→46, rank 20→23, rank 30→2
+        rank_score = max(2, round((31 - min(30, best_rank)) / 30 * 70, 1))
+        # 跨平台加成：3平台×1.6, 2平台×1.3, 1平台×1.0
+        platform_mult = round(1.0 + (hot_platforms - 1) * 0.3, 1)
+        # 文章证据附加分（最多+15，反映实际采集质量）
+        article_bonus = min(15, total * 0.5)
+        time_decay = max(0.5, 1.0 - hours_ago / (24 * 14))
+        final_heat = round(max(10, rank_score * platform_mult + article_bonus) * time_decay, 1)
+        warnings = []
+    else:
+        # ── 搜索事件：文章数据为主要信号 ──
+        total = len(representative_articles) or 1
+        time_decay = max(0.15, 1.0 - hours_ago / (24 * 7))
+        raw_heat = min(100, total * 2.5 * (1 + article_platform_count * 0.3) * time_decay)
+        total_engagement = sum(
+            (a.comments_count or 0) + (a.reposts_count or 0) + (a.likes_count or 0)
+            for a in articles
+        )
+        engagement_bonus = min(20, total_engagement / max(1, total) * 0.1)
+        final_heat = round(min(100, raw_heat + engagement_bonus), 1)
+        warnings = []
+
     result = EventHeatResult(
         event_id=event.id,
-        raw_statistics={"independent_report_count_7d": total, "platform_count": platform_count},
-        component_scores={"raw": raw_heat, "engagement": engagement_bonus},
+        raw_statistics={
+            "independent_report_count_7d": total,
+            "platform_count": article_platform_count,
+            "hot_platform_count": len(source_ranks),
+            "best_hot_rank": min(source_ranks.values()) if source_ranks else None,
+        },
+        component_scores={
+            "rank_score": rank_score if source_ranks else None,
+            "platform_bonus": platform_bonus if source_ranks else None,
+            "article_factor": article_factor if source_ranks else None,
+            "time_decay": round(time_decay, 4),
+            "final_heat": final_heat,
+        },
         core_heat=round(final_heat * 0.7, 1),
         spread_heat=round(final_heat * 0.3, 1),
         final_heat=final_heat,
         eligible_as_hot=final_heat >= 40,
         rank=None,
-        time_confidence="medium" if total >= 3 else "low",
-        warnings=[],
+        time_confidence="high" if source_ranks else ("medium" if total >= 3 else "low"),
+        warnings=warnings,
     )
     snapshot = EventHeatSnapshot(
         hotspot_run_id=None,
