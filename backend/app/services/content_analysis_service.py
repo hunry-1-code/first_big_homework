@@ -349,7 +349,10 @@ def run_content_analysis(
         # LLM 关键词提取（优先，TF-IDF 回退）
         try:
             from app.analysis.llm_keywords import extract_keywords_llm, _merge_llm_keywords
-            llm_map = extract_keywords_llm(documents)
+            llm_map = extract_keywords_llm(
+                documents,
+                batch_size=current_app.config.get("LLM_KEYWORD_BATCH_SIZE", 5),
+            )
             if llm_map:
                 keyword_map = _merge_llm_keywords(llm_map, keyword_map)
         except Exception:

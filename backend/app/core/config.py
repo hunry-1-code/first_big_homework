@@ -128,6 +128,9 @@ class Config:
     RISK_LLM_MAX_SCORE = min(
         100.0, max(RISK_LLM_MIN_SCORE, float(os.getenv("RISK_LLM_MAX_SCORE", "70")))
     )
+    LLM_KEYWORD_BATCH_SIZE = min(
+        20, max(1, int(os.getenv("LLM_KEYWORD_BATCH_SIZE", "5")))
+    )
 
     SENTIMENT_ALGORITHM_VERSION = os.getenv(
         "SENTIMENT_ALGORITHM_VERSION", "sentiment-v1"

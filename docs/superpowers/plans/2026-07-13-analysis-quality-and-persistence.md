@@ -161,13 +161,13 @@ Run content-analysis feature and aggregation service suites, then commit.
 - Modify: `backend/app/services/content_analysis_service.py`
 - Create or modify: `backend/tests/test_llm_keywords.py`
 
-- [ ] **Step 1: Add parser and batching tests**
+- [x] **Step 1: Add parser and batching tests**
 
 Use a fake client returning a JSON object keyed by article ID. Assert batches respect `LLM_KEYWORD_BATCH_SIZE`, invalid entries are ignored, and missing article IDs use TF-IDF fallback.
 
-- [ ] **Step 2: Run and verify RED**
+- [x] **Step 2: Run and verify RED**
 
-- [ ] **Step 3: Implement injected-client batching**
+- [x] **Step 3: Implement injected-client batching**
 
 ```python
 def extract_keywords_llm(documents, max_per_doc=8, *, client=None, batch_size=5):
@@ -178,9 +178,9 @@ def extract_keywords_llm(documents, max_per_doc=8, *, client=None, batch_size=5)
 
 Never place API keys or raw request headers in warnings.
 
-- [ ] **Step 4: Run content-analysis and keyword tests**
+- [x] **Step 4: Run content-analysis and keyword tests**
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 Commit keyword implementation and tests.
 
