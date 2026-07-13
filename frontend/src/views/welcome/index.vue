@@ -53,7 +53,7 @@
           :key="idx"
           class="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full cursor-pointer transition-colors"
           :class="idx < 3 ? 'bg-orange-50 text-orange-600 dark:bg-orange-950/30 dark:text-orange-400 font-medium' : 'bg-slate-50 text-slate-500 dark:bg-slate-800 dark:text-slate-400'"
-          @click="searchDailyHot(item.title)"
+          @click="filterByKeyword(item.title)"
         >
           <span class="font-bold">{{ idx + 1 }}</span>
           {{ item.title?.slice(0, 18) }}{{ (item.title || '').length > 18 ? '...' : '' }}
@@ -62,25 +62,14 @@
       </div>
     </div>
 
-    <!-- 搜索 + 排序 + 清除 -->
-    <div class="flex flex-col md:flex-row gap-3 items-stretch md:items-center bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/60 dark:border-slate-800/60 shadow-sm">
-      <div class="flex gap-2 flex-1">
-        <el-input
-          v-model="keyword"
-          placeholder="输入事件关键词搜索"
-          clearable
-          size="large"
-          @keyup.enter="handleSearch"
-          @clear="clearFilter"
-          class="max-w-[280px]"
-        >
-          <template #prefix><span class="text-slate-400">🔍</span></template>
-        </el-input>
-        <el-button type="primary" size="large" @click="handleSearch">搜索</el-button>
-        <el-button v-if="keyword || activeDate" size="large" @click="clearFilter">清除筛选</el-button>
+    <!-- 排序 + 清除 -->
+    <div class="flex items-center justify-between bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/60 dark:border-slate-800/60 shadow-sm">
+      <div>
+        <span class="text-sm text-slate-500 dark:text-slate-400">共 {{ realTotal }} 个事件</span>
+        <el-button v-if="activeDate" size="small" class="ml-3" @click="clearFilter">显示全部</el-button>
       </div>
-      <div class="flex items-center gap-2 shrink-0">
-        <span class="text-sm text-slate-400 whitespace-nowrap">排序:</span>
+      <div class="flex items-center gap-2">
+        <span class="text-sm text-slate-400">排序:</span>
         <el-select v-model="sortBy" size="large" style="min-width: 160px">
           <el-option label="按综合热度" value="heat" />
           <el-option label="按发布时间" value="time" />
@@ -121,7 +110,6 @@ defineOptions({
 const eventsStore = useEventsStore();
 const userStore = useUserStore();
 
-const keyword = ref("");
 const sortBy = ref<"time" | "heat">("heat");
 const activeDate = ref(""); // 空 = 全部
 const allEvents = ref<any[]>([]); // 缓存全部事件用于日期提取
@@ -169,7 +157,6 @@ async function loadDailyHot() {
 
 async function filterByDate(date: string) {
   activeDate.value = date;
-  keyword.value = "";
   if (date) {
     if (allEvents.value.length === 0) {
       await eventsStore.loadEvents({ size: 200 });

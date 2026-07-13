@@ -281,6 +281,7 @@ def _persist_raw_document(
     if not existing:
         article.content_version = 1
         article.first_crawled_at = datetime.now(timezone.utc).replace(tzinfo=None)
+        article.crawl_task_id = task_id
         db.session.add(article)
     db.session.flush()
 
