@@ -1,0 +1,48 @@
+{
+  "passed": true,
+  "passed_rules": [
+    "TITLE_RELEVANT",
+    "SUMMARY_PRESENT",
+    "LIFECYCLE_PRESENT",
+    "LIFECYCLE_LIMITATION_VISIBLE",
+    "HEAT_FINITE",
+    "ARTICLE_COUNT_SUFFICIENT",
+    "ARTICLE_RELEVANCE_LOW",
+    "SINGLE_PLATFORM_WITHOUT_LIMITATION",
+    "PLATFORM_COUNT_ALIGNED",
+    "SENTIMENT_SUM_INVALID",
+    "TREND_LENGTH_MISMATCH",
+    "KEYWORD_DIVERSITY_LOW",
+    "RISK_DATA_PRESENT",
+    "FIXED_RISK_PLACEHOLDER",
+    "DOM_INVALID_VALUE",
+    "RISK_SEMANTICS",
+    "PROPAGATION_LIMITATION_EXPLAINED"
+  ],
+  "failed_rules": [],
+  "metrics": {
+    "article_total": 11,
+    "inspected_articles": 11,
+    "relevant_articles": 11,
+    "article_relevance_ratio": 1.0,
+    "platform_count": 3,
+    "platform_article_total": 11,
+    "sentiment_sum": 1.0,
+    "trend_points": 5,
+    "keyword_count": 20,
+    "non_query_keyword_count": 20
+  },
+  "warnings": [
+    "传播关系证据不足，页面应展示限制说明"
+  ],
+  "frontend_checks": {
+    "analysis_keyword_visible": true,
+    "analysis_history_visible": true,
+    "analysis_success_visible": true,
+    "dashboard_event_visible": true,
+    "dashboard_summary_visible": true,
+    "detail_sections_visible": true,
+    "browser_console_clean": true
+  },
+  "failed_frontend_checks": []
+}

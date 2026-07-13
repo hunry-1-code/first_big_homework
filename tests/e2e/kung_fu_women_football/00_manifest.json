@@ -1,0 +1,31 @@
+{
+  "keyword": "《功夫女足》电影",
+  "platforms": [
+    "baidu",
+    "weibo",
+    "zhihu",
+    "bilibili"
+  ],
+  "target_count": 24,
+  "started_at": "2026-07-13T13:48:28.485045+00:00",
+  "git_commit": "33b7c8d2ed6141740ddd58c20d940368dae19f53",
+  "runtime_database": "kung_fu_women_football.db",
+  "reused_database": true,
+  "backend": {
+    "status": "success",
+    "port": 5000
+  },
+  "frontend": {
+    "status": "success",
+    "port": 8848
+  },
+  "ids": {
+    "task_id": 1,
+    "analysis_run_id": 1,
+    "aggregation_run_id": 1,
+    "sentiment_run_id": 1,
+    "cluster_id": 1,
+    "event_id": 1
+  },
+  "completed_at": "2026-07-13T13:48:59.849052+00:00"
+}

@@ -1,0 +1,478 @@
+{
+  "coverage_status": "insufficient",
+  "graph": {
+    "links": [],
+    "nodes": [
+      {
+        "article_id": 16,
+        "category": "origin_candidate",
+        "id": 16,
+        "interaction_count": 643,
+        "is_key_node": true,
+        "key_node_reasons": [
+          "当前数据中的源头候选",
+          "该平台首次出现"
+        ],
+        "name": "钟花笑",
+        "node_type": "origin_candidate",
+        "platform": "知乎",
+        "publish_time": "2026-07-09T03:15:03",
+        "symbolSize": 23.035617605240883,
+        "time_confidence": "high",
+        "title": "周星驰新作《功夫女足》定档,该片能复刻《少林足球》的高光吗?冲击高票房难度有多大? - 知乎"
+      },
+      {
+        "article_id": 8,
+        "category": "media_intervention",
+        "id": 8,
+        "interaction_count": 243675,
+        "is_key_node": true,
+        "key_node_reasons": [
+          "当前数据中的源头候选",
+          "该平台首次出现",
+          "媒体介入"
+        ],
+        "name": "央视新闻",
+        "node_type": "media_intervention",
+        "platform": "微博搜索",
+        "publish_time": "2026-07-10T05:55:00",
+        "symbolSize": 40.217886491678954,
+        "time_confidence": "high",
+        "title": "【#电影功夫女足首支长预告#来了!】#周星驰新片再次点燃心中一团火# 由周星驰执导、编剧的喜剧电影《功夫女足》今日发布“来吧!出招!”版预告↓↓预告中,四年一度的足坛巅峰赛事到来,实力不俗的娥眉队站上赛场,自信满满。不料,强敌个个身怀绝技,各路大招频出,球场风起云涌......当热血比拼遇上 ...全文"
+      },
+      {
+        "article_id": 18,
+        "category": "origin_candidate",
+        "id": 18,
+        "interaction_count": 632,
+        "is_key_node": true,
+        "key_node_reasons": [
+          "当前数据中的源头候选"
+        ],
+        "name": "牛头人不说",
+        "node_type": "origin_candidate",
+        "platform": "知乎",
+        "publish_time": "2026-07-10T11:32:38",
+        "symbolSize": 23.013941581226597,
+        "time_confidence": "high",
+        "title": "周星驰《功夫女足》第一批观后感已出,会影响你去看这部电影吗? - 知乎"
+      },
+      {
+        "article_id": 15,
+        "category": "origin_candidate",
+        "id": 15,
+        "interaction_count": 541,
+        "is_key_node": true,
+        "key_node_reasons": [
+          "当前数据中的源头候选"
+        ],
+        "name": "Mr.耀阳",
+        "node_type": "origin_candidate",
+        "platform": "知乎",
+        "publish_time": "2026-07-10T14:19:35",
+        "symbolSize": 22.822800711124813,
+        "time_confidence": "high",
+        "title": "《功夫女足》首支长预告曝光,张小斐、迪丽热巴带队与各路高手功夫大乱斗,看完预告你期待这部电影吗? - 知乎"
+      },
+      {
+        "article_id": 13,
+        "category": "origin_candidate",
+        "id": 13,
+        "interaction_count": 794,
+        "is_key_node": true,
+        "key_node_reasons": [
+          "当前数据中的源头候选"
+        ],
+        "name": "Mr.耀阳",
+        "node_type": "origin_candidate",
+        "platform": "知乎",
+        "publish_time": "2026-07-11T14:22:49",
+        "symbolSize": 23.308295923101003,
+        "time_confidence": "high",
+        "title": "你会去看周星驰的新电影《功夫女足》吗? - 知乎"
+      },
+      {
+        "article_id": 14,
+        "category": "origin_candidate",
+        "id": 14,
+        "interaction_count": 87,
+        "is_key_node": true,
+        "key_node_reasons": [
+          "当前数据中的源头候选"
+        ],
+        "name": "夏多",
+        "node_type": "origin_candidate",
+        "platform": "知乎",
+        "publish_time": "2026-07-12T06:54:22",
+        "symbolSize": 21.054075809977352,
+        "time_confidence": "high",
+        "title": "如何评价周星驰执导、编剧的电影《功夫女足》? - 知乎"
+      },
+      {
+        "article_id": 17,
+        "category": "origin_candidate",
+        "id": 17,
+        "interaction_count": 30,
+        "is_key_node": true,
+        "key_node_reasons": [
+          "当前数据中的源头候选"
+        ],
+        "name": "林子聪",
+        "node_type": "origin_candidate",
+        "platform": "知乎",
+        "publish_time": "2026-07-13T01:21:58",
+        "symbolSize": 20.340347319320717,
+        "time_confidence": "high",
+        "title": "电影《功夫女足》里有哪些值得关注的细节和彩蛋? - 知乎"
+      },
+      {
+        "article_id": 3,
+        "category": "origin_candidate",
+        "id": 3,
+        "interaction_count": 0,
+        "is_key_node": true,
+        "key_node_reasons": [
+          "当前数据中的源头候选",
+          "该平台首次出现"
+        ],
+        "name": "百家号",
+        "node_type": "origin_candidate",
+        "platform": "百度搜索",
+        "publish_time": "2026-07-13T10:54:12",
+        "symbolSize": 18.0,
+        "time_confidence": "high",
+        "title": "豆瓣6.6分,评论两极分化!《功夫女足》3天5.8亿元,周星驰:感到惭愧!官方发布声明:拒绝盗摄,抵制偷漏瞒报票房行为"
+      },
+      {
+        "article_id": 4,
+        "category": "origin_candidate",
+        "id": 4,
+        "interaction_count": 0,
+        "is_key_node": true,
+        "key_node_reasons": [
+          "当前数据中的源头候选"
+        ],
+        "name": "百家号",
+        "node_type": "origin_candidate",
+        "platform": "百度搜索",
+        "publish_time": "2026-07-13T11:12:50",
+        "symbolSize": 18.0,
+        "time_confidence": "high",
+        "title": "深圳出品电影《功夫女足》票房3天破5亿,官方发声抵制盗摄"
+      },
+      {
+        "article_id": 1,
+        "category": "origin_candidate",
+        "id": 1,
+        "interaction_count": 0,
+        "is_key_node": true,
+        "key_node_reasons": [
+          "当前数据中的源头候选"
+        ],
+        "name": "百家号",
+        "node_type": "origin_candidate",
+        "platform": "百度搜索",
+        "publish_time": "2026-07-13T11:48:02",
+        "symbolSize": 18.0,
+        "time_confidence": "high",
+        "title": "两天票房破5亿元却骂声一片,周星驰的《功夫女足》值得看吗?"
+      },
+      {
+        "article_id": 2,
+        "category": "origin_candidate",
+        "id": 2,
+        "interaction_count": 0,
+        "is_key_node": true,
+        "key_node_reasons": [
+          "当前数据中的源头候选"
+        ],
+        "name": "百家号",
+        "node_type": "origin_candidate",
+        "platform": "百度搜索",
+        "publish_time": "2026-07-13T11:55:56",
+        "symbolSize": 18.0,
+        "time_confidence": "high",
+        "title": "《功夫女足》确实没那么好,“周星驰”三个字还能撑多久?"
+      }
+    ],
+    "secondary_links": []
+  },
+  "graph_mode": "propagation",
+  "key_nodes": [
+    {
+      "article_id": 16,
+      "category": "origin_candidate",
+      "id": 16,
+      "interaction_count": 643,
+      "is_key_node": true,
+      "key_node_reasons": [
+        "当前数据中的源头候选",
+        "该平台首次出现"
+      ],
+      "name": "钟花笑",
+      "node_type": "origin_candidate",
+      "platform": "知乎",
+      "publish_time": "2026-07-09T03:15:03",
+      "symbolSize": 23.035617605240883,
+      "time_confidence": "high",
+      "title": "周星驰新作《功夫女足》定档,该片能复刻《少林足球》的高光吗?冲击高票房难度有多大? - 知乎"
+    },
+    {
+      "article_id": 8,
+      "category": "media_intervention",
+      "id": 8,
+      "interaction_count": 243675,
+      "is_key_node": true,
+      "key_node_reasons": [
+        "当前数据中的源头候选",
+        "该平台首次出现",
+        "媒体介入"
+      ],
+      "name": "央视新闻",
+      "node_type": "media_intervention",
+      "platform": "微博搜索",
+      "publish_time": "2026-07-10T05:55:00",
+      "symbolSize": 40.217886491678954,
+      "time_confidence": "high",
+      "title": "【#电影功夫女足首支长预告#来了!】#周星驰新片再次点燃心中一团火# 由周星驰执导、编剧的喜剧电影《功夫女足》今日发布“来吧!出招!”版预告↓↓预告中,四年一度的足坛巅峰赛事到来,实力不俗的娥眉队站上赛场,自信满满。不料,强敌个个身怀绝技,各路大招频出,球场风起云涌......当热血比拼遇上 ...全文"
+    },
+    {
+      "article_id": 18,
+      "category": "origin_candidate",
+      "id": 18,
+      "interaction_count": 632,
+      "is_key_node": true,
+      "key_node_reasons": [
+        "当前数据中的源头候选"
+      ],
+      "name": "牛头人不说",
+      "node_type": "origin_candidate",
+      "platform": "知乎",
+      "publish_time": "2026-07-10T11:32:38",
+      "symbolSize": 23.013941581226597,
+      "time_confidence": "high",
+      "title": "周星驰《功夫女足》第一批观后感已出,会影响你去看这部电影吗? - 知乎"
+    },
+    {
+      "article_id": 15,
+      "category": "origin_candidate",
+      "id": 15,
+      "interaction_count": 541,
+      "is_key_node": true,
+      "key_node_reasons": [
+        "当前数据中的源头候选"
+      ],
+      "name": "Mr.耀阳",
+      "node_type": "origin_candidate",
+      "platform": "知乎",
+      "publish_time": "2026-07-10T14:19:35",
+      "symbolSize": 22.822800711124813,
+      "time_confidence": "high",
+      "title": "《功夫女足》首支长预告曝光,张小斐、迪丽热巴带队与各路高手功夫大乱斗,看完预告你期待这部电影吗? - 知乎"
+    },
+    {
+      "article_id": 13,
+      "category": "origin_candidate",
+      "id": 13,
+      "interaction_count": 794,
+      "is_key_node": true,
+      "key_node_reasons": [
+        "当前数据中的源头候选"
+      ],
+      "name": "Mr.耀阳",
+      "node_type": "origin_candidate",
+      "platform": "知乎",
+      "publish_time": "2026-07-11T14:22:49",
+      "symbolSize": 23.308295923101003,
+      "time_confidence": "high",
+      "title": "你会去看周星驰的新电影《功夫女足》吗? - 知乎"
+    },
+    {
+      "article_id": 14,
+      "category": "origin_candidate",
+      "id": 14,
+      "interaction_count": 87,
+      "is_key_node": true,
+      "key_node_reasons": [
+        "当前数据中的源头候选"
+      ],
+      "name": "夏多",
+      "node_type": "origin_candidate",
+      "platform": "知乎",
+      "publish_time": "2026-07-12T06:54:22",
+      "symbolSize": 21.054075809977352,
+      "time_confidence": "high",
+      "title": "如何评价周星驰执导、编剧的电影《功夫女足》? - 知乎"
+    },
+    {
+      "article_id": 17,
+      "category": "origin_candidate",
+      "id": 17,
+      "interaction_count": 30,
+      "is_key_node": true,
+      "key_node_reasons": [
+        "当前数据中的源头候选"
+      ],
+      "name": "林子聪",
+      "node_type": "origin_candidate",
+      "platform": "知乎",
+      "publish_time": "2026-07-13T01:21:58",
+      "symbolSize": 20.340347319320717,
+      "time_confidence": "high",
+      "title": "电影《功夫女足》里有哪些值得关注的细节和彩蛋? - 知乎"
+    },
+    {
+      "article_id": 3,
+      "category": "origin_candidate",
+      "id": 3,
+      "interaction_count": 0,
+      "is_key_node": true,
+      "key_node_reasons": [
+        "当前数据中的源头候选",
+        "该平台首次出现"
+      ],
+      "name": "百家号",
+      "node_type": "origin_candidate",
+      "platform": "百度搜索",
+      "publish_time": "2026-07-13T10:54:12",
+      "symbolSize": 18.0,
+      "time_confidence": "high",
+      "title": "豆瓣6.6分,评论两极分化!《功夫女足》3天5.8亿元,周星驰:感到惭愧!官方发布声明:拒绝盗摄,抵制偷漏瞒报票房行为"
+    },
+    {
+      "article_id": 4,
+      "category": "origin_candidate",
+      "id": 4,
+      "interaction_count": 0,
+      "is_key_node": true,
+      "key_node_reasons": [
+        "当前数据中的源头候选"
+      ],
+      "name": "百家号",
+      "node_type": "origin_candidate",
+      "platform": "百度搜索",
+      "publish_time": "2026-07-13T11:12:50",
+      "symbolSize": 18.0,
+      "time_confidence": "high",
+      "title": "深圳出品电影《功夫女足》票房3天破5亿,官方发声抵制盗摄"
+    },
+    {
+      "article_id": 1,
+      "category": "origin_candidate",
+      "id": 1,
+      "interaction_count": 0,
+      "is_key_node": true,
+      "key_node_reasons": [
+        "当前数据中的源头候选"
+      ],
+      "name": "百家号",
+      "node_type": "origin_candidate",
+      "platform": "百度搜索",
+      "publish_time": "2026-07-13T11:48:02",
+      "symbolSize": 18.0,
+      "time_confidence": "high",
+      "title": "两天票房破5亿元却骂声一片,周星驰的《功夫女足》值得看吗?"
+    },
+    {
+      "article_id": 2,
+      "category": "origin_candidate",
+      "id": 2,
+      "interaction_count": 0,
+      "is_key_node": true,
+      "key_node_reasons": [
+        "当前数据中的源头候选"
+      ],
+      "name": "百家号",
+      "node_type": "origin_candidate",
+      "platform": "百度搜索",
+      "publish_time": "2026-07-13T11:55:56",
+      "symbolSize": 18.0,
+      "time_confidence": "high",
+      "title": "《功夫女足》确实没那么好,“周星驰”三个字还能撑多久?"
+    }
+  ],
+  "limitations": [
+    "现有报道之间缺少足够的显式或推断传播证据"
+  ],
+  "phases": [
+    {
+      "phase_type": "origin_candidate",
+      "representative_node_id": 16,
+      "time": "2026-07-09T03:15:03",
+      "title": "周星驰新作《功夫女足》定档,该片能复刻《少林足球》的高光吗?冲击高票房难度有多大? - 知乎"
+    },
+    {
+      "phase_type": "media_intervention",
+      "representative_node_id": 8,
+      "time": "2026-07-10T05:55:00",
+      "title": "【#电影功夫女足首支长预告#来了!】#周星驰新片再次点燃心中一团火# 由周星驰执导、编剧的喜剧电影《功夫女足》今日发布“来吧!出招!”版预告↓↓预告中,四年一度的足坛巅峰赛事到来,实力不俗的娥眉队站上赛场,自信满满。不料,强敌个个身怀绝技,各路大招频出,球场风起云涌......当热血比拼遇上 ...全文"
+    },
+    {
+      "phase_type": "origin_candidate",
+      "representative_node_id": 18,
+      "time": "2026-07-10T11:32:38",
+      "title": "周星驰《功夫女足》第一批观后感已出,会影响你去看这部电影吗? - 知乎"
+    },
+    {
+      "phase_type": "origin_candidate",
+      "representative_node_id": 15,
+      "time": "2026-07-10T14:19:35",
+      "title": "《功夫女足》首支长预告曝光,张小斐、迪丽热巴带队与各路高手功夫大乱斗,看完预告你期待这部电影吗? - 知乎"
+    },
+    {
+      "phase_type": "origin_candidate",
+      "representative_node_id": 13,
+      "time": "2026-07-11T14:22:49",
+      "title": "你会去看周星驰的新电影《功夫女足》吗? - 知乎"
+    },
+    {
+      "phase_type": "origin_candidate",
+      "representative_node_id": 14,
+      "time": "2026-07-12T06:54:22",
+      "title": "如何评价周星驰执导、编剧的电影《功夫女足》? - 知乎"
+    },
+    {
+      "phase_type": "origin_candidate",
+      "representative_node_id": 17,
+      "time": "2026-07-13T01:21:58",
+      "title": "电影《功夫女足》里有哪些值得关注的细节和彩蛋? - 知乎"
+    },
+    {
+      "phase_type": "origin_candidate",
+      "representative_node_id": 3,
+      "time": "2026-07-13T10:54:12",
+      "title": "豆瓣6.6分,评论两极分化!《功夫女足》3天5.8亿元,周星驰:感到惭愧!官方发布声明:拒绝盗摄,抵制偷漏瞒报票房行为"
+    },
+    {
+      "phase_type": "origin_candidate",
+      "representative_node_id": 4,
+      "time": "2026-07-13T11:12:50",
+      "title": "深圳出品电影《功夫女足》票房3天破5亿,官方发声抵制盗摄"
+    },
+    {
+      "phase_type": "origin_candidate",
+      "representative_node_id": 1,
+      "time": "2026-07-13T11:48:02",
+      "title": "两天票房破5亿元却骂声一片,周星驰的《功夫女足》值得看吗?"
+    },
+    {
+      "phase_type": "origin_candidate",
+      "representative_node_id": 2,
+      "time": "2026-07-13T11:55:56",
+      "title": "《功夫女足》确实没那么好,“周星驰”三个字还能撑多久?"
+    }
+  ],
+  "summary": {
+    "coverage_notice": "基于已采集的11篇报道重建传播网络，含0条传播路径（0条显式、0条推断）",
+    "edge_count": 0,
+    "explicit_edge_count": 0,
+    "inferred_edge_count": 0,
+    "node_count": 11,
+    "origin_candidate_count": 11,
+    "platforms": [
+      "微博搜索",
+      "百度搜索",
+      "知乎"
+    ]
+  }
+}

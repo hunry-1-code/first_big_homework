@@ -1,0 +1,68 @@
+[
+  {
+    "level": "DEBUG",
+    "message": "http://127.0.0.1:8848/@vite/client 826:8 \"[vite] connecting...\"",
+    "source": "console-api",
+    "timestamp": 1783950522913
+  },
+  {
+    "level": "DEBUG",
+    "message": "http://127.0.0.1:8848/@vite/client 930:11 \"[vite] connected.\"",
+    "source": "console-api",
+    "timestamp": 1783950522926
+  },
+  {
+    "level": "WARNING",
+    "message": "http://127.0.0.1:8848/@vite/client 509:3 \"[Vue warn]: Extraneous non-props attributes (data-insp-path) were passed to component but could not be automatically inherited because component renders fragment or text or teleport root nodes.\" \"\\n\" \" at \\u003CElConfigProvider\" \"data-insp-path=\\\"frontend/src/App.vue:2:3:el-config-provider\\\"\" \"locale=\" Object \">\" \"\\n\" \" at \\u003CApp>\"",
+    "source": "console-api",
+    "timestamp": 1783950524005
+  },
+  {
+    "level": "WARNING",
+    "message": "http://127.0.0.1:8848/@vite/client 509:3 \"[Vue warn]: Extraneous non-props attributes (data-insp-path) were passed to component but could not be automatically inherited because component renders fragment or text or teleport root nodes.\" \"\\n\" \" at \\u003CReDialog\" \"data-insp-path=\\\"frontend/src/App.vue:4:5:ReDialog\\\"\" \">\" \"\\n\" \" at \\u003CElConfigProvider\" \"data-insp-path=\\\"frontend/src/App.vue:2:3:el-config-provider\\\"\" \"locale=\" Object \">\" \"\\n\" \" at \\u003CApp>\"",
+    "source": "console-api",
+    "timestamp": 1783950524038
+  },
+  {
+    "level": "WARNING",
+    "message": "http://127.0.0.1:8848/@vite/client 509:3 \"[Vue warn]: Extraneous non-props attributes (data-insp-path) were passed to component but could not be automatically inherited because component renders fragment or text or teleport root nodes.\" \"\\n\" \" at \\u003CReDrawer\" \"data-insp-path=\\\"frontend/src/App.vue:5:5:ReDrawer\\\"\" \">\" \"\\n\" \" at \\u003CElConfigProvider\" \"data-insp-path=\\\"frontend/src/App.vue:2:3:el-config-provider\\\"\" \"locale=\" Object \">\" \"\\n\" \" at \\u003CApp>\"",
+    "source": "console-api",
+    "timestamp": 1783950524039
+  },
+  {
+    "level": "WARNING",
+    "message": "http://127.0.0.1:8848/@vite/client 509:3 \"[Vue warn]: Extraneous non-props attributes (data-insp-path) were passed to component but could not be automatically inherited because component renders fragment or text or teleport root nodes.\" \"\\n\" \" at \\u003CReDialog\" \"data-insp-path=\\\"frontend/src/App.vue:4:5:ReDialog\\\"\" \">\" \"\\n\" \" at \\u003CElConfigProvider\" \"data-insp-path=\\\"frontend/src/App.vue:2:3:el-config-provider\\\"\" \"locale=\" Object \">\" \"\\n\" \" at \\u003CApp>\"",
+    "source": "console-api",
+    "timestamp": 1783950525234
+  },
+  {
+    "level": "WARNING",
+    "message": "http://127.0.0.1:8848/@vite/client 509:3 \"[Vue warn]: Extraneous non-props attributes (data-insp-path) were passed to component but could not be automatically inherited because component renders fragment or text or teleport root nodes.\" \"\\n\" \" at \\u003CReDrawer\" \"data-insp-path=\\\"frontend/src/App.vue:5:5:ReDrawer\\\"\" \">\" \"\\n\" \" at \\u003CElConfigProvider\" \"data-insp-path=\\\"frontend/src/App.vue:2:3:el-config-provider\\\"\" \"locale=\" Object \">\" \"\\n\" \" at \\u003CApp>\"",
+    "source": "console-api",
+    "timestamp": 1783950525234
+  },
+  {
+    "level": "WARNING",
+    "message": "http://127.0.0.1:8848/@vite/client 509:3 \"[Vue warn]: Extraneous non-props attributes (data-insp-path) were passed to component but could not be automatically inherited because component renders fragment or text or teleport root nodes.\" \"\\n\" \" at \\u003CIndex\" \"data-insp-path=\\\"frontend/src/layout/components/lay-content/index.vue:117:9:LayFrame\\\"\" \"currComp=\" Object \"currRoute=\" Object \">\" \"\\n\" \" at \\u003CRouterView\" \"data-insp-path=\\\"frontend/src/layout/components/lay-content/index.vue:115:5:rou",
+    "source": "console-api",
+    "timestamp": 1783950527019
+  },
+  {
+    "level": "WARNING",
+    "message": "http://127.0.0.1:8848/@vite/client 509:3 \"Extraneous non-props attributes (data-insp-path) were passed to component but could not be automatically inherited because component renders fragment or text or teleport root nodes.\" Proxy(Object) \"at \\u003CReDialog>\\nat \\u003CElConfigProvider>\\nat \\u003CApp>\" Array(3)",
+    "source": "console-api",
+    "timestamp": 1783950527452
+  },
+  {
+    "level": "WARNING",
+    "message": "http://127.0.0.1:8848/@vite/client 509:3 \"Extraneous non-props attributes (data-insp-path) were passed to component but could not be automatically inherited because component renders fragment or text or teleport root nodes.\" Proxy(Object) \"at \\u003CReDrawer>\\nat \\u003CElConfigProvider>\\nat \\u003CApp>\" Array(3)",
+    "source": "console-api",
+    "timestamp": 1783950527636
+  },
+  {
+    "level": "INFO",
+    "message": "http://127.0.0.1:8848/src/views/events/detail.vue 1007:11 \"[wordcloud] rendering\" 20 \"keywords\" Array(3)",
+    "source": "console-api",
+    "timestamp": 1783950533118
+  }
+]

@@ -1,0 +1,19 @@
+{
+  "request": {
+    "keyword": "《功夫女足》电影",
+    "platforms": [
+      "baidu",
+      "weibo",
+      "zhihu",
+      "bilibili"
+    ],
+    "target_count": 24
+  },
+  "response": {
+    "aggregation_run_id": null,
+    "cached": false,
+    "reused": false,
+    "stale": false,
+    "task_id": 1
+  }
+}

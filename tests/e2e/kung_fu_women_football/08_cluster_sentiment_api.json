@@ -1,0 +1,351 @@
+{
+  "aggregation_cluster_id": 1,
+  "algorithm_version": "sentiment-v1",
+  "article_count": 11,
+  "average_score": -0.35000000000000003,
+  "calculated_at": "2026-07-13T12:05:35.185280",
+  "calculation_details": {
+    "config_hash": "31a596cd9fdefe914141dd32b9c40e933d628778a4261934c5ffd6b483debcea",
+    "effective_weight": 11.0,
+    "representative_reasons": [
+      "文章虽提及票房成功，但重点描述影片‘骂声一片’、评价两极分化、缺乏艺术性和思想深度，并暗示票价不值，整体呈现批评和质疑立场。",
+      "文章标题和正文明确质疑周星驰品牌价值，批评作品质量下滑，如‘没那么好’‘还能撑多久’‘情怀炒冷饭’等表述，呈现负面评价立场。",
+      "文章客观报道了票房、评分和评论两极分化的事实，未明确表达支持或批评立场。"
+    ],
+    "summary": "共分析11篇文章，主导情感为负面；正面18.2%、负面72.7%、中立9.1%，加权平均分-0.350。代表性判断依据：文章虽提及票房成功，但重点描述影片‘骂声一片’、评价两极分化、缺乏艺术性和思想深度，并暗示票价不值，整体呈现批评和质疑立场。；文章标题和正文明确质疑周星驰品牌价值，批评作品质量下滑，如‘没那么好’‘还能撑多久’‘情怀炒冷饭’等表述，呈现负面评价立场。；文章客观报道了票房、评分和评论两极分化的事实，未明确表达支持或批评立场。。"
+  },
+  "daily": [
+    {
+      "article_count": 1,
+      "average_score": -0.7,
+      "date": "2026-07-09",
+      "dominant_label": "negative",
+      "effective_weight": 1.0,
+      "raw_counts": {
+        "negative": 1,
+        "neutral": 0,
+        "positive": 0
+      },
+      "representative_count": 1,
+      "summary": "共分析1篇文章，主导情感为负面；正面0.0%、负面100.0%、中立0.0%，加权平均分-0.700。",
+      "time_source_counts": {
+        "observed_at": 0,
+        "publish_time": 1
+      },
+      "warnings": [],
+      "weighted_ratios": {
+        "negative": 1.0,
+        "neutral": 0.0,
+        "positive": 0.0
+      }
+    },
+    {
+      "article_count": 3,
+      "average_score": -0.26666666666666666,
+      "date": "2026-07-10",
+      "dominant_label": "negative",
+      "effective_weight": 3.0,
+      "raw_counts": {
+        "negative": 2,
+        "neutral": 0,
+        "positive": 1
+      },
+      "representative_count": 3,
+      "summary": "共分析3篇文章，主导情感为负面；正面33.3%、负面66.7%、中立0.0%，加权平均分-0.267。",
+      "time_source_counts": {
+        "observed_at": 0,
+        "publish_time": 3
+      },
+      "warnings": [],
+      "weighted_ratios": {
+        "negative": 0.6666666666666666,
+        "neutral": 0.0,
+        "positive": 0.3333333333333333
+      }
+    },
+    {
+      "article_count": 1,
+      "average_score": -0.6,
+      "date": "2026-07-11",
+      "dominant_label": "negative",
+      "effective_weight": 1.0,
+      "raw_counts": {
+        "negative": 1,
+        "neutral": 0,
+        "positive": 0
+      },
+      "representative_count": 1,
+      "summary": "共分析1篇文章，主导情感为负面；正面0.0%、负面100.0%、中立0.0%，加权平均分-0.600。",
+      "time_source_counts": {
+        "observed_at": 0,
+        "publish_time": 1
+      },
+      "warnings": [],
+      "weighted_ratios": {
+        "negative": 1.0,
+        "neutral": 0.0,
+        "positive": 0.0
+      }
+    },
+    {
+      "article_count": 1,
+      "average_score": -0.85,
+      "date": "2026-07-12",
+      "dominant_label": "negative",
+      "effective_weight": 1.0,
+      "raw_counts": {
+        "negative": 1,
+        "neutral": 0,
+        "positive": 0
+      },
+      "representative_count": 1,
+      "summary": "共分析1篇文章，主导情感为负面；正面0.0%、负面100.0%、中立0.0%，加权平均分-0.850。",
+      "time_source_counts": {
+        "observed_at": 0,
+        "publish_time": 1
+      },
+      "warnings": [],
+      "weighted_ratios": {
+        "negative": 1.0,
+        "neutral": 0.0,
+        "positive": 0.0
+      }
+    },
+    {
+      "article_count": 5,
+      "average_score": -0.18,
+      "date": "2026-07-13",
+      "dominant_label": "negative",
+      "effective_weight": 5.0,
+      "raw_counts": {
+        "negative": 3,
+        "neutral": 1,
+        "positive": 1
+      },
+      "representative_count": 5,
+      "summary": "共分析5篇文章，主导情感为负面；正面20.0%、负面60.0%、中立20.0%，加权平均分-0.180。",
+      "time_source_counts": {
+        "observed_at": 0,
+        "publish_time": 5
+      },
+      "warnings": [],
+      "weighted_ratios": {
+        "negative": 0.6,
+        "neutral": 0.2,
+        "positive": 0.2
+      }
+    }
+  ],
+  "daily_trend": [
+    {
+      "article_count": 1,
+      "average_score": -0.7,
+      "date": "2026-07-09",
+      "dominant_label": "negative",
+      "effective_weight": 1.0,
+      "raw_counts": {
+        "negative": 1,
+        "neutral": 0,
+        "positive": 0
+      },
+      "representative_count": 1,
+      "summary": "共分析1篇文章，主导情感为负面；正面0.0%、负面100.0%、中立0.0%，加权平均分-0.700。",
+      "time_source_counts": {
+        "observed_at": 0,
+        "publish_time": 1
+      },
+      "warnings": [],
+      "weighted_ratios": {
+        "negative": 1.0,
+        "neutral": 0.0,
+        "positive": 0.0
+      }
+    },
+    {
+      "article_count": 3,
+      "average_score": -0.26666666666666666,
+      "date": "2026-07-10",
+      "dominant_label": "negative",
+      "effective_weight": 3.0,
+      "raw_counts": {
+        "negative": 2,
+        "neutral": 0,
+        "positive": 1
+      },
+      "representative_count": 3,
+      "summary": "共分析3篇文章，主导情感为负面；正面33.3%、负面66.7%、中立0.0%，加权平均分-0.267。",
+      "time_source_counts": {
+        "observed_at": 0,
+        "publish_time": 3
+      },
+      "warnings": [],
+      "weighted_ratios": {
+        "negative": 0.6666666666666666,
+        "neutral": 0.0,
+        "positive": 0.3333333333333333
+      }
+    },
+    {
+      "article_count": 1,
+      "average_score": -0.6,
+      "date": "2026-07-11",
+      "dominant_label": "negative",
+      "effective_weight": 1.0,
+      "raw_counts": {
+        "negative": 1,
+        "neutral": 0,
+        "positive": 0
+      },
+      "representative_count": 1,
+      "summary": "共分析1篇文章，主导情感为负面；正面0.0%、负面100.0%、中立0.0%，加权平均分-0.600。",
+      "time_source_counts": {
+        "observed_at": 0,
+        "publish_time": 1
+      },
+      "warnings": [],
+      "weighted_ratios": {
+        "negative": 1.0,
+        "neutral": 0.0,
+        "positive": 0.0
+      }
+    },
+    {
+      "article_count": 1,
+      "average_score": -0.85,
+      "date": "2026-07-12",
+      "dominant_label": "negative",
+      "effective_weight": 1.0,
+      "raw_counts": {
+        "negative": 1,
+        "neutral": 0,
+        "positive": 0
+      },
+      "representative_count": 1,
+      "summary": "共分析1篇文章，主导情感为负面；正面0.0%、负面100.0%、中立0.0%，加权平均分-0.850。",
+      "time_source_counts": {
+        "observed_at": 0,
+        "publish_time": 1
+      },
+      "warnings": [],
+      "weighted_ratios": {
+        "negative": 1.0,
+        "neutral": 0.0,
+        "positive": 0.0
+      }
+    },
+    {
+      "article_count": 5,
+      "average_score": -0.18,
+      "date": "2026-07-13",
+      "dominant_label": "negative",
+      "effective_weight": 5.0,
+      "raw_counts": {
+        "negative": 3,
+        "neutral": 1,
+        "positive": 1
+      },
+      "representative_count": 5,
+      "summary": "共分析5篇文章，主导情感为负面；正面20.0%、负面60.0%、中立20.0%，加权平均分-0.180。",
+      "time_source_counts": {
+        "observed_at": 0,
+        "publish_time": 5
+      },
+      "warnings": [],
+      "weighted_ratios": {
+        "negative": 0.6,
+        "neutral": 0.2,
+        "positive": 0.2
+      }
+    }
+  ],
+  "dominant_label": "negative",
+  "event_id": null,
+  "negative": 0.7272727272727273,
+  "neutral": 0.09090909090909091,
+  "platform_distribution": [
+    {
+      "article_count": 4,
+      "average_score": -0.425,
+      "dominant_label": "negative",
+      "effective_weight": 4.0,
+      "platform": "baidu",
+      "raw_counts": {
+        "negative": 3,
+        "neutral": 1,
+        "positive": 0
+      },
+      "representative_count": 4,
+      "sample_insufficient": false,
+      "summary": "共分析4篇文章，主导情感为负面；正面0.0%、负面75.0%、中立25.0%，加权平均分-0.425。",
+      "warnings": [],
+      "weighted_ratios": {
+        "negative": 0.75,
+        "neutral": 0.25,
+        "positive": 0.0
+      }
+    },
+    {
+      "article_count": 1,
+      "average_score": 0.8,
+      "dominant_label": "positive",
+      "effective_weight": 1.0,
+      "platform": "weibo",
+      "raw_counts": {
+        "negative": 0,
+        "neutral": 0,
+        "positive": 1
+      },
+      "representative_count": 1,
+      "sample_insufficient": true,
+      "summary": "共分析1篇文章，主导情感为正面；正面100.0%、负面0.0%、中立0.0%，加权平均分0.800。",
+      "warnings": [
+        "PLATFORM_SAMPLE_INSUFFICIENT"
+      ],
+      "weighted_ratios": {
+        "negative": 0.0,
+        "neutral": 0.0,
+        "positive": 1.0
+      }
+    },
+    {
+      "article_count": 6,
+      "average_score": -0.4916666666666667,
+      "dominant_label": "negative",
+      "effective_weight": 6.0,
+      "platform": "zhihu",
+      "raw_counts": {
+        "negative": 5,
+        "neutral": 0,
+        "positive": 1
+      },
+      "representative_count": 6,
+      "sample_insufficient": false,
+      "summary": "共分析6篇文章，主导情感为负面；正面16.7%、负面83.3%、中立0.0%，加权平均分-0.492。",
+      "warnings": [],
+      "weighted_ratios": {
+        "negative": 0.8333333333333334,
+        "neutral": 0.0,
+        "positive": 0.16666666666666666
+      }
+    }
+  ],
+  "positive": 0.18181818181818182,
+  "raw_counts": {
+    "negative": 8,
+    "neutral": 1,
+    "positive": 2
+  },
+  "representative_count": 11,
+  "sentiment_run_id": 1,
+  "snapshot_id": 1,
+  "summary": "共分析11篇文章，主导情感为负面；正面18.2%、负面72.7%、中立9.1%，加权平均分-0.350。代表性判断依据：文章虽提及票房成功，但重点描述影片‘骂声一片’、评价两极分化、缺乏艺术性和思想深度，并暗示票价不值，整体呈现批评和质疑立场。；文章标题和正文明确质疑周星驰品牌价值，批评作品质量下滑，如‘没那么好’‘还能撑多久’‘情怀炒冷饭’等表述，呈现负面评价立场。；文章客观报道了票房、评分和评论两极分化的事实，未明确表达支持或批评立场。。",
+  "time_confidence": "high",
+  "warnings": [
+    "PLATFORM_SAMPLE_INSUFFICIENT"
+  ],
+  "weighted_ratios": {
+    "negative": 0.7272727272727273,
+    "neutral": 0.09090909090909091,
+    "positive": 0.18181818181818182
+  }
+}

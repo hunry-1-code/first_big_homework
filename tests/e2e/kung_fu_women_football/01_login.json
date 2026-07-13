@@ -1,0 +1,11 @@
+{
+  "status": "success",
+  "user": {
+    "id": 1,
+    "nickname": "管理员",
+    "role": "admin",
+    "status": 1,
+    "username": "admin"
+  },
+  "reused_database": true
+}

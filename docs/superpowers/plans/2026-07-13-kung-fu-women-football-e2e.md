@@ -219,7 +219,7 @@ git commit -m "feat: orchestrate isolated keyword analysis cycle" -m "Co-Authore
 - Verify: `frontend/package.json`
 - Verify or update only when required: `frontend/package-lock.json`
 
-- [ ] **Step 1: Install declared dependencies**
+- [x] **Step 1: Install declared dependencies**
 
 ```powershell
 cd frontend
@@ -228,7 +228,7 @@ npm install
 
 Do not update package versions unless installation proves the lock file is inconsistent.
 
-- [ ] **Step 2: Run production build**
+- [x] **Step 2: Run production build**
 
 ```powershell
 npm run build
@@ -236,7 +236,7 @@ npm run build
 
 Record Node/npm versions, exit status and warnings.
 
-- [ ] **Step 3: Diagnose build failures systematically**
+- [x] **Step 3: Diagnose build failures systematically**
 
 For each failure:
 
@@ -246,7 +246,7 @@ For each failure:
 4. make the minimum change;
 5. rerun build.
 
-- [ ] **Step 4: Commit only demonstrated frontend fixes**
+- [x] **Step 4: Commit only demonstrated frontend fixes**
 
 Do not commit `node_modules`. Commit lock/source changes only when required by successful build.
 
@@ -256,7 +256,7 @@ Do not commit `node_modules`. Commit lock/source changes only when required by s
 - Create at runtime: `artifacts/kung_fu_women_football/`
 - Keep sanitized results under: `tests/e2e/kung_fu_women_football/`
 
-- [ ] **Step 1: Run the E2E API phase**
+- [x] **Step 1: Run the E2E API phase**
 
 ```powershell
 python tools/run_keyword_e2e.py `
@@ -269,7 +269,7 @@ python tools/run_keyword_e2e.py `
   --artifact-dir tests/e2e/kung_fu_women_football
 ```
 
-- [ ] **Step 2: Inspect crawl quality**
+- [x] **Step 2: Inspect crawl quality**
 
 Compute:
 
@@ -283,15 +283,15 @@ Compute:
 
 If fewer than 3 relevant non-duplicate articles exist, retry once with target count 40 and record both attempts.
 
-- [ ] **Step 3: Inspect aggregation before publishing**
+- [x] **Step 3: Inspect aggregation before publishing**
 
 Export every cluster and article membership. Publish only when the selected cluster score is at least 6 and manual inspection confirms the cluster is about the movie.
 
-- [ ] **Step 4: Inspect post-publication outputs**
+- [x] **Step 4: Inspect post-publication outputs**
 
 Verify Event title/summary, metadata evidence, sentiment snapshot, heat snapshot, lifecycle status, risk, keywords, report and propagation.
 
-- [ ] **Step 5: Scan artifacts for secrets**
+- [x] **Step 5: Scan artifacts for secrets**
 
 Configured-secret hits and JWT/password/header markers must all be zero.
 
@@ -301,11 +301,11 @@ Configured-secret hits and JWT/password/header markers must all be zero.
 - Modify: `tools/run_keyword_e2e.py`
 - Create runtime screenshots and DOM in the artifact directory
 
-- [ ] **Step 1: Write browser-helper tests**
+- [x] **Step 1: Write browser-helper tests**
 
 Test pure DOM checks and screenshot filename generation. Verify Chinese keyword and event id produce filesystem-safe names.
 
-- [ ] **Step 2: Implement browser phase**
+- [x] **Step 2: Implement browser phase**
 
 Use:
 
@@ -323,7 +323,7 @@ Selenium options:
 
 Login through the real `/login` form. Navigate to `/analysis`, enter the keyword and confirm cached/completed state; navigate to dashboard, filter the event; then open `/events/{event_id}`.
 
-- [ ] **Step 3: Capture user-visible evidence**
+- [x] **Step 3: Capture user-visible evidence**
 
 Save:
 
@@ -334,7 +334,7 @@ Save:
 - browser console messages;
 - visible section names and values.
 
-- [ ] **Step 4: Run quality gate**
+- [x] **Step 4: Run quality gate**
 
 Compare DOM-visible title, article count, sentiment, lifecycle and risk with API data. Fail on mock fixed 45, undefined, NaN, blank required sections or wrong event.
 
@@ -344,7 +344,7 @@ Compare DOM-visible title, article count, sentiment, lifecycle and risk with API
 - Modify only files proven defective by Tasks 4–5
 - Add focused backend or frontend tests
 
-- [ ] **Step 1: Classify every failure**
+- [x] **Step 1: Classify every failure**
 
 Categories:
 
@@ -358,7 +358,7 @@ Categories:
 - frontend mock or misleading fallback;
 - browser timing/rendering.
 
-- [ ] **Step 2: Fix code defects with TDD**
+- [x] **Step 2: Fix code defects with TDD**
 
 Likely high-risk checks:
 
@@ -371,7 +371,7 @@ Likely high-risk checks:
 
 Do not change behavior without a failing test or reproducible build/browser assertion.
 
-- [ ] **Step 3: Re-run affected stages**
+- [x] **Step 3: Re-run affected stages**
 
 Reuse the same isolated database when safe; otherwise start a new attempt directory and preserve both before/after evidence.
 
@@ -383,7 +383,7 @@ Reuse the same isolated database when safe; otherwise start a new attempt direct
 - Modify: `docs/frontend_changelog_and_memory.md` only when frontend code changes
 - Modify: this plan
 
-- [ ] **Step 1: Write the stage ledger**
+- [x] **Step 1: Write the stage ledger**
 
 For every stage record:
 
@@ -394,7 +394,7 @@ For every stage record:
 - artifact file;
 - user-visible impact.
 
-- [ ] **Step 2: Write user-perspective assessment**
+- [x] **Step 2: Write user-perspective assessment**
 
 Cover:
 
@@ -407,36 +407,36 @@ Cover:
 - limitations;
 - whether each chart/card helps or misleads.
 
-- [ ] **Step 3: Record fixes and residual limitations**
+- [x] **Step 3: Record fixes and residual limitations**
 
 Separate code defects from external data limitations. Include before/after screenshots when code changes.
 
-- [ ] **Step 4: Commit report and safe artifacts**
+- [x] **Step 4: Commit report and safe artifacts**
 
 Do not commit the SQLite runtime database, server logs containing headers, browser profile, `node_modules`, JWT or credentials.
 
 ### Task 8: Final verification
 
-- [ ] **Step 1: Frontend build**
+- [x] **Step 1: Frontend build**
 
 ```powershell
 cd frontend
 npm run build
 ```
 
-- [ ] **Step 2: E2E focused tests**
+- [x] **Step 2: E2E focused tests**
 
 ```powershell
 python -m pytest tests/test_run_keyword_e2e.py tests/test_validate_backend_live.py -q
 ```
 
-- [ ] **Step 3: Backend/full regression**
+- [x] **Step 3: Backend/full regression**
 
 ```powershell
 python -m pytest backend/tests tests -q
 ```
 
-- [ ] **Step 4: Secret and repository checks**
+- [x] **Step 4: Secret and repository checks**
 
 Confirm:
 
@@ -446,6 +446,6 @@ Confirm:
 - runtime DB/log/profile excluded;
 - Git worktree contains only intended committed files.
 
-- [ ] **Step 5: Final handoff**
+- [x] **Step 5: Final handoff**
 
 Report exact crawl counts, selected cluster/event id, API quality results, browser evidence, fixes, remaining external/scientific limits and artifact/document paths.

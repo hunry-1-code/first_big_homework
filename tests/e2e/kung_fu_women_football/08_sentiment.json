@@ -1,0 +1,2158 @@
+{
+  "database": "kung_fu_women_football.db",
+  "tables": {
+    "sentiment_run": [
+      {
+        "id": 1,
+        "aggregation_run_id": 1,
+        "source_task_id": 1,
+        "user_id": 1,
+        "scope": "search_shared",
+        "mode": "search",
+        "attempt": 1,
+        "dataset_hash": "ce788510bfbd3d1479a30ad04f46a0c608fa3b91726ee7caa6d779e2012411fb",
+        "config_hash": "31a596cd9fdefe914141dd32b9c40e933d628778a4261934c5ffd6b483debcea",
+        "config": {
+          "text_limit": 500,
+          "neutral_score_min": -0.2,
+          "neutral_score_max": 0.2,
+          "llm_max_concurrency": 3,
+          "llm_retry_count": 3,
+          "minimum_success_ratio": 0.8,
+          "platform_min_articles": 3,
+          "platform_min_representatives": 2,
+          "snownlp_positive_threshold": 0.6,
+          "snownlp_negative_threshold": 0.4,
+          "snownlp_confidence_cap": 0.75,
+          "algorithm_version": "sentiment-v1",
+          "prompt_version": "sentiment-prompt-v1",
+          "preprocess_version": "sentiment-text-v1"
+        },
+        "versions": {
+          "algorithm": "sentiment-v1",
+          "llm_model": "deepseek-chat",
+          "llm_model_version": "default",
+          "prompt_version": "sentiment-prompt-v1",
+          "preprocess_version": "sentiment-text-v1",
+          "snownlp_version": "0.12.3"
+        },
+        "statistics": {
+          "llm_count": 20,
+          "input_count": 20,
+          "result_count": 20,
+          "snapshot_count": 6
+        },
+        "status": "success",
+        "warnings": [],
+        "error_code": null,
+        "error_message": null,
+        "created_at": "2026-07-13 12:05:35",
+        "started_at": "2026-07-13 12:05:35.185280",
+        "completed_at": "2026-07-13 12:05:35.185280"
+      },
+      {
+        "id": 2,
+        "aggregation_run_id": 2,
+        "source_task_id": null,
+        "user_id": 1,
+        "scope": "global",
+        "mode": "publish",
+        "attempt": 1,
+        "dataset_hash": "eb19c78aa9bd4bbf415c40b31f317947a0f392facc9b246b65adfdba2b5c15cf",
+        "config_hash": "31a596cd9fdefe914141dd32b9c40e933d628778a4261934c5ffd6b483debcea",
+        "config": {
+          "text_limit": 500,
+          "neutral_score_min": -0.2,
+          "neutral_score_max": 0.2,
+          "llm_max_concurrency": 3,
+          "llm_retry_count": 3,
+          "minimum_success_ratio": 0.8,
+          "platform_min_articles": 3,
+          "platform_min_representatives": 2,
+          "snownlp_positive_threshold": 0.6,
+          "snownlp_negative_threshold": 0.4,
+          "snownlp_confidence_cap": 0.75,
+          "algorithm_version": "sentiment-v1",
+          "prompt_version": "sentiment-prompt-v1",
+          "preprocess_version": "sentiment-text-v1"
+        },
+        "versions": {
+          "algorithm": "sentiment-v1",
+          "llm_model": "deepseek-chat",
+          "llm_model_version": "default",
+          "prompt_version": "sentiment-prompt-v1",
+          "preprocess_version": "sentiment-text-v1",
+          "snownlp_version": "0.12.3"
+        },
+        "statistics": {
+          "reused_count": 11,
+          "input_count": 11,
+          "result_count": 11,
+          "snapshot_count": 1
+        },
+        "status": "success",
+        "warnings": [],
+        "error_code": null,
+        "error_message": null,
+        "created_at": "2026-07-13 12:06:12",
+        "started_at": "2026-07-13 12:06:09.543881",
+        "completed_at": "2026-07-13 12:06:09.543881"
+      }
+    ],
+    "article_sentiment_result": [
+      {
+        "id": 1,
+        "sentiment_run_id": 1,
+        "article_id": 1,
+        "content_identity": "snapshot:1:v1",
+        "aggregation_cluster_id": 1,
+        "event_id": null,
+        "label": "negative",
+        "score": -0.3,
+        "confidence": 0.7,
+        "dimension": "stance",
+        "target": "周星驰《功夫女足》",
+        "reason": "文章虽提及票房成功，但重点描述影片‘骂声一片’、评价两极分化、缺乏艺术性和思想深度，并暗示票价不值，整体呈现批评和质疑立场。",
+        "method": "llm",
+        "model_name": "deepseek-v4-flash",
+        "model_version": "default",
+        "prompt_version": "sentiment-prompt-v1",
+        "preprocess_version": "sentiment-text-v1",
+        "raw_response": {
+          "label": "negative",
+          "score": -0.3,
+          "confidence": 0.7,
+          "dimension": "stance",
+          "target": "周星驰《功夫女足》",
+          "reason": "文章虽提及票房成功，但重点描述影片‘骂声一片’、评价两极分化、缺乏艺术性和思想深度，并暗示票价不值，整体呈现批评和质疑立场。"
+        },
+        "inherited_from_result_id": null,
+        "weight_details": {
+          "quality_weight": 1.0,
+          "spam_weight": 1.0,
+          "duplicate_factor": 1.0,
+          "spread_factor": 1.0,
+          "final_weight": 1.0
+        },
+        "warnings": [],
+        "created_at": "2026-07-13 12:05:36"
+      },
+      {
+        "id": 2,
+        "sentiment_run_id": 1,
+        "article_id": 2,
+        "content_identity": "snapshot:2:v1",
+        "aggregation_cluster_id": 1,
+        "event_id": null,
+        "label": "negative",
+        "score": -0.7,
+        "confidence": 0.85,
+        "dimension": "stance",
+        "target": "周星驰及其作品《功夫女足》",
+        "reason": "文章标题和正文明确质疑周星驰品牌价值，批评作品质量下滑，如‘没那么好’‘还能撑多久’‘情怀炒冷饭’等表述，呈现负面评价立场。",
+        "method": "llm",
+        "model_name": "deepseek-v4-flash",
+        "model_version": "default",
+        "prompt_version": "sentiment-prompt-v1",
+        "preprocess_version": "sentiment-text-v1",
+        "raw_response": {
+          "label": "negative",
+          "score": -0.7,
+          "confidence": 0.85,
+          "dimension": "stance",
+          "target": "周星驰及其作品《功夫女足》",
+          "reason": "文章标题和正文明确质疑周星驰品牌价值，批评作品质量下滑，如‘没那么好’‘还能撑多久’‘情怀炒冷饭’等表述，呈现负面评价立场。"
+        },
+        "inherited_from_result_id": null,
+        "weight_details": {
+          "quality_weight": 1.0,
+          "spam_weight": 1.0,
+          "duplicate_factor": 1.0,
+          "spread_factor": 1.0,
+          "final_weight": 1.0
+        },
+        "warnings": [],
+        "created_at": "2026-07-13 12:05:38"
+      },
+      {
+        "id": 3,
+        "sentiment_run_id": 1,
+        "article_id": 3,
+        "content_identity": "snapshot:3:v1",
+        "aggregation_cluster_id": 1,
+        "event_id": null,
+        "label": "neutral",
+        "score": 0.0,
+        "confidence": 0.85,
+        "dimension": "factual",
+        "target": "《功夫女足》电影及周星驰",
+        "reason": "文章客观报道了票房、评分和评论两极分化的事实，未明确表达支持或批评立场。",
+        "method": "llm",
+        "model_name": "deepseek-v4-flash",
+        "model_version": "default",
+        "prompt_version": "sentiment-prompt-v1",
+        "preprocess_version": "sentiment-text-v1",
+        "raw_response": {
+          "label": "neutral",
+          "score": 0.0,
+          "confidence": 0.85,
+          "dimension": "factual",
+          "target": "《功夫女足》电影及周星驰",
+          "reason": "文章客观报道了票房、评分和评论两极分化的事实，未明确表达支持或批评立场。"
+        },
+        "inherited_from_result_id": null,
+        "weight_details": {
+          "quality_weight": 1.0,
+          "spam_weight": 1.0,
+          "duplicate_factor": 1.0,
+          "spread_factor": 1.0,
+          "final_weight": 1.0
+        },
+        "warnings": [],
+        "created_at": "2026-07-13 12:05:40"
+      },
+      {
+        "id": 4,
+        "sentiment_run_id": 1,
+        "article_id": 4,
+        "content_identity": "snapshot:4:v1",
+        "aggregation_cluster_id": 1,
+        "event_id": null,
+        "label": "negative",
+        "score": -0.7,
+        "confidence": 0.9,
+        "dimension": "stance",
+        "target": "盗摄盗版行为",
+        "reason": "文章通过影迷举报和批评，明确谴责盗摄盗版行为，认为其恶劣、可耻且不尊重创作者",
+        "method": "llm",
+        "model_name": "deepseek-v4-flash",
+        "model_version": "default",
+        "prompt_version": "sentiment-prompt-v1",
+        "preprocess_version": "sentiment-text-v1",
+        "raw_response": {
+          "label": "negative",
+          "score": -0.7,
+          "confidence": 0.9,
+          "dimension": "stance",
+          "target": "盗摄盗版行为",
+          "reason": "文章通过影迷举报和批评，明确谴责盗摄盗版行为，认为其恶劣、可耻且不尊重创作者"
+        },
+        "inherited_from_result_id": null,
+        "weight_details": {
+          "quality_weight": 1.0,
+          "spam_weight": 1.0,
+          "duplicate_factor": 1.0,
+          "spread_factor": 1.0,
+          "final_weight": 1.0
+        },
+        "warnings": [],
+        "created_at": "2026-07-13 12:05:42"
+      },
+      {
+        "id": 5,
+        "sentiment_run_id": 1,
+        "article_id": 7,
+        "content_identity": "snapshot:7:v1",
+        "aggregation_cluster_id": 6,
+        "event_id": null,
+        "label": "positive",
+        "score": 0.9,
+        "confidence": 0.95,
+        "dimension": "stance",
+        "target": "迪丽热巴",
+        "reason": "文章表达对迪丽热巴金九单封的期待和肯定，使用‘时尚女帝回归’等赞扬词汇，立场积极。",
+        "method": "llm",
+        "model_name": "deepseek-v4-flash",
+        "model_version": "default",
+        "prompt_version": "sentiment-prompt-v1",
+        "preprocess_version": "sentiment-text-v1",
+        "raw_response": {
+          "label": "positive",
+          "score": 0.9,
+          "confidence": 0.95,
+          "dimension": "stance",
+          "target": "迪丽热巴",
+          "reason": "文章表达对迪丽热巴金九单封的期待和肯定，使用‘时尚女帝回归’等赞扬词汇，立场积极。"
+        },
+        "inherited_from_result_id": null,
+        "weight_details": {
+          "quality_weight": 1.0,
+          "spam_weight": 1.0,
+          "duplicate_factor": 1.0,
+          "spread_factor": 1.0,
+          "final_weight": 1.0
+        },
+        "warnings": [],
+        "created_at": "2026-07-13 12:05:43"
+      },
+      {
+        "id": 6,
+        "sentiment_run_id": 1,
+        "article_id": 8,
+        "content_identity": "snapshot:8:v1",
+        "aggregation_cluster_id": 1,
+        "event_id": null,
+        "label": "positive",
+        "score": 0.8,
+        "confidence": 0.9,
+        "dimension": "stance",
+        "target": "周星驰新片《功夫女足》",
+        "reason": "文章标题和内容使用“点燃心中一团火”“热血比拼”等正面词汇，表达对影片的期待和赞扬。",
+        "method": "llm",
+        "model_name": "deepseek-v4-flash",
+        "model_version": "default",
+        "prompt_version": "sentiment-prompt-v1",
+        "preprocess_version": "sentiment-text-v1",
+        "raw_response": {
+          "label": "positive",
+          "score": 0.8,
+          "confidence": 0.9,
+          "dimension": "stance",
+          "target": "周星驰新片《功夫女足》",
+          "reason": "文章标题和内容使用“点燃心中一团火”“热血比拼”等正面词汇，表达对影片的期待和赞扬。"
+        },
+        "inherited_from_result_id": null,
+        "weight_details": {
+          "quality_weight": 1.0,
+          "spam_weight": 1.0,
+          "duplicate_factor": 1.0,
+          "spread_factor": 1.0,
+          "final_weight": 1.0
+        },
+        "warnings": [],
+        "created_at": "2026-07-13 12:05:45"
+      },
+      {
+        "id": 7,
+        "sentiment_run_id": 1,
+        "article_id": 9,
+        "content_identity": "snapshot:9:v1",
+        "aggregation_cluster_id": 4,
+        "event_id": null,
+        "label": "neutral",
+        "score": 0.0,
+        "confidence": 0.9,
+        "dimension": "factual",
+        "target": "电影《功夫女足》拍摄花絮",
+        "reason": "仅描述演员放下爆米花的动作，无评价或立场",
+        "method": "llm",
+        "model_name": "deepseek-v4-flash",
+        "model_version": "default",
+        "prompt_version": "sentiment-prompt-v1",
+        "preprocess_version": "sentiment-text-v1",
+        "raw_response": {
+          "label": "neutral",
+          "score": 0.0,
+          "confidence": 0.9,
+          "dimension": "factual",
+          "target": "电影《功夫女足》拍摄花絮",
+          "reason": "仅描述演员放下爆米花的动作，无评价或立场"
+        },
+        "inherited_from_result_id": null,
+        "weight_details": {
+          "quality_weight": 1.0,
+          "spam_weight": 1.0,
+          "duplicate_factor": 1.0,
+          "spread_factor": 1.0,
+          "final_weight": 1.0
+        },
+        "warnings": [],
+        "created_at": "2026-07-13 12:05:47"
+      },
+      {
+        "id": 8,
+        "sentiment_run_id": 1,
+        "article_id": 10,
+        "content_identity": "snapshot:10:v1",
+        "aggregation_cluster_id": 3,
+        "event_id": null,
+        "label": "positive",
+        "score": 0.9,
+        "confidence": 0.8,
+        "dimension": "stance",
+        "target": "迪丽热巴及电影相关表现",
+        "reason": "文章使用“好爽”“太给力了”等明显赞扬词汇，表达对迪丽热巴及电影票房的肯定与支持。",
+        "method": "llm",
+        "model_name": "deepseek-v4-flash",
+        "model_version": "default",
+        "prompt_version": "sentiment-prompt-v1",
+        "preprocess_version": "sentiment-text-v1",
+        "raw_response": {
+          "label": "positive",
+          "score": 0.9,
+          "confidence": 0.8,
+          "dimension": "stance",
+          "target": "迪丽热巴及电影相关表现",
+          "reason": "文章使用“好爽”“太给力了”等明显赞扬词汇，表达对迪丽热巴及电影票房的肯定与支持。"
+        },
+        "inherited_from_result_id": null,
+        "weight_details": {
+          "quality_weight": 1.0,
+          "spam_weight": 1.0,
+          "duplicate_factor": 1.0,
+          "spread_factor": 1.0,
+          "final_weight": 1.0
+        },
+        "warnings": [],
+        "created_at": "2026-07-13 12:05:49"
+      },
+      {
+        "id": 9,
+        "sentiment_run_id": 1,
+        "article_id": 11,
+        "content_identity": "snapshot:11:v1",
+        "aggregation_cluster_id": 2,
+        "event_id": null,
+        "label": "positive",
+        "score": 0.9,
+        "confidence": 0.95,
+        "dimension": "stance",
+        "target": "电影《功夫女足》及迪丽热巴",
+        "reason": "文章使用庆祝表情和鼓励性语言，明确表达对票房破4亿的祝贺与支持。",
+        "method": "llm",
+        "model_name": "deepseek-v4-flash",
+        "model_version": "default",
+        "prompt_version": "sentiment-prompt-v1",
+        "preprocess_version": "sentiment-text-v1",
+        "raw_response": {
+          "label": "positive",
+          "score": 0.9,
+          "confidence": 0.95,
+          "dimension": "stance",
+          "target": "电影《功夫女足》及迪丽热巴",
+          "reason": "文章使用庆祝表情和鼓励性语言，明确表达对票房破4亿的祝贺与支持。"
+        },
+        "inherited_from_result_id": null,
+        "weight_details": {
+          "quality_weight": 1.0,
+          "spam_weight": 1.0,
+          "duplicate_factor": 1.0,
+          "spread_factor": 1.0,
+          "final_weight": 1.0
+        },
+        "warnings": [],
+        "created_at": "2026-07-13 12:05:50"
+      },
+      {
+        "id": 10,
+        "sentiment_run_id": 1,
+        "article_id": 12,
+        "content_identity": "snapshot:12:v1",
+        "aggregation_cluster_id": 2,
+        "event_id": null,
+        "label": "positive",
+        "score": 0.85,
+        "confidence": 0.9,
+        "dimension": "stance",
+        "target": "迪丽热巴及电影《钰珑》",
+        "reason": "文章用“珍贵存档”“热爱、欢乐以及勇气”“坚韧的信念”“感动”等正面词汇表达对迪丽热巴和电影的赞扬与支持。",
+        "method": "llm",
+        "model_name": "deepseek-v4-flash",
+        "model_version": "default",
+        "prompt_version": "sentiment-prompt-v1",
+        "preprocess_version": "sentiment-text-v1",
+        "raw_response": {
+          "label": "positive",
+          "score": 0.85,
+          "confidence": 0.9,
+          "dimension": "stance",
+          "target": "迪丽热巴及电影《钰珑》",
+          "reason": "文章用“珍贵存档”“热爱、欢乐以及勇气”“坚韧的信念”“感动”等正面词汇表达对迪丽热巴和电影的赞扬与支持。"
+        },
+        "inherited_from_result_id": null,
+        "weight_details": {
+          "quality_weight": 1.0,
+          "spam_weight": 1.0,
+          "duplicate_factor": 1.0,
+          "spread_factor": 1.0,
+          "final_weight": 1.0
+        },
+        "warnings": [],
+        "created_at": "2026-07-13 12:05:52"
+      },
+      {
+        "id": 11,
+        "sentiment_run_id": 1,
+        "article_id": 13,
+        "content_identity": "snapshot:13:v1",
+        "aggregation_cluster_id": 1,
+        "event_id": null,
+        "label": "negative",
+        "score": -0.6,
+        "confidence": 0.85,
+        "dimension": "stance",
+        "target": "电影《功夫女足》",
+        "reason": "文章明确批评电影文戏单薄、剧情套路，并称其为‘非常差劲的主打情怀的商业电影’，立场负面。",
+        "method": "llm",
+        "model_name": "deepseek-v4-flash",
+        "model_version": "default",
+        "prompt_version": "sentiment-prompt-v1",
+        "preprocess_version": "sentiment-text-v1",
+        "raw_response": {
+          "label": "negative",
+          "score": -0.6,
+          "confidence": 0.85,
+          "dimension": "stance",
+          "target": "电影《功夫女足》",
+          "reason": "文章明确批评电影文戏单薄、剧情套路，并称其为‘非常差劲的主打情怀的商业电影’，立场负面。"
+        },
+        "inherited_from_result_id": null,
+        "weight_details": {
+          "quality_weight": 1.0,
+          "spam_weight": 1.0,
+          "duplicate_factor": 1.0,
+          "spread_factor": 1.0,
+          "final_weight": 1.0
+        },
+        "warnings": [],
+        "created_at": "2026-07-13 12:05:54"
+      },
+      {
+        "id": 12,
+        "sentiment_run_id": 1,
+        "article_id": 14,
+        "content_identity": "snapshot:14:v1",
+        "aggregation_cluster_id": 1,
+        "event_id": null,
+        "label": "negative",
+        "score": -0.85,
+        "confidence": 0.95,
+        "dimension": "stance",
+        "target": "周星驰执导电影《功夫女足》",
+        "reason": "文章明确批评电影特效、台词、审美，并表达观影痛苦，立场为负面评价。",
+        "method": "llm",
+        "model_name": "deepseek-v4-flash",
+        "model_version": "default",
+        "prompt_version": "sentiment-prompt-v1",
+        "preprocess_version": "sentiment-text-v1",
+        "raw_response": {
+          "label": "negative",
+          "score": -0.85,
+          "confidence": 0.95,
+          "dimension": "stance",
+          "target": "周星驰执导电影《功夫女足》",
+          "reason": "文章明确批评电影特效、台词、审美，并表达观影痛苦，立场为负面评价。"
+        },
+        "inherited_from_result_id": null,
+        "weight_details": {
+          "quality_weight": 1.0,
+          "spam_weight": 1.0,
+          "duplicate_factor": 1.0,
+          "spread_factor": 1.0,
+          "final_weight": 1.0
+        },
+        "warnings": [],
+        "created_at": "2026-07-13 12:05:55"
+      },
+      {
+        "id": 13,
+        "sentiment_run_id": 1,
+        "article_id": 15,
+        "content_identity": "snapshot:15:v1",
+        "aggregation_cluster_id": 1,
+        "event_id": null,
+        "label": "negative",
+        "score": -0.8,
+        "confidence": 0.9,
+        "dimension": "stance",
+        "target": "电影《功夫女足》及周星驰",
+        "reason": "文章明确批评电影预告槽点多、笑点尴尬、演员演技差，并质疑周星驰贩卖情怀、割粉丝韭菜，整体持负面评价立场。",
+        "method": "llm",
+        "model_name": "deepseek-v4-flash",
+        "model_version": "default",
+        "prompt_version": "sentiment-prompt-v1",
+        "preprocess_version": "sentiment-text-v1",
+        "raw_response": {
+          "label": "negative",
+          "score": -0.8,
+          "confidence": 0.9,
+          "dimension": "stance",
+          "target": "电影《功夫女足》及周星驰",
+          "reason": "文章明确批评电影预告槽点多、笑点尴尬、演员演技差，并质疑周星驰贩卖情怀、割粉丝韭菜，整体持负面评价立场。"
+        },
+        "inherited_from_result_id": null,
+        "weight_details": {
+          "quality_weight": 1.0,
+          "spam_weight": 1.0,
+          "duplicate_factor": 1.0,
+          "spread_factor": 1.0,
+          "final_weight": 1.0
+        },
+        "warnings": [],
+        "created_at": "2026-07-13 12:05:57"
+      },
+      {
+        "id": 14,
+        "sentiment_run_id": 1,
+        "article_id": 16,
+        "content_identity": "snapshot:16:v1",
+        "aggregation_cluster_id": 1,
+        "event_id": null,
+        "label": "negative",
+        "score": -0.7,
+        "confidence": 0.85,
+        "dimension": "stance",
+        "target": "周星驰新作《功夫女足》",
+        "reason": "文章质疑电影质量、演员适配性和票房前景，表达明显担忧和批评。",
+        "method": "llm",
+        "model_name": "deepseek-v4-flash",
+        "model_version": "default",
+        "prompt_version": "sentiment-prompt-v1",
+        "preprocess_version": "sentiment-text-v1",
+        "raw_response": {
+          "label": "negative",
+          "score": -0.7,
+          "confidence": 0.85,
+          "dimension": "stance",
+          "target": "周星驰新作《功夫女足》",
+          "reason": "文章质疑电影质量、演员适配性和票房前景，表达明显担忧和批评。"
+        },
+        "inherited_from_result_id": null,
+        "weight_details": {
+          "quality_weight": 1.0,
+          "spam_weight": 1.0,
+          "duplicate_factor": 1.0,
+          "spread_factor": 1.0,
+          "final_weight": 1.0
+        },
+        "warnings": [],
+        "created_at": "2026-07-13 12:05:59"
+      },
+      {
+        "id": 15,
+        "sentiment_run_id": 1,
+        "article_id": 17,
+        "content_identity": "snapshot:17:v1",
+        "aggregation_cluster_id": 1,
+        "event_id": null,
+        "label": "positive",
+        "score": 0.8,
+        "confidence": 0.9,
+        "dimension": "stance",
+        "target": "周星驰及其电影《功夫女足》",
+        "reason": "文章通过分析电影细节，表达了对导演周星驰致敬李小龙的肯定和赞扬，立场积极。",
+        "method": "llm",
+        "model_name": "deepseek-v4-flash",
+        "model_version": "default",
+        "prompt_version": "sentiment-prompt-v1",
+        "preprocess_version": "sentiment-text-v1",
+        "raw_response": {
+          "label": "positive",
+          "score": 0.8,
+          "confidence": 0.9,
+          "dimension": "stance",
+          "target": "周星驰及其电影《功夫女足》",
+          "reason": "文章通过分析电影细节，表达了对导演周星驰致敬李小龙的肯定和赞扬，立场积极。"
+        },
+        "inherited_from_result_id": null,
+        "weight_details": {
+          "quality_weight": 1.0,
+          "spam_weight": 1.0,
+          "duplicate_factor": 1.0,
+          "spread_factor": 1.0,
+          "final_weight": 1.0
+        },
+        "warnings": [],
+        "created_at": "2026-07-13 12:06:01"
+      },
+      {
+        "id": 16,
+        "sentiment_run_id": 1,
+        "article_id": 18,
+        "content_identity": "snapshot:18:v1",
+        "aggregation_cluster_id": 1,
+        "event_id": null,
+        "label": "negative",
+        "score": -0.8,
+        "confidence": 0.9,
+        "dimension": "stance",
+        "target": "电影《功夫女足》",
+        "reason": "文章通过对比点映场评价、指出影评安静、批评特效只吹数量不吹质量，整体呈现质疑和负面评价。",
+        "method": "llm",
+        "model_name": "deepseek-v4-flash",
+        "model_version": "default",
+        "prompt_version": "sentiment-prompt-v1",
+        "preprocess_version": "sentiment-text-v1",
+        "raw_response": {
+          "label": "negative",
+          "score": -0.8,
+          "confidence": 0.9,
+          "dimension": "stance",
+          "target": "电影《功夫女足》",
+          "reason": "文章通过对比点映场评价、指出影评安静、批评特效只吹数量不吹质量，整体呈现质疑和负面评价。"
+        },
+        "inherited_from_result_id": null,
+        "weight_details": {
+          "quality_weight": 1.0,
+          "spam_weight": 1.0,
+          "duplicate_factor": 1.0,
+          "spread_factor": 1.0,
+          "final_weight": 1.0
+        },
+        "warnings": [],
+        "created_at": "2026-07-13 12:06:03"
+      },
+      {
+        "id": 17,
+        "sentiment_run_id": 1,
+        "article_id": 19,
+        "content_identity": "snapshot:19:v1",
+        "aggregation_cluster_id": 5,
+        "event_id": null,
+        "label": "neutral",
+        "score": 0.0,
+        "confidence": 0.9,
+        "dimension": "factual",
+        "target": "《功夫女足》修复版发布",
+        "reason": "文章仅陈述修复版发布及下载链接，无任何评价或情感倾向",
+        "method": "llm",
+        "model_name": "deepseek-v4-flash",
+        "model_version": "default",
+        "prompt_version": "sentiment-prompt-v1",
+        "preprocess_version": "sentiment-text-v1",
+        "raw_response": {
+          "label": "neutral",
+          "score": 0.0,
+          "confidence": 0.9,
+          "dimension": "factual",
+          "target": "《功夫女足》修复版发布",
+          "reason": "文章仅陈述修复版发布及下载链接，无任何评价或情感倾向"
+        },
+        "inherited_from_result_id": null,
+        "weight_details": {
+          "quality_weight": 1.0,
+          "spam_weight": 1.0,
+          "duplicate_factor": 1.0,
+          "spread_factor": 1.0,
+          "final_weight": 1.0
+        },
+        "warnings": [],
+        "created_at": "2026-07-13 12:06:04"
+      },
+      {
+        "id": 18,
+        "sentiment_run_id": 1,
+        "article_id": 20,
+        "content_identity": "snapshot:20:v1",
+        "aggregation_cluster_id": 5,
+        "event_id": null,
+        "label": "neutral",
+        "score": 0.0,
+        "confidence": 0.9,
+        "dimension": "factual",
+        "target": "《功夫女足》未删减版",
+        "reason": "仅提供下载链接，无任何评价或立场表达",
+        "method": "llm",
+        "model_name": "deepseek-v4-flash",
+        "model_version": "default",
+        "prompt_version": "sentiment-prompt-v1",
+        "preprocess_version": "sentiment-text-v1",
+        "raw_response": {
+          "label": "neutral",
+          "score": 0.0,
+          "confidence": 0.9,
+          "dimension": "factual",
+          "target": "《功夫女足》未删减版",
+          "reason": "仅提供下载链接，无任何评价或立场表达"
+        },
+        "inherited_from_result_id": null,
+        "weight_details": {
+          "quality_weight": 1.0,
+          "spam_weight": 1.0,
+          "duplicate_factor": 1.0,
+          "spread_factor": 1.0,
+          "final_weight": 1.0
+        },
+        "warnings": [],
+        "created_at": "2026-07-13 12:06:05"
+      },
+      {
+        "id": 19,
+        "sentiment_run_id": 1,
+        "article_id": 22,
+        "content_identity": "snapshot:22:v1",
+        "aggregation_cluster_id": 5,
+        "event_id": null,
+        "label": "neutral",
+        "score": 0.0,
+        "confidence": 0.9,
+        "dimension": "factual",
+        "target": "《功夫女足》高清修复版",
+        "reason": "仅陈述高清版本发布和下载链接，无任何评价或情感倾向。",
+        "method": "llm",
+        "model_name": "deepseek-v4-flash",
+        "model_version": "default",
+        "prompt_version": "sentiment-prompt-v1",
+        "preprocess_version": "sentiment-text-v1",
+        "raw_response": {
+          "label": "neutral",
+          "score": 0.0,
+          "confidence": 0.9,
+          "dimension": "factual",
+          "target": "《功夫女足》高清修复版",
+          "reason": "仅陈述高清版本发布和下载链接，无任何评价或情感倾向。"
+        },
+        "inherited_from_result_id": null,
+        "weight_details": {
+          "quality_weight": 1.0,
+          "spam_weight": 1.0,
+          "duplicate_factor": 1.0,
+          "spread_factor": 1.0,
+          "final_weight": 1.0
+        },
+        "warnings": [],
+        "created_at": "2026-07-13 12:06:07"
+      },
+      {
+        "id": 20,
+        "sentiment_run_id": 1,
+        "article_id": 23,
+        "content_identity": "snapshot:23:v1",
+        "aggregation_cluster_id": 5,
+        "event_id": null,
+        "label": "neutral",
+        "score": 0.0,
+        "confidence": 0.9,
+        "dimension": "factual",
+        "target": "功夫女足高清修复版",
+        "reason": "文章仅陈述修复版发布和下载链接，无任何评价或情感倾向",
+        "method": "llm",
+        "model_name": "deepseek-v4-flash",
+        "model_version": "default",
+        "prompt_version": "sentiment-prompt-v1",
+        "preprocess_version": "sentiment-text-v1",
+        "raw_response": {
+          "label": "neutral",
+          "score": 0.0,
+          "confidence": 0.9,
+          "dimension": "factual",
+          "target": "功夫女足高清修复版",
+          "reason": "文章仅陈述修复版发布和下载链接，无任何评价或情感倾向"
+        },
+        "inherited_from_result_id": null,
+        "weight_details": {
+          "quality_weight": 1.0,
+          "spam_weight": 1.0,
+          "duplicate_factor": 1.0,
+          "spread_factor": 1.0,
+          "final_weight": 1.0
+        },
+        "warnings": [],
+        "created_at": "2026-07-13 12:06:08"
+      },
+      {
+        "id": 21,
+        "sentiment_run_id": 2,
+        "article_id": 1,
+        "content_identity": "snapshot:1:v1",
+        "aggregation_cluster_id": 7,
+        "event_id": 1,
+        "label": "negative",
+        "score": -0.3,
+        "confidence": 0.7,
+        "dimension": "stance",
+        "target": "周星驰《功夫女足》",
+        "reason": "文章虽提及票房成功，但重点描述影片‘骂声一片’、评价两极分化、缺乏艺术性和思想深度，并暗示票价不值，整体呈现批评和质疑立场。",
+        "method": "llm",
+        "model_name": "deepseek-v4-flash",
+        "model_version": "default",
+        "prompt_version": "sentiment-prompt-v1",
+        "preprocess_version": "sentiment-text-v1",
+        "raw_response": {
+          "label": "negative",
+          "score": -0.3,
+          "confidence": 0.7,
+          "dimension": "stance",
+          "target": "周星驰《功夫女足》",
+          "reason": "文章虽提及票房成功，但重点描述影片‘骂声一片’、评价两极分化、缺乏艺术性和思想深度，并暗示票价不值，整体呈现批评和质疑立场。"
+        },
+        "inherited_from_result_id": null,
+        "weight_details": {
+          "quality_weight": 1.0,
+          "spam_weight": 1.0,
+          "duplicate_factor": 1.0,
+          "spread_factor": 1.0,
+          "final_weight": 1.0
+        },
+        "warnings": [
+          "SENTIMENT_RESULT_REUSED"
+        ],
+        "created_at": "2026-07-13 12:06:12"
+      },
+      {
+        "id": 22,
+        "sentiment_run_id": 2,
+        "article_id": 2,
+        "content_identity": "snapshot:2:v1",
+        "aggregation_cluster_id": 7,
+        "event_id": 1,
+        "label": "negative",
+        "score": -0.7,
+        "confidence": 0.85,
+        "dimension": "stance",
+        "target": "周星驰及其作品《功夫女足》",
+        "reason": "文章标题和正文明确质疑周星驰品牌价值，批评作品质量下滑，如‘没那么好’‘还能撑多久’‘情怀炒冷饭’等表述，呈现负面评价立场。",
+        "method": "llm",
+        "model_name": "deepseek-v4-flash",
+        "model_version": "default",
+        "prompt_version": "sentiment-prompt-v1",
+        "preprocess_version": "sentiment-text-v1",
+        "raw_response": {
+          "label": "negative",
+          "score": -0.7,
+          "confidence": 0.85,
+          "dimension": "stance",
+          "target": "周星驰及其作品《功夫女足》",
+          "reason": "文章标题和正文明确质疑周星驰品牌价值，批评作品质量下滑，如‘没那么好’‘还能撑多久’‘情怀炒冷饭’等表述，呈现负面评价立场。"
+        },
+        "inherited_from_result_id": null,
+        "weight_details": {
+          "quality_weight": 1.0,
+          "spam_weight": 1.0,
+          "duplicate_factor": 1.0,
+          "spread_factor": 1.0,
+          "final_weight": 1.0
+        },
+        "warnings": [
+          "SENTIMENT_RESULT_REUSED"
+        ],
+        "created_at": "2026-07-13 12:06:12"
+      },
+      {
+        "id": 23,
+        "sentiment_run_id": 2,
+        "article_id": 3,
+        "content_identity": "snapshot:3:v1",
+        "aggregation_cluster_id": 7,
+        "event_id": 1,
+        "label": "neutral",
+        "score": 0.0,
+        "confidence": 0.85,
+        "dimension": "factual",
+        "target": "《功夫女足》电影及周星驰",
+        "reason": "文章客观报道了票房、评分和评论两极分化的事实，未明确表达支持或批评立场。",
+        "method": "llm",
+        "model_name": "deepseek-v4-flash",
+        "model_version": "default",
+        "prompt_version": "sentiment-prompt-v1",
+        "preprocess_version": "sentiment-text-v1",
+        "raw_response": {
+          "label": "neutral",
+          "score": 0.0,
+          "confidence": 0.85,
+          "dimension": "factual",
+          "target": "《功夫女足》电影及周星驰",
+          "reason": "文章客观报道了票房、评分和评论两极分化的事实，未明确表达支持或批评立场。"
+        },
+        "inherited_from_result_id": null,
+        "weight_details": {
+          "quality_weight": 1.0,
+          "spam_weight": 1.0,
+          "duplicate_factor": 1.0,
+          "spread_factor": 1.0,
+          "final_weight": 1.0
+        },
+        "warnings": [
+          "SENTIMENT_RESULT_REUSED"
+        ],
+        "created_at": "2026-07-13 12:06:12"
+      },
+      {
+        "id": 24,
+        "sentiment_run_id": 2,
+        "article_id": 4,
+        "content_identity": "snapshot:4:v1",
+        "aggregation_cluster_id": 7,
+        "event_id": 1,
+        "label": "negative",
+        "score": -0.7,
+        "confidence": 0.9,
+        "dimension": "stance",
+        "target": "盗摄盗版行为",
+        "reason": "文章通过影迷举报和批评，明确谴责盗摄盗版行为，认为其恶劣、可耻且不尊重创作者",
+        "method": "llm",
+        "model_name": "deepseek-v4-flash",
+        "model_version": "default",
+        "prompt_version": "sentiment-prompt-v1",
+        "preprocess_version": "sentiment-text-v1",
+        "raw_response": {
+          "label": "negative",
+          "score": -0.7,
+          "confidence": 0.9,
+          "dimension": "stance",
+          "target": "盗摄盗版行为",
+          "reason": "文章通过影迷举报和批评，明确谴责盗摄盗版行为，认为其恶劣、可耻且不尊重创作者"
+        },
+        "inherited_from_result_id": null,
+        "weight_details": {
+          "quality_weight": 1.0,
+          "spam_weight": 1.0,
+          "duplicate_factor": 1.0,
+          "spread_factor": 1.0,
+          "final_weight": 1.0
+        },
+        "warnings": [
+          "SENTIMENT_RESULT_REUSED"
+        ],
+        "created_at": "2026-07-13 12:06:12"
+      },
+      {
+        "id": 25,
+        "sentiment_run_id": 2,
+        "article_id": 8,
+        "content_identity": "snapshot:8:v1",
+        "aggregation_cluster_id": 7,
+        "event_id": 1,
+        "label": "positive",
+        "score": 0.8,
+        "confidence": 0.9,
+        "dimension": "stance",
+        "target": "周星驰新片《功夫女足》",
+        "reason": "文章标题和内容使用“点燃心中一团火”“热血比拼”等正面词汇，表达对影片的期待和赞扬。",
+        "method": "llm",
+        "model_name": "deepseek-v4-flash",
+        "model_version": "default",
+        "prompt_version": "sentiment-prompt-v1",
+        "preprocess_version": "sentiment-text-v1",
+        "raw_response": {
+          "label": "positive",
+          "score": 0.8,
+          "confidence": 0.9,
+          "dimension": "stance",
+          "target": "周星驰新片《功夫女足》",
+          "reason": "文章标题和内容使用“点燃心中一团火”“热血比拼”等正面词汇，表达对影片的期待和赞扬。"
+        },
+        "inherited_from_result_id": null,
+        "weight_details": {
+          "quality_weight": 1.0,
+          "spam_weight": 1.0,
+          "duplicate_factor": 1.0,
+          "spread_factor": 1.0,
+          "final_weight": 1.0
+        },
+        "warnings": [
+          "SENTIMENT_RESULT_REUSED"
+        ],
+        "created_at": "2026-07-13 12:06:12"
+      },
+      {
+        "id": 26,
+        "sentiment_run_id": 2,
+        "article_id": 13,
+        "content_identity": "snapshot:13:v1",
+        "aggregation_cluster_id": 7,
+        "event_id": 1,
+        "label": "negative",
+        "score": -0.6,
+        "confidence": 0.85,
+        "dimension": "stance",
+        "target": "电影《功夫女足》",
+        "reason": "文章明确批评电影文戏单薄、剧情套路，并称其为‘非常差劲的主打情怀的商业电影’，立场负面。",
+        "method": "llm",
+        "model_name": "deepseek-v4-flash",
+        "model_version": "default",
+        "prompt_version": "sentiment-prompt-v1",
+        "preprocess_version": "sentiment-text-v1",
+        "raw_response": {
+          "label": "negative",
+          "score": -0.6,
+          "confidence": 0.85,
+          "dimension": "stance",
+          "target": "电影《功夫女足》",
+          "reason": "文章明确批评电影文戏单薄、剧情套路，并称其为‘非常差劲的主打情怀的商业电影’，立场负面。"
+        },
+        "inherited_from_result_id": null,
+        "weight_details": {
+          "quality_weight": 1.0,
+          "spam_weight": 1.0,
+          "duplicate_factor": 1.0,
+          "spread_factor": 1.0,
+          "final_weight": 1.0
+        },
+        "warnings": [
+          "SENTIMENT_RESULT_REUSED"
+        ],
+        "created_at": "2026-07-13 12:06:12"
+      },
+      {
+        "id": 27,
+        "sentiment_run_id": 2,
+        "article_id": 14,
+        "content_identity": "snapshot:14:v1",
+        "aggregation_cluster_id": 7,
+        "event_id": 1,
+        "label": "negative",
+        "score": -0.85,
+        "confidence": 0.95,
+        "dimension": "stance",
+        "target": "周星驰执导电影《功夫女足》",
+        "reason": "文章明确批评电影特效、台词、审美，并表达观影痛苦，立场为负面评价。",
+        "method": "llm",
+        "model_name": "deepseek-v4-flash",
+        "model_version": "default",
+        "prompt_version": "sentiment-prompt-v1",
+        "preprocess_version": "sentiment-text-v1",
+        "raw_response": {
+          "label": "negative",
+          "score": -0.85,
+          "confidence": 0.95,
+          "dimension": "stance",
+          "target": "周星驰执导电影《功夫女足》",
+          "reason": "文章明确批评电影特效、台词、审美，并表达观影痛苦，立场为负面评价。"
+        },
+        "inherited_from_result_id": null,
+        "weight_details": {
+          "quality_weight": 1.0,
+          "spam_weight": 1.0,
+          "duplicate_factor": 1.0,
+          "spread_factor": 1.0,
+          "final_weight": 1.0
+        },
+        "warnings": [
+          "SENTIMENT_RESULT_REUSED"
+        ],
+        "created_at": "2026-07-13 12:06:12"
+      },
+      {
+        "id": 28,
+        "sentiment_run_id": 2,
+        "article_id": 15,
+        "content_identity": "snapshot:15:v1",
+        "aggregation_cluster_id": 7,
+        "event_id": 1,
+        "label": "negative",
+        "score": -0.8,
+        "confidence": 0.9,
+        "dimension": "stance",
+        "target": "电影《功夫女足》及周星驰",
+        "reason": "文章明确批评电影预告槽点多、笑点尴尬、演员演技差，并质疑周星驰贩卖情怀、割粉丝韭菜，整体持负面评价立场。",
+        "method": "llm",
+        "model_name": "deepseek-v4-flash",
+        "model_version": "default",
+        "prompt_version": "sentiment-prompt-v1",
+        "preprocess_version": "sentiment-text-v1",
+        "raw_response": {
+          "label": "negative",
+          "score": -0.8,
+          "confidence": 0.9,
+          "dimension": "stance",
+          "target": "电影《功夫女足》及周星驰",
+          "reason": "文章明确批评电影预告槽点多、笑点尴尬、演员演技差，并质疑周星驰贩卖情怀、割粉丝韭菜，整体持负面评价立场。"
+        },
+        "inherited_from_result_id": null,
+        "weight_details": {
+          "quality_weight": 1.0,
+          "spam_weight": 1.0,
+          "duplicate_factor": 1.0,
+          "spread_factor": 1.0,
+          "final_weight": 1.0
+        },
+        "warnings": [
+          "SENTIMENT_RESULT_REUSED"
+        ],
+        "created_at": "2026-07-13 12:06:12"
+      },
+      {
+        "id": 29,
+        "sentiment_run_id": 2,
+        "article_id": 16,
+        "content_identity": "snapshot:16:v1",
+        "aggregation_cluster_id": 7,
+        "event_id": 1,
+        "label": "negative",
+        "score": -0.7,
+        "confidence": 0.85,
+        "dimension": "stance",
+        "target": "周星驰新作《功夫女足》",
+        "reason": "文章质疑电影质量、演员适配性和票房前景，表达明显担忧和批评。",
+        "method": "llm",
+        "model_name": "deepseek-v4-flash",
+        "model_version": "default",
+        "prompt_version": "sentiment-prompt-v1",
+        "preprocess_version": "sentiment-text-v1",
+        "raw_response": {
+          "label": "negative",
+          "score": -0.7,
+          "confidence": 0.85,
+          "dimension": "stance",
+          "target": "周星驰新作《功夫女足》",
+          "reason": "文章质疑电影质量、演员适配性和票房前景，表达明显担忧和批评。"
+        },
+        "inherited_from_result_id": null,
+        "weight_details": {
+          "quality_weight": 1.0,
+          "spam_weight": 1.0,
+          "duplicate_factor": 1.0,
+          "spread_factor": 1.0,
+          "final_weight": 1.0
+        },
+        "warnings": [
+          "SENTIMENT_RESULT_REUSED"
+        ],
+        "created_at": "2026-07-13 12:06:12"
+      },
+      {
+        "id": 30,
+        "sentiment_run_id": 2,
+        "article_id": 17,
+        "content_identity": "snapshot:17:v1",
+        "aggregation_cluster_id": 7,
+        "event_id": 1,
+        "label": "positive",
+        "score": 0.8,
+        "confidence": 0.9,
+        "dimension": "stance",
+        "target": "周星驰及其电影《功夫女足》",
+        "reason": "文章通过分析电影细节，表达了对导演周星驰致敬李小龙的肯定和赞扬，立场积极。",
+        "method": "llm",
+        "model_name": "deepseek-v4-flash",
+        "model_version": "default",
+        "prompt_version": "sentiment-prompt-v1",
+        "preprocess_version": "sentiment-text-v1",
+        "raw_response": {
+          "label": "positive",
+          "score": 0.8,
+          "confidence": 0.9,
+          "dimension": "stance",
+          "target": "周星驰及其电影《功夫女足》",
+          "reason": "文章通过分析电影细节，表达了对导演周星驰致敬李小龙的肯定和赞扬，立场积极。"
+        },
+        "inherited_from_result_id": null,
+        "weight_details": {
+          "quality_weight": 1.0,
+          "spam_weight": 1.0,
+          "duplicate_factor": 1.0,
+          "spread_factor": 1.0,
+          "final_weight": 1.0
+        },
+        "warnings": [
+          "SENTIMENT_RESULT_REUSED"
+        ],
+        "created_at": "2026-07-13 12:06:12"
+      },
+      {
+        "id": 31,
+        "sentiment_run_id": 2,
+        "article_id": 18,
+        "content_identity": "snapshot:18:v1",
+        "aggregation_cluster_id": 7,
+        "event_id": 1,
+        "label": "negative",
+        "score": -0.8,
+        "confidence": 0.9,
+        "dimension": "stance",
+        "target": "电影《功夫女足》",
+        "reason": "文章通过对比点映场评价、指出影评安静、批评特效只吹数量不吹质量，整体呈现质疑和负面评价。",
+        "method": "llm",
+        "model_name": "deepseek-v4-flash",
+        "model_version": "default",
+        "prompt_version": "sentiment-prompt-v1",
+        "preprocess_version": "sentiment-text-v1",
+        "raw_response": {
+          "label": "negative",
+          "score": -0.8,
+          "confidence": 0.9,
+          "dimension": "stance",
+          "target": "电影《功夫女足》",
+          "reason": "文章通过对比点映场评价、指出影评安静、批评特效只吹数量不吹质量，整体呈现质疑和负面评价。"
+        },
+        "inherited_from_result_id": null,
+        "weight_details": {
+          "quality_weight": 1.0,
+          "spam_weight": 1.0,
+          "duplicate_factor": 1.0,
+          "spread_factor": 1.0,
+          "final_weight": 1.0
+        },
+        "warnings": [
+          "SENTIMENT_RESULT_REUSED"
+        ],
+        "created_at": "2026-07-13 12:06:12"
+      }
+    ],
+    "event_sentiment_snapshot": [
+      {
+        "id": 1,
+        "sentiment_run_id": 1,
+        "event_id": null,
+        "aggregation_cluster_id": 1,
+        "calculated_at": "2026-07-13 12:05:35.185280",
+        "article_count": 11,
+        "representative_count": 11,
+        "raw_counts": {
+          "positive": 2,
+          "negative": 8,
+          "neutral": 1
+        },
+        "weighted_ratios": {
+          "positive": 0.18181818181818182,
+          "negative": 0.7272727272727273,
+          "neutral": 0.09090909090909091
+        },
+        "dominant_label": "negative",
+        "average_score": -0.35000000000000003,
+        "daily_trend": [
+          {
+            "date": "2026-07-09",
+            "article_count": 1,
+            "representative_count": 1,
+            "raw_counts": {
+              "positive": 0,
+              "negative": 1,
+              "neutral": 0
+            },
+            "weighted_ratios": {
+              "positive": 0.0,
+              "negative": 1.0,
+              "neutral": 0.0
+            },
+            "average_score": -0.7,
+            "dominant_label": "negative",
+            "effective_weight": 1.0,
+            "summary": "共分析1篇文章，主导情感为负面；正面0.0%、负面100.0%、中立0.0%，加权平均分-0.700。",
+            "time_source_counts": {
+              "publish_time": 1,
+              "observed_at": 0
+            },
+            "warnings": []
+          },
+          {
+            "date": "2026-07-10",
+            "article_count": 3,
+            "representative_count": 3,
+            "raw_counts": {
+              "positive": 1,
+              "negative": 2,
+              "neutral": 0
+            },
+            "weighted_ratios": {
+              "positive": 0.3333333333333333,
+              "negative": 0.6666666666666666,
+              "neutral": 0.0
+            },
+            "average_score": -0.26666666666666666,
+            "dominant_label": "negative",
+            "effective_weight": 3.0,
+            "summary": "共分析3篇文章，主导情感为负面；正面33.3%、负面66.7%、中立0.0%，加权平均分-0.267。",
+            "time_source_counts": {
+              "publish_time": 3,
+              "observed_at": 0
+            },
+            "warnings": []
+          },
+          {
+            "date": "2026-07-11",
+            "article_count": 1,
+            "representative_count": 1,
+            "raw_counts": {
+              "positive": 0,
+              "negative": 1,
+              "neutral": 0
+            },
+            "weighted_ratios": {
+              "positive": 0.0,
+              "negative": 1.0,
+              "neutral": 0.0
+            },
+            "average_score": -0.6,
+            "dominant_label": "negative",
+            "effective_weight": 1.0,
+            "summary": "共分析1篇文章，主导情感为负面；正面0.0%、负面100.0%、中立0.0%，加权平均分-0.600。",
+            "time_source_counts": {
+              "publish_time": 1,
+              "observed_at": 0
+            },
+            "warnings": []
+          },
+          {
+            "date": "2026-07-12",
+            "article_count": 1,
+            "representative_count": 1,
+            "raw_counts": {
+              "positive": 0,
+              "negative": 1,
+              "neutral": 0
+            },
+            "weighted_ratios": {
+              "positive": 0.0,
+              "negative": 1.0,
+              "neutral": 0.0
+            },
+            "average_score": -0.85,
+            "dominant_label": "negative",
+            "effective_weight": 1.0,
+            "summary": "共分析1篇文章，主导情感为负面；正面0.0%、负面100.0%、中立0.0%，加权平均分-0.850。",
+            "time_source_counts": {
+              "publish_time": 1,
+              "observed_at": 0
+            },
+            "warnings": []
+          },
+          {
+            "date": "2026-07-13",
+            "article_count": 5,
+            "representative_count": 5,
+            "raw_counts": {
+              "positive": 1,
+              "negative": 3,
+              "neutral": 1
+            },
+            "weighted_ratios": {
+              "positive": 0.2,
+              "negative": 0.6,
+              "neutral": 0.2
+            },
+            "average_score": -0.18,
+            "dominant_label": "negative",
+            "effective_weight": 5.0,
+            "summary": "共分析5篇文章，主导情感为负面；正面20.0%、负面60.0%、中立20.0%，加权平均分-0.180。",
+            "time_source_counts": {
+              "publish_time": 5,
+              "observed_at": 0
+            },
+            "warnings": []
+          }
+        ],
+        "platform_distribution": [
+          {
+            "platform": "baidu",
+            "article_count": 4,
+            "representative_count": 4,
+            "raw_counts": {
+              "positive": 0,
+              "negative": 3,
+              "neutral": 1
+            },
+            "weighted_ratios": {
+              "positive": 0.0,
+              "negative": 0.75,
+              "neutral": 0.25
+            },
+            "average_score": -0.425,
+            "dominant_label": "negative",
+            "effective_weight": 4.0,
+            "summary": "共分析4篇文章，主导情感为负面；正面0.0%、负面75.0%、中立25.0%，加权平均分-0.425。",
+            "sample_insufficient": false,
+            "warnings": []
+          },
+          {
+            "platform": "weibo",
+            "article_count": 1,
+            "representative_count": 1,
+            "raw_counts": {
+              "positive": 1,
+              "negative": 0,
+              "neutral": 0
+            },
+            "weighted_ratios": {
+              "positive": 1.0,
+              "negative": 0.0,
+              "neutral": 0.0
+            },
+            "average_score": 0.8,
+            "dominant_label": "positive",
+            "effective_weight": 1.0,
+            "summary": "共分析1篇文章，主导情感为正面；正面100.0%、负面0.0%、中立0.0%，加权平均分0.800。",
+            "sample_insufficient": true,
+            "warnings": [
+              "PLATFORM_SAMPLE_INSUFFICIENT"
+            ]
+          },
+          {
+            "platform": "zhihu",
+            "article_count": 6,
+            "representative_count": 6,
+            "raw_counts": {
+              "positive": 1,
+              "negative": 5,
+              "neutral": 0
+            },
+            "weighted_ratios": {
+              "positive": 0.16666666666666666,
+              "negative": 0.8333333333333334,
+              "neutral": 0.0
+            },
+            "average_score": -0.4916666666666667,
+            "dominant_label": "negative",
+            "effective_weight": 6.0,
+            "summary": "共分析6篇文章，主导情感为负面；正面16.7%、负面83.3%、中立0.0%，加权平均分-0.492。",
+            "sample_insufficient": false,
+            "warnings": []
+          }
+        ],
+        "time_confidence": "high",
+        "calculation_details": {
+          "effective_weight": 11.0,
+          "config_hash": "31a596cd9fdefe914141dd32b9c40e933d628778a4261934c5ffd6b483debcea",
+          "summary": "共分析11篇文章，主导情感为负面；正面18.2%、负面72.7%、中立9.1%，加权平均分-0.350。代表性判断依据：文章虽提及票房成功，但重点描述影片‘骂声一片’、评价两极分化、缺乏艺术性和思想深度，并暗示票价不值，整体呈现批评和质疑立场。；文章标题和正文明确质疑周星驰品牌价值，批评作品质量下滑，如‘没那么好’‘还能撑多久’‘情怀炒冷饭’等表述，呈现负面评价立场。；文章客观报道了票房、评分和评论两极分化的事实，未明确表达支持或批评立场。。",
+          "representative_reasons": [
+            "文章虽提及票房成功，但重点描述影片‘骂声一片’、评价两极分化、缺乏艺术性和思想深度，并暗示票价不值，整体呈现批评和质疑立场。",
+            "文章标题和正文明确质疑周星驰品牌价值，批评作品质量下滑，如‘没那么好’‘还能撑多久’‘情怀炒冷饭’等表述，呈现负面评价立场。",
+            "文章客观报道了票房、评分和评论两极分化的事实，未明确表达支持或批评立场。"
+          ]
+        },
+        "algorithm_version": "sentiment-v1",
+        "warnings": [
+          "PLATFORM_SAMPLE_INSUFFICIENT"
+        ],
+        "created_at": "2026-07-13 12:06:08"
+      },
+      {
+        "id": 2,
+        "sentiment_run_id": 1,
+        "event_id": null,
+        "aggregation_cluster_id": 2,
+        "calculated_at": "2026-07-13 12:05:35.185280",
+        "article_count": 2,
+        "representative_count": 2,
+        "raw_counts": {
+          "positive": 2,
+          "negative": 0,
+          "neutral": 0
+        },
+        "weighted_ratios": {
+          "positive": 1.0,
+          "negative": 0.0,
+          "neutral": 0.0
+        },
+        "dominant_label": "positive",
+        "average_score": 0.875,
+        "daily_trend": [
+          {
+            "date": "2026-07-12",
+            "article_count": 2,
+            "representative_count": 2,
+            "raw_counts": {
+              "positive": 2,
+              "negative": 0,
+              "neutral": 0
+            },
+            "weighted_ratios": {
+              "positive": 1.0,
+              "negative": 0.0,
+              "neutral": 0.0
+            },
+            "average_score": 0.875,
+            "dominant_label": "positive",
+            "effective_weight": 2.0,
+            "summary": "共分析2篇文章，主导情感为正面；正面100.0%、负面0.0%、中立0.0%，加权平均分0.875。",
+            "time_source_counts": {
+              "publish_time": 2,
+              "observed_at": 0
+            },
+            "warnings": []
+          }
+        ],
+        "platform_distribution": [
+          {
+            "platform": "weibo",
+            "article_count": 2,
+            "representative_count": 2,
+            "raw_counts": {
+              "positive": 2,
+              "negative": 0,
+              "neutral": 0
+            },
+            "weighted_ratios": {
+              "positive": 1.0,
+              "negative": 0.0,
+              "neutral": 0.0
+            },
+            "average_score": 0.875,
+            "dominant_label": "positive",
+            "effective_weight": 2.0,
+            "summary": "共分析2篇文章，主导情感为正面；正面100.0%、负面0.0%、中立0.0%，加权平均分0.875。",
+            "sample_insufficient": true,
+            "warnings": [
+              "PLATFORM_SAMPLE_INSUFFICIENT"
+            ]
+          }
+        ],
+        "time_confidence": "high",
+        "calculation_details": {
+          "effective_weight": 2.0,
+          "config_hash": "31a596cd9fdefe914141dd32b9c40e933d628778a4261934c5ffd6b483debcea",
+          "summary": "共分析2篇文章，主导情感为正面；正面100.0%、负面0.0%、中立0.0%，加权平均分0.875。代表性判断依据：文章使用庆祝表情和鼓励性语言，明确表达对票房破4亿的祝贺与支持。；文章用“珍贵存档”“热爱、欢乐以及勇气”“坚韧的信念”“感动”等正面词汇表达对迪丽热巴和电影的赞扬与支持。。",
+          "representative_reasons": [
+            "文章使用庆祝表情和鼓励性语言，明确表达对票房破4亿的祝贺与支持。",
+            "文章用“珍贵存档”“热爱、欢乐以及勇气”“坚韧的信念”“感动”等正面词汇表达对迪丽热巴和电影的赞扬与支持。"
+          ]
+        },
+        "algorithm_version": "sentiment-v1",
+        "warnings": [
+          "PLATFORM_SAMPLE_INSUFFICIENT"
+        ],
+        "created_at": "2026-07-13 12:06:08"
+      },
+      {
+        "id": 3,
+        "sentiment_run_id": 1,
+        "event_id": null,
+        "aggregation_cluster_id": 3,
+        "calculated_at": "2026-07-13 12:05:35.185280",
+        "article_count": 1,
+        "representative_count": 1,
+        "raw_counts": {
+          "positive": 1,
+          "negative": 0,
+          "neutral": 0
+        },
+        "weighted_ratios": {
+          "positive": 1.0,
+          "negative": 0.0,
+          "neutral": 0.0
+        },
+        "dominant_label": "positive",
+        "average_score": 0.9,
+        "daily_trend": [
+          {
+            "date": "2026-07-12",
+            "article_count": 1,
+            "representative_count": 1,
+            "raw_counts": {
+              "positive": 1,
+              "negative": 0,
+              "neutral": 0
+            },
+            "weighted_ratios": {
+              "positive": 1.0,
+              "negative": 0.0,
+              "neutral": 0.0
+            },
+            "average_score": 0.9,
+            "dominant_label": "positive",
+            "effective_weight": 1.0,
+            "summary": "共分析1篇文章，主导情感为正面；正面100.0%、负面0.0%、中立0.0%，加权平均分0.900。",
+            "time_source_counts": {
+              "publish_time": 1,
+              "observed_at": 0
+            },
+            "warnings": []
+          }
+        ],
+        "platform_distribution": [
+          {
+            "platform": "weibo",
+            "article_count": 1,
+            "representative_count": 1,
+            "raw_counts": {
+              "positive": 1,
+              "negative": 0,
+              "neutral": 0
+            },
+            "weighted_ratios": {
+              "positive": 1.0,
+              "negative": 0.0,
+              "neutral": 0.0
+            },
+            "average_score": 0.9,
+            "dominant_label": "positive",
+            "effective_weight": 1.0,
+            "summary": "共分析1篇文章，主导情感为正面；正面100.0%、负面0.0%、中立0.0%，加权平均分0.900。",
+            "sample_insufficient": true,
+            "warnings": [
+              "PLATFORM_SAMPLE_INSUFFICIENT"
+            ]
+          }
+        ],
+        "time_confidence": "high",
+        "calculation_details": {
+          "effective_weight": 1.0,
+          "config_hash": "31a596cd9fdefe914141dd32b9c40e933d628778a4261934c5ffd6b483debcea",
+          "summary": "共分析1篇文章，主导情感为正面；正面100.0%、负面0.0%、中立0.0%，加权平均分0.900。代表性判断依据：文章使用“好爽”“太给力了”等明显赞扬词汇，表达对迪丽热巴及电影票房的肯定与支持。。",
+          "representative_reasons": [
+            "文章使用“好爽”“太给力了”等明显赞扬词汇，表达对迪丽热巴及电影票房的肯定与支持。"
+          ]
+        },
+        "algorithm_version": "sentiment-v1",
+        "warnings": [
+          "PLATFORM_SAMPLE_INSUFFICIENT"
+        ],
+        "created_at": "2026-07-13 12:06:08"
+      },
+      {
+        "id": 4,
+        "sentiment_run_id": 1,
+        "event_id": null,
+        "aggregation_cluster_id": 4,
+        "calculated_at": "2026-07-13 12:05:35.185280",
+        "article_count": 1,
+        "representative_count": 1,
+        "raw_counts": {
+          "positive": 0,
+          "negative": 0,
+          "neutral": 1
+        },
+        "weighted_ratios": {
+          "positive": 0.0,
+          "negative": 0.0,
+          "neutral": 1.0
+        },
+        "dominant_label": "neutral",
+        "average_score": 0.0,
+        "daily_trend": [
+          {
+            "date": "2026-07-12",
+            "article_count": 1,
+            "representative_count": 1,
+            "raw_counts": {
+              "positive": 0,
+              "negative": 0,
+              "neutral": 1
+            },
+            "weighted_ratios": {
+              "positive": 0.0,
+              "negative": 0.0,
+              "neutral": 1.0
+            },
+            "average_score": 0.0,
+            "dominant_label": "neutral",
+            "effective_weight": 1.0,
+            "summary": "共分析1篇文章，主导情感为中立；正面0.0%、负面0.0%、中立100.0%，加权平均分0.000。",
+            "time_source_counts": {
+              "publish_time": 1,
+              "observed_at": 0
+            },
+            "warnings": []
+          }
+        ],
+        "platform_distribution": [
+          {
+            "platform": "weibo",
+            "article_count": 1,
+            "representative_count": 1,
+            "raw_counts": {
+              "positive": 0,
+              "negative": 0,
+              "neutral": 1
+            },
+            "weighted_ratios": {
+              "positive": 0.0,
+              "negative": 0.0,
+              "neutral": 1.0
+            },
+            "average_score": 0.0,
+            "dominant_label": "neutral",
+            "effective_weight": 1.0,
+            "summary": "共分析1篇文章，主导情感为中立；正面0.0%、负面0.0%、中立100.0%，加权平均分0.000。",
+            "sample_insufficient": true,
+            "warnings": [
+              "PLATFORM_SAMPLE_INSUFFICIENT"
+            ]
+          }
+        ],
+        "time_confidence": "high",
+        "calculation_details": {
+          "effective_weight": 1.0,
+          "config_hash": "31a596cd9fdefe914141dd32b9c40e933d628778a4261934c5ffd6b483debcea",
+          "summary": "共分析1篇文章，主导情感为中立；正面0.0%、负面0.0%、中立100.0%，加权平均分0.000。代表性判断依据：仅描述演员放下爆米花的动作，无评价或立场。",
+          "representative_reasons": [
+            "仅描述演员放下爆米花的动作，无评价或立场"
+          ]
+        },
+        "algorithm_version": "sentiment-v1",
+        "warnings": [
+          "PLATFORM_SAMPLE_INSUFFICIENT"
+        ],
+        "created_at": "2026-07-13 12:06:08"
+      },
+      {
+        "id": 5,
+        "sentiment_run_id": 1,
+        "event_id": null,
+        "aggregation_cluster_id": 5,
+        "calculated_at": "2026-07-13 12:05:35.185280",
+        "article_count": 4,
+        "representative_count": 4,
+        "raw_counts": {
+          "positive": 0,
+          "negative": 0,
+          "neutral": 4
+        },
+        "weighted_ratios": {
+          "positive": 0.0,
+          "negative": 0.0,
+          "neutral": 1.0
+        },
+        "dominant_label": "neutral",
+        "average_score": 0.0,
+        "daily_trend": [
+          {
+            "date": "2026-07-13",
+            "article_count": 4,
+            "representative_count": 4,
+            "raw_counts": {
+              "positive": 0,
+              "negative": 0,
+              "neutral": 4
+            },
+            "weighted_ratios": {
+              "positive": 0.0,
+              "negative": 0.0,
+              "neutral": 1.0
+            },
+            "average_score": 0.0,
+            "dominant_label": "neutral",
+            "effective_weight": 4.0,
+            "summary": "共分析4篇文章，主导情感为中立；正面0.0%、负面0.0%、中立100.0%，加权平均分0.000。",
+            "time_source_counts": {
+              "publish_time": 4,
+              "observed_at": 0
+            },
+            "warnings": []
+          }
+        ],
+        "platform_distribution": [
+          {
+            "platform": "bilibili",
+            "article_count": 4,
+            "representative_count": 4,
+            "raw_counts": {
+              "positive": 0,
+              "negative": 0,
+              "neutral": 4
+            },
+            "weighted_ratios": {
+              "positive": 0.0,
+              "negative": 0.0,
+              "neutral": 1.0
+            },
+            "average_score": 0.0,
+            "dominant_label": "neutral",
+            "effective_weight": 4.0,
+            "summary": "共分析4篇文章，主导情感为中立；正面0.0%、负面0.0%、中立100.0%，加权平均分0.000。",
+            "sample_insufficient": false,
+            "warnings": []
+          }
+        ],
+        "time_confidence": "high",
+        "calculation_details": {
+          "effective_weight": 4.0,
+          "config_hash": "31a596cd9fdefe914141dd32b9c40e933d628778a4261934c5ffd6b483debcea",
+          "summary": "共分析4篇文章，主导情感为中立；正面0.0%、负面0.0%、中立100.0%，加权平均分0.000。代表性判断依据：文章仅陈述修复版发布及下载链接，无任何评价或情感倾向；仅提供下载链接，无任何评价或立场表达；仅陈述高清版本发布和下载链接，无任何评价或情感倾向。。",
+          "representative_reasons": [
+            "文章仅陈述修复版发布及下载链接，无任何评价或情感倾向",
+            "仅提供下载链接，无任何评价或立场表达",
+            "仅陈述高清版本发布和下载链接，无任何评价或情感倾向。"
+          ]
+        },
+        "algorithm_version": "sentiment-v1",
+        "warnings": [],
+        "created_at": "2026-07-13 12:06:08"
+      },
+      {
+        "id": 6,
+        "sentiment_run_id": 1,
+        "event_id": null,
+        "aggregation_cluster_id": 6,
+        "calculated_at": "2026-07-13 12:05:35.185280",
+        "article_count": 1,
+        "representative_count": 1,
+        "raw_counts": {
+          "positive": 1,
+          "negative": 0,
+          "neutral": 0
+        },
+        "weighted_ratios": {
+          "positive": 1.0,
+          "negative": 0.0,
+          "neutral": 0.0
+        },
+        "dominant_label": "positive",
+        "average_score": 0.9,
+        "daily_trend": [
+          {
+            "date": "2026-07-13",
+            "article_count": 1,
+            "representative_count": 1,
+            "raw_counts": {
+              "positive": 1,
+              "negative": 0,
+              "neutral": 0
+            },
+            "weighted_ratios": {
+              "positive": 1.0,
+              "negative": 0.0,
+              "neutral": 0.0
+            },
+            "average_score": 0.9,
+            "dominant_label": "positive",
+            "effective_weight": 1.0,
+            "summary": "共分析1篇文章，主导情感为正面；正面100.0%、负面0.0%、中立0.0%，加权平均分0.900。",
+            "time_source_counts": {
+              "publish_time": 1,
+              "observed_at": 0
+            },
+            "warnings": []
+          }
+        ],
+        "platform_distribution": [
+          {
+            "platform": "weibo",
+            "article_count": 1,
+            "representative_count": 1,
+            "raw_counts": {
+              "positive": 1,
+              "negative": 0,
+              "neutral": 0
+            },
+            "weighted_ratios": {
+              "positive": 1.0,
+              "negative": 0.0,
+              "neutral": 0.0
+            },
+            "average_score": 0.9,
+            "dominant_label": "positive",
+            "effective_weight": 1.0,
+            "summary": "共分析1篇文章，主导情感为正面；正面100.0%、负面0.0%、中立0.0%，加权平均分0.900。",
+            "sample_insufficient": true,
+            "warnings": [
+              "PLATFORM_SAMPLE_INSUFFICIENT"
+            ]
+          }
+        ],
+        "time_confidence": "high",
+        "calculation_details": {
+          "effective_weight": 1.0,
+          "config_hash": "31a596cd9fdefe914141dd32b9c40e933d628778a4261934c5ffd6b483debcea",
+          "summary": "共分析1篇文章，主导情感为正面；正面100.0%、负面0.0%、中立0.0%，加权平均分0.900。代表性判断依据：文章表达对迪丽热巴金九单封的期待和肯定，使用‘时尚女帝回归’等赞扬词汇，立场积极。。",
+          "representative_reasons": [
+            "文章表达对迪丽热巴金九单封的期待和肯定，使用‘时尚女帝回归’等赞扬词汇，立场积极。"
+          ]
+        },
+        "algorithm_version": "sentiment-v1",
+        "warnings": [
+          "PLATFORM_SAMPLE_INSUFFICIENT"
+        ],
+        "created_at": "2026-07-13 12:06:08"
+      },
+      {
+        "id": 7,
+        "sentiment_run_id": 2,
+        "event_id": 1,
+        "aggregation_cluster_id": 7,
+        "calculated_at": "2026-07-13 12:06:09.543881",
+        "article_count": 11,
+        "representative_count": 11,
+        "raw_counts": {
+          "positive": 2,
+          "negative": 8,
+          "neutral": 1
+        },
+        "weighted_ratios": {
+          "positive": 0.18181818181818182,
+          "negative": 0.7272727272727273,
+          "neutral": 0.09090909090909091
+        },
+        "dominant_label": "negative",
+        "average_score": -0.35000000000000003,
+        "daily_trend": [
+          {
+            "date": "2026-07-09",
+            "article_count": 1,
+            "representative_count": 1,
+            "raw_counts": {
+              "positive": 0,
+              "negative": 1,
+              "neutral": 0
+            },
+            "weighted_ratios": {
+              "positive": 0.0,
+              "negative": 1.0,
+              "neutral": 0.0
+            },
+            "average_score": -0.7,
+            "dominant_label": "negative",
+            "effective_weight": 1.0,
+            "summary": "共分析1篇文章，主导情感为负面；正面0.0%、负面100.0%、中立0.0%，加权平均分-0.700。",
+            "time_source_counts": {
+              "publish_time": 1,
+              "observed_at": 0
+            },
+            "warnings": []
+          },
+          {
+            "date": "2026-07-10",
+            "article_count": 3,
+            "representative_count": 3,
+            "raw_counts": {
+              "positive": 1,
+              "negative": 2,
+              "neutral": 0
+            },
+            "weighted_ratios": {
+              "positive": 0.3333333333333333,
+              "negative": 0.6666666666666666,
+              "neutral": 0.0
+            },
+            "average_score": -0.26666666666666666,
+            "dominant_label": "negative",
+            "effective_weight": 3.0,
+            "summary": "共分析3篇文章，主导情感为负面；正面33.3%、负面66.7%、中立0.0%，加权平均分-0.267。",
+            "time_source_counts": {
+              "publish_time": 3,
+              "observed_at": 0
+            },
+            "warnings": []
+          },
+          {
+            "date": "2026-07-11",
+            "article_count": 1,
+            "representative_count": 1,
+            "raw_counts": {
+              "positive": 0,
+              "negative": 1,
+              "neutral": 0
+            },
+            "weighted_ratios": {
+              "positive": 0.0,
+              "negative": 1.0,
+              "neutral": 0.0
+            },
+            "average_score": -0.6,
+            "dominant_label": "negative",
+            "effective_weight": 1.0,
+            "summary": "共分析1篇文章，主导情感为负面；正面0.0%、负面100.0%、中立0.0%，加权平均分-0.600。",
+            "time_source_counts": {
+              "publish_time": 1,
+              "observed_at": 0
+            },
+            "warnings": []
+          },
+          {
+            "date": "2026-07-12",
+            "article_count": 1,
+            "representative_count": 1,
+            "raw_counts": {
+              "positive": 0,
+              "negative": 1,
+              "neutral": 0
+            },
+            "weighted_ratios": {
+              "positive": 0.0,
+              "negative": 1.0,
+              "neutral": 0.0
+            },
+            "average_score": -0.85,
+            "dominant_label": "negative",
+            "effective_weight": 1.0,
+            "summary": "共分析1篇文章，主导情感为负面；正面0.0%、负面100.0%、中立0.0%，加权平均分-0.850。",
+            "time_source_counts": {
+              "publish_time": 1,
+              "observed_at": 0
+            },
+            "warnings": []
+          },
+          {
+            "date": "2026-07-13",
+            "article_count": 5,
+            "representative_count": 5,
+            "raw_counts": {
+              "positive": 1,
+              "negative": 3,
+              "neutral": 1
+            },
+            "weighted_ratios": {
+              "positive": 0.2,
+              "negative": 0.6,
+              "neutral": 0.2
+            },
+            "average_score": -0.18,
+            "dominant_label": "negative",
+            "effective_weight": 5.0,
+            "summary": "共分析5篇文章，主导情感为负面；正面20.0%、负面60.0%、中立20.0%，加权平均分-0.180。",
+            "time_source_counts": {
+              "publish_time": 5,
+              "observed_at": 0
+            },
+            "warnings": []
+          }
+        ],
+        "platform_distribution": [
+          {
+            "platform": "baidu",
+            "article_count": 4,
+            "representative_count": 4,
+            "raw_counts": {
+              "positive": 0,
+              "negative": 3,
+              "neutral": 1
+            },
+            "weighted_ratios": {
+              "positive": 0.0,
+              "negative": 0.75,
+              "neutral": 0.25
+            },
+            "average_score": -0.425,
+            "dominant_label": "negative",
+            "effective_weight": 4.0,
+            "summary": "共分析4篇文章，主导情感为负面；正面0.0%、负面75.0%、中立25.0%，加权平均分-0.425。",
+            "sample_insufficient": false,
+            "warnings": []
+          },
+          {
+            "platform": "weibo",
+            "article_count": 1,
+            "representative_count": 1,
+            "raw_counts": {
+              "positive": 1,
+              "negative": 0,
+              "neutral": 0
+            },
+            "weighted_ratios": {
+              "positive": 1.0,
+              "negative": 0.0,
+              "neutral": 0.0
+            },
+            "average_score": 0.8,
+            "dominant_label": "positive",
+            "effective_weight": 1.0,
+            "summary": "共分析1篇文章，主导情感为正面；正面100.0%、负面0.0%、中立0.0%，加权平均分0.800。",
+            "sample_insufficient": true,
+            "warnings": [
+              "PLATFORM_SAMPLE_INSUFFICIENT"
+            ]
+          },
+          {
+            "platform": "zhihu",
+            "article_count": 6,
+            "representative_count": 6,
+            "raw_counts": {
+              "positive": 1,
+              "negative": 5,
+              "neutral": 0
+            },
+            "weighted_ratios": {
+              "positive": 0.16666666666666666,
+              "negative": 0.8333333333333334,
+              "neutral": 0.0
+            },
+            "average_score": -0.4916666666666667,
+            "dominant_label": "negative",
+            "effective_weight": 6.0,
+            "summary": "共分析6篇文章，主导情感为负面；正面16.7%、负面83.3%、中立0.0%，加权平均分-0.492。",
+            "sample_insufficient": false,
+            "warnings": []
+          }
+        ],
+        "time_confidence": "high",
+        "calculation_details": {
+          "effective_weight": 11.0,
+          "config_hash": "31a596cd9fdefe914141dd32b9c40e933d628778a4261934c5ffd6b483debcea",
+          "summary": "共分析11篇文章，主导情感为负面；正面18.2%、负面72.7%、中立9.1%，加权平均分-0.350。代表性判断依据：文章虽提及票房成功，但重点描述影片‘骂声一片’、评价两极分化、缺乏艺术性和思想深度，并暗示票价不值，整体呈现批评和质疑立场。；文章标题和正文明确质疑周星驰品牌价值，批评作品质量下滑，如‘没那么好’‘还能撑多久’‘情怀炒冷饭’等表述，呈现负面评价立场。；文章客观报道了票房、评分和评论两极分化的事实，未明确表达支持或批评立场。。",
+          "representative_reasons": [
+            "文章虽提及票房成功，但重点描述影片‘骂声一片’、评价两极分化、缺乏艺术性和思想深度，并暗示票价不值，整体呈现批评和质疑立场。",
+            "文章标题和正文明确质疑周星驰品牌价值，批评作品质量下滑，如‘没那么好’‘还能撑多久’‘情怀炒冷饭’等表述，呈现负面评价立场。",
+            "文章客观报道了票房、评分和评论两极分化的事实，未明确表达支持或批评立场。"
+          ]
+        },
+        "algorithm_version": "sentiment-v1",
+        "warnings": [
+          "PLATFORM_SAMPLE_INSUFFICIENT",
+          "SENTIMENT_RESULT_REUSED"
+        ],
+        "created_at": "2026-07-13 12:06:12"
+      }
+    ]
+  }
+}

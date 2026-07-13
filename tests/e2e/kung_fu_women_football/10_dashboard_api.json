@@ -1,0 +1,129 @@
+{
+  "events": [
+    {
+      "calculated_at": "2026-07-13T12:06:09.543881",
+      "cause": "周星驰执导的喜剧电影《功夫女足》于2026年7月11日上映，引发热议。",
+      "core_heat": 62.377248,
+      "first_publish_time": "2026-07-09T03:15:03",
+      "formula_version": "v1",
+      "heat_index": 58.664074,
+      "hot_rank": 1,
+      "id": 1,
+      "independent_report_count": 11,
+      "is_hot": true,
+      "key_figures": "周星驰",
+      "last_activity_time": "2026-07-13T11:55:56",
+      "lifecycle_confidence": 0.68,
+      "lifecycle_evidence": {
+        "current": 5.0,
+        "low_volume": true,
+        "normalized_recent_slope": 0.12,
+        "peak": 5.0,
+        "peak_index": 4,
+        "peak_ratio": 1.0,
+        "point_count": 5,
+        "recent_peak_ratio": 0.466667,
+        "recent_variation": 0.8,
+        "sustained_decline": false,
+        "total_count": 11.0
+      },
+      "lifecycle_stage": "潜伏期",
+      "lifecycle_status": "sufficient",
+      "lifecycle_updated_at": "2026-07-13T12:06:09.543881",
+      "location": null,
+      "metadata_confidence": 0.933333,
+      "metadata_evidence": {
+        "fields": {
+          "cause": {
+            "confidence": 0.9,
+            "evidence_article_ids": [
+              3,
+              4,
+              1
+            ],
+            "source": "llm",
+            "value": "周星驰执导的喜剧电影《功夫女足》于2026年7月11日上映，引发热议。"
+          },
+          "key_figures": {
+            "confidence": 0.9,
+            "evidence_article_ids": [
+              16,
+              8,
+              18,
+              15,
+              13,
+              14,
+              17,
+              3,
+              4,
+              1
+            ],
+            "source": "llm",
+            "value": "周星驰"
+          },
+          "time_code": {
+            "confidence": 1.0,
+            "evidence_article_ids": [
+              16
+            ],
+            "source": "first_publish_time"
+          }
+        },
+        "model": "deepseek-v4-flash",
+        "source_article_ids": [
+          1,
+          2,
+          3,
+          4,
+          8,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18
+        ],
+        "warnings": [
+          "TIME_CODE_CONFLICT"
+        ]
+      },
+      "metadata_status": "success",
+      "metadata_updated_at": "2026-07-13T12:06:09.543881",
+      "metadata_version": "event-metadata-v2",
+      "platform_count": 3,
+      "platforms": [
+        "百度搜索",
+        "微博搜索",
+        "知乎"
+      ],
+      "sentiment_negative": 0.7272727272727273,
+      "sentiment_neutral": 0.09090909090909091,
+      "sentiment_positive": 0.18181818181818182,
+      "spread_heat": 50.0,
+      "summary": "事件研判摘要：该事件为周星驰新片《功夫女足》上映引发的舆论争议，属于文化娱乐类热点。关键信息包括：影片上映3天票房破5.8亿元，但口碑两极分化，豆瓣评分6.6分；官方发布声明抵制盗摄及偷漏瞒报票房行为。舆论焦点集中于：一是票房与口碑反差，部分观众批评影片质量不佳，质疑“周星驰”品牌号召力；二是盗摄问题引发行业关注，官方主动发声维护版权。整体呈现商业成功与口碑争议并存的复杂态势。",
+      "time_code": "2026年07月09日 03:15",
+      "time_confidence": "high",
+      "title": "周星驰功夫女足上映引热议",
+      "top_keywords": [
+        {
+          "sentiment": "neutral",
+          "word": "功夫女足"
+        },
+        {
+          "sentiment": "neutral",
+          "word": "周星驰"
+        },
+        {
+          "sentiment": "positive",
+          "word": "票房"
+        }
+      ],
+      "topic_category": null,
+      "topic_name": null,
+      "warnings": []
+    }
+  ],
+  "page": 1,
+  "size": 100,
+  "total": 1
+}

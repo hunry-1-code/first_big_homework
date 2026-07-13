@@ -1,0 +1,106 @@
+{
+  "task_id": 1,
+  "history": [
+    {
+      "observed_at": "2026-07-13T12:04:08.305720+00:00",
+      "task_id": 1,
+      "status": "pending",
+      "progress": 0,
+      "message": "任务已创建，等待后台调度执行。",
+      "result": {},
+      "updated_at": null
+    },
+    {
+      "observed_at": "2026-07-13T12:04:09.308626+00:00",
+      "task_id": 1,
+      "status": "running",
+      "progress": 5,
+      "message": "正在准备采集平台。",
+      "result": {},
+      "updated_at": null
+    },
+    {
+      "observed_at": "2026-07-13T12:04:17.357401+00:00",
+      "task_id": 1,
+      "status": "running",
+      "progress": 30,
+      "message": "采集完成，获得 24 条原始数据。",
+      "result": {},
+      "updated_at": null
+    },
+    {
+      "observed_at": "2026-07-13T12:04:18.422440+00:00",
+      "task_id": 1,
+      "status": "running",
+      "progress": 67,
+      "message": "已处理 14/24 条数据。",
+      "result": {},
+      "updated_at": null
+    },
+    {
+      "observed_at": "2026-07-13T12:04:19.426328+00:00",
+      "task_id": 1,
+      "status": "running",
+      "progress": 96,
+      "message": "正在执行搜索语料内容分析。",
+      "result": {},
+      "updated_at": null
+    },
+    {
+      "observed_at": "2026-07-13T12:05:32.108740+00:00",
+      "task_id": 1,
+      "status": "running",
+      "progress": 98,
+      "message": "正在生成共享搜索事件。",
+      "result": {},
+      "updated_at": null
+    },
+    {
+      "observed_at": "2026-07-13T12:06:09.479742+00:00",
+      "task_id": 1,
+      "status": "success",
+      "progress": 100,
+      "message": "采集和预处理完成。",
+      "result": {
+        "aggregation_run_id": 1,
+        "analysis_run_id": 1,
+        "collected": 24,
+        "errors": [],
+        "failed": 0,
+        "platform_counts": {
+          "baidu": 6,
+          "bilibili": 6,
+          "weibo": 6,
+          "zhihu": 6
+        },
+        "processed": 24,
+        "search_cache_expires_at": "2026-07-14T12:05:31.152246",
+        "sentiment_run_id": 1
+      },
+      "updated_at": null
+    }
+  ],
+  "final": {
+    "task_id": 1,
+    "status": "success",
+    "progress": 100,
+    "message": "采集和预处理完成。",
+    "result": {
+      "aggregation_run_id": 1,
+      "analysis_run_id": 1,
+      "collected": 24,
+      "errors": [],
+      "failed": 0,
+      "platform_counts": {
+        "baidu": 6,
+        "bilibili": 6,
+        "weibo": 6,
+        "zhihu": 6
+      },
+      "processed": 24,
+      "search_cache_expires_at": "2026-07-14T12:05:31.152246",
+      "sentiment_run_id": 1
+    },
+    "updated_at": null
+  }
+}

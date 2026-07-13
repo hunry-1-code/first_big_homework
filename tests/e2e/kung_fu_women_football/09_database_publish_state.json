@@ -1,0 +1,363 @@
+{
+  "database": "kung_fu_women_football.db",
+  "tables": {
+    "event": [
+      {
+        "id": 1,
+        "title": "周星驰功夫女足上映引热议",
+        "summary": "事件研判摘要：该事件为周星驰新片《功夫女足》上映引发的舆论争议，属于文化娱乐类热点。关键信息包括：影片上映3天票房破5.8亿元，但口碑两极分化，豆瓣评分6.6分；官方发布声明抵制盗摄及偷漏瞒报票房行为。舆论焦点集中于：一是票房与口碑反差，部分观众批评影片质量不佳，质疑“周星驰”品牌号召力；二是盗摄问题引发行业关注，官方主动发声维护版权。整体呈现商业成功与口碑争议并存的复杂态势。",
+        "time_code": "2026年07月09日 03:15",
+        "location": null,
+        "cause": "周星驰执导的喜剧电影《功夫女足》于2026年7月11日上映，引发热议。",
+        "key_figures": "周星驰",
+        "heat_index": 58.664074,
+        "current_heat_snapshot_id": 1,
+        "core_heat": 62.377248,
+        "spread_heat": 50.0,
+        "is_hot": 1,
+        "hot_rank": 1,
+        "topic_category": null,
+        "topic_name": null,
+        "first_publish_time": "2026-07-09 03:15:03.000000",
+        "last_activity_time": "2026-07-13 11:55:56.000000",
+        "independent_report_count": 11,
+        "platform_count": 3,
+        "time_confidence": "high",
+        "sentiment_positive": 0.18181818181818182,
+        "sentiment_negative": 0.7272727272727273,
+        "sentiment_neutral": 0.09090909090909091,
+        "current_sentiment_snapshot_id": 7,
+        "sentiment_score": -0.35000000000000003,
+        "sentiment_updated_at": "2026-07-13 12:06:09.543881",
+        "lifecycle_stage": "潜伏期",
+        "lifecycle_status": "sufficient",
+        "lifecycle_confidence": 0.68,
+        "lifecycle_evidence": {
+          "point_count": 5,
+          "total_count": 11.0,
+          "peak": 5.0,
+          "current": 5.0,
+          "peak_index": 4,
+          "peak_ratio": 1.0,
+          "recent_peak_ratio": 0.466667,
+          "normalized_recent_slope": 0.12,
+          "recent_variation": 0.8,
+          "sustained_decline": false,
+          "low_volume": true
+        },
+        "lifecycle_updated_at": "2026-07-13 12:06:09.543881",
+        "metadata_status": "success",
+        "metadata_version": "event-metadata-v2",
+        "metadata_confidence": 0.933333,
+        "metadata_evidence": {
+          "fields": {
+            "time_code": {
+              "source": "first_publish_time",
+              "confidence": 1.0,
+              "evidence_article_ids": [
+                16
+              ]
+            },
+            "key_figures": {
+              "value": "周星驰",
+              "confidence": 0.9,
+              "evidence_article_ids": [
+                16,
+                8,
+                18,
+                15,
+                13,
+                14,
+                17,
+                3,
+                4,
+                1
+              ],
+              "source": "llm"
+            },
+            "cause": {
+              "value": "周星驰执导的喜剧电影《功夫女足》于2026年7月11日上映，引发热议。",
+              "confidence": 0.9,
+              "evidence_article_ids": [
+                3,
+                4,
+                1
+              ],
+              "source": "llm"
+            }
+          },
+          "warnings": [
+            "TIME_CODE_CONFLICT"
+          ],
+          "source_article_ids": [
+            1,
+            2,
+            3,
+            4,
+            8,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18
+          ],
+          "model": "deepseek-v4-flash"
+        },
+        "metadata_updated_at": "2026-07-13 12:06:09.543881",
+        "center_vector": null,
+        "created_at": "2026-07-13 12:06:09",
+        "updated_at": "2026-07-13 12:28:29"
+      }
+    ],
+    "event_article_membership": [
+      {
+        "id": 1,
+        "event_id": 1,
+        "article_id": 16,
+        "active_article_id": 16,
+        "source_aggregation_run_id": 2,
+        "confidence": 0.736729,
+        "decision_method": "published_search_cluster",
+        "is_active": 1,
+        "valid_from": "2026-07-13 12:06:09.543881",
+        "valid_to": null,
+        "created_at": "2026-07-13 12:06:09"
+      },
+      {
+        "id": 2,
+        "event_id": 1,
+        "article_id": 8,
+        "active_article_id": 8,
+        "source_aggregation_run_id": 2,
+        "confidence": 0.575104,
+        "decision_method": "published_search_cluster",
+        "is_active": 1,
+        "valid_from": "2026-07-13 12:06:09.543881",
+        "valid_to": null,
+        "created_at": "2026-07-13 12:06:09"
+      },
+      {
+        "id": 3,
+        "event_id": 1,
+        "article_id": 18,
+        "active_article_id": 18,
+        "source_aggregation_run_id": 2,
+        "confidence": 0.659602,
+        "decision_method": "published_search_cluster",
+        "is_active": 1,
+        "valid_from": "2026-07-13 12:06:09.543881",
+        "valid_to": null,
+        "created_at": "2026-07-13 12:06:09"
+      },
+      {
+        "id": 4,
+        "event_id": 1,
+        "article_id": 15,
+        "active_article_id": 15,
+        "source_aggregation_run_id": 2,
+        "confidence": 0.721204,
+        "decision_method": "published_search_cluster",
+        "is_active": 1,
+        "valid_from": "2026-07-13 12:06:09.543881",
+        "valid_to": null,
+        "created_at": "2026-07-13 12:06:09"
+      },
+      {
+        "id": 5,
+        "event_id": 1,
+        "article_id": 13,
+        "active_article_id": 13,
+        "source_aggregation_run_id": 2,
+        "confidence": 0.72216,
+        "decision_method": "published_search_cluster",
+        "is_active": 1,
+        "valid_from": "2026-07-13 12:06:09.543881",
+        "valid_to": null,
+        "created_at": "2026-07-13 12:06:09"
+      },
+      {
+        "id": 6,
+        "event_id": 1,
+        "article_id": 14,
+        "active_article_id": 14,
+        "source_aggregation_run_id": 2,
+        "confidence": 0.721674,
+        "decision_method": "published_search_cluster",
+        "is_active": 1,
+        "valid_from": "2026-07-13 12:06:09.543881",
+        "valid_to": null,
+        "created_at": "2026-07-13 12:06:09"
+      },
+      {
+        "id": 7,
+        "event_id": 1,
+        "article_id": 17,
+        "active_article_id": 17,
+        "source_aggregation_run_id": 2,
+        "confidence": 0.6196,
+        "decision_method": "published_search_cluster",
+        "is_active": 1,
+        "valid_from": "2026-07-13 12:06:09.543881",
+        "valid_to": null,
+        "created_at": "2026-07-13 12:06:09"
+      },
+      {
+        "id": 8,
+        "event_id": 1,
+        "article_id": 3,
+        "active_article_id": 3,
+        "source_aggregation_run_id": 2,
+        "confidence": 0.728173,
+        "decision_method": "published_search_cluster",
+        "is_active": 1,
+        "valid_from": "2026-07-13 12:06:09.543881",
+        "valid_to": null,
+        "created_at": "2026-07-13 12:06:09"
+      },
+      {
+        "id": 9,
+        "event_id": 1,
+        "article_id": 4,
+        "active_article_id": 4,
+        "source_aggregation_run_id": 2,
+        "confidence": 0.641967,
+        "decision_method": "published_search_cluster",
+        "is_active": 1,
+        "valid_from": "2026-07-13 12:06:09.543881",
+        "valid_to": null,
+        "created_at": "2026-07-13 12:06:09"
+      },
+      {
+        "id": 10,
+        "event_id": 1,
+        "article_id": 1,
+        "active_article_id": 1,
+        "source_aggregation_run_id": 2,
+        "confidence": 0.736729,
+        "decision_method": "published_search_cluster",
+        "is_active": 1,
+        "valid_from": "2026-07-13 12:06:09.543881",
+        "valid_to": null,
+        "created_at": "2026-07-13 12:06:09"
+      },
+      {
+        "id": 11,
+        "event_id": 1,
+        "article_id": 2,
+        "active_article_id": 2,
+        "source_aggregation_run_id": 2,
+        "confidence": 0.717765,
+        "decision_method": "published_search_cluster",
+        "is_active": 1,
+        "valid_from": "2026-07-13 12:06:09.543881",
+        "valid_to": null,
+        "created_at": "2026-07-13 12:06:09"
+      }
+    ],
+    "event_heat_snapshot": [
+      {
+        "id": 1,
+        "hotspot_run_id": null,
+        "event_id": 1,
+        "calculated_at": "2026-07-13 12:06:09.543881",
+        "raw_statistics": {
+          "independent_report_count_7d": 11,
+          "independent_report_count_24h": 5,
+          "independent_report_count_previous_24h": 2,
+          "report_growth_rate": 1.5,
+          "platform_count": 3,
+          "observed_time_count": 0,
+          "hotlist_platform_count": 0,
+          "best_hotlist_rank": null,
+          "latest_activity_time": "2026-07-13T11:55:56",
+          "spread_raw": 58.712174
+        },
+        "component_scores": {
+          "report_count_score": 50.0,
+          "report_growth_score": 50.0,
+          "platform_coverage_score": 50.0,
+          "freshness_score": 99.508992
+        },
+        "core_heat": 62.377248,
+        "spread_heat": 50.0,
+        "final_heat": 58.664074,
+        "eligible_as_hot": 1,
+        "rank": 1,
+        "status_change": "new_hot",
+        "time_confidence": "high",
+        "formula_version": "v1",
+        "calculation_details": {
+          "source": "aggregation_publish",
+          "aggregation_run_id": 2,
+          "core_weight": 0.7,
+          "spread_weight": 0.3,
+          "warnings": []
+        },
+        "created_at": "2026-07-13 12:06:12"
+      }
+    ],
+    "report": [
+      {
+        "id": 1,
+        "event_id": 1,
+        "overview_text": "事件研判摘要：该事件为周星驰新片《功夫女足》上映引发的舆论争议，属于文化娱乐类热点。关键信息包括：影片上映3天票房破5.8亿元，但口碑两极分化，豆瓣评分6.6分；官方发布声明抵制盗摄及偷漏瞒报票房行为。舆论焦点集中于：一是票房与口碑反差，部分观众批评影片质量不佳，质疑“周星驰”品牌号召力；二是盗摄问题引发行业关注，官方主动发声维护版权。整体呈现商业成功与口碑争议并存的复杂态势。",
+        "trend_data": null,
+        "sentiment_data": {
+          "positive": 0.18181818181818182,
+          "negative": 0.7272727272727273,
+          "neutral": 0.09090909090909091
+        },
+        "platform_data": {
+          "platform_count": 3
+        },
+        "keywords_data": null,
+        "lifecycle_data": null,
+        "risk_data": null,
+        "generated_at": "2026-07-13 12:06:15"
+      }
+    ],
+    "task": [
+      {
+        "id": 1,
+        "task_type": "crawl",
+        "status": "success",
+        "progress": 100,
+        "message": "采集和预处理完成。",
+        "payload": {
+          "keyword": "《功夫女足》电影",
+          "platforms": [
+            "baidu",
+            "weibo",
+            "zhihu",
+            "bilibili"
+          ],
+          "target_count": 24,
+          "mode": "search"
+        },
+        "result": {
+          "collected": 24,
+          "processed": 24,
+          "failed": 0,
+          "platform_counts": {
+            "baidu": 6,
+            "weibo": 6,
+            "zhihu": 6,
+            "bilibili": 6
+          },
+          "errors": [],
+          "analysis_run_id": 1,
+          "aggregation_run_id": 1,
+          "sentiment_run_id": 1,
+          "search_cache_expires_at": "2026-07-14T12:05:31.152246"
+        },
+        "created_by": 1,
+        "created_at": "2026-07-13 12:04:08.296008",
+        "started_at": "2026-07-13 12:04:08.299879",
+        "heartbeat_at": "2026-07-13 12:05:31.144599",
+        "attempt": 1,
+        "finished_at": "2026-07-13 12:06:08.805098"
+      }
+    ]
+  }
+}
