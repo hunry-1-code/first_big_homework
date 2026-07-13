@@ -28,6 +28,13 @@ def create_app(config_object=None):
     if app.config.get("AUTO_CREATE_DB", False):
         with app.app_context():
             db.create_all()
+            # SQLite WAL 模式：允许并发读写，解决 APScheduler 与 publish 的锁竞争
+            from sqlalchemy import text
+            try:
+                db.session.execute(text("PRAGMA journal_mode=WAL"))
+                db.session.commit()
+            except Exception:
+                pass
 
     if app.config.get("TASK_RECOVER_ON_STARTUP", False):
         from sqlalchemy import inspect

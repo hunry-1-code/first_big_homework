@@ -60,6 +60,27 @@
       </div>
     </div>
 
+    <!-- 今日热点 Top10 -->
+    <div v-if="dailyHot.length > 0" class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/60 dark:border-slate-800/60 shadow-sm p-4">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="font-bold text-slate-800 dark:text-slate-100">🔥 今日热点</span>
+        <span class="text-xs text-slate-400">实时热榜 Top10</span>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <span
+          v-for="(item, idx) in dailyHot"
+          :key="idx"
+          class="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full cursor-pointer transition-colors"
+          :class="idx < 3 ? 'bg-orange-50 text-orange-600 dark:bg-orange-950/30 dark:text-orange-400 font-medium' : 'bg-slate-50 text-slate-500 dark:bg-slate-800 dark:text-slate-400'"
+          @click="searchDailyHot(item.title)"
+        >
+          <span class="font-bold">{{ idx + 1 }}</span>
+          {{ item.title?.slice(0, 20) }}{{ (item.title || '').length > 20 ? '...' : '' }}
+        </span>
+        <span v-if="dailyHotLoading" class="text-xs text-slate-400">加载中...</span>
+      </div>
+    </div>
+
     <!-- 事件网格列表 -->
     <div v-loading="eventsStore.loading">
       <div v-if="sortedEvents.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -83,6 +104,7 @@ import { onMounted, ref, computed } from "vue";
 import { useEventsStore } from "@/store/modules/events";
 import { useUserStore } from "@/store/modules/user";
 import { searchCrawler, triggerCrawler } from "@/api/crawler";
+import { getTodayHotspots } from "@/api/dailyHot";
 import EventCard from "@/components/EventCard.vue";
 import { message } from "@/utils/message";
 
@@ -94,14 +116,32 @@ const eventsStore = useEventsStore();
 const userStore = useUserStore();
 
 const keyword = ref("");
-const sortBy = ref<"time" | "heat">("time");
+const sortBy = ref<"time" | "heat">("heat");
 
 const isAdmin = computed(() => {
   return userStore.roles.includes("admin");
 });
 
+const dailyHot = ref<any[]>([]);
+const dailyHotLoading = ref(false);
+
+async function loadDailyHot() {
+  dailyHotLoading.value = true;
+  try {
+    const res = await getTodayHotspots(10);
+    dailyHot.value = res.data?.items || res.data?.hotspots || [];
+  } catch { dailyHot.value = []; }
+  finally { dailyHotLoading.value = false; }
+}
+
+function searchDailyHot(title: string) {
+  keyword.value = title;
+  handleSearch();
+}
+
 onMounted(() => {
   eventsStore.loadEvents();
+  loadDailyHot();
 });
 
 // 搜索/采集
