@@ -201,13 +201,13 @@ Do not enqueue another active task for the same item and normalized keyword. Reu
 - Modify: `backend/tests/test_hotspot_service.py`
 - Modify: `backend/tests/test_daily_hot_api.py`
 
-- [ ] **Step 1: Add compatibility tests**
+- [x] **Step 1: Add compatibility tests**
 
 Assert `GET /api/hotspots` continues returning analyzed formal events, while `/today` returns raw/fused daily hot items with optional event IDs. The two endpoints must not silently change each other's meaning.
 
-- [ ] **Step 2: Run and fix only demonstrated compatibility issues**
+- [x] **Step 2: Run and fix only demonstrated compatibility issues**
 
-- [ ] **Step 3: Commit if production changes were required**
+- [x] **Step 3: Commit if production changes were required**
 
 ### Task 8: Run automated and low-volume live validation
 

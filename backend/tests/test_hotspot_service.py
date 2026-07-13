@@ -20,6 +20,8 @@ from app.models import (
     Article,
     ArticleSnapshot,
     DocumentFeatures,
+    DailyHotItem,
+    DailyHotRun,
     Event,
     EventHeatSnapshot,
     HotspotRun,
@@ -291,6 +293,53 @@ class HotspotServiceTest(unittest.TestCase):
             self.assertIsInstance(event.lifecycle_evidence, dict)
             self.assertIsNotNone(event.lifecycle_updated_at)
         self.assertEqual(len(get_current_hotspots()["events"]), 2)
+
+    def test_daily_hot_items_do_not_become_formal_hotspots_without_event_heat_state(self):
+        formal_event = Event(
+            title="Analyzed formal event",
+            is_hot=True,
+            hot_rank=1,
+            heat_index=88.0,
+        )
+        raw_event = Event(title="Enriched but not formally hot")
+        db.session.add_all([formal_event, raw_event])
+        db.session.flush()
+        run = DailyHotRun(
+            run_date=self.now.date(),
+            status="success",
+            attempt=1,
+            available_sources=["weibo_hot"],
+            failed_sources=[],
+            errors={},
+            item_count=1,
+            config_hash="compatibility-service-test",
+            completed_at=self.now,
+        )
+        db.session.add(run)
+        db.session.flush()
+        db.session.add(
+            DailyHotItem(
+                run_id=run.id,
+                normalized_key="raw-daily-rank-one",
+                title="Raw daily rank one",
+                fused_score=1 / 61,
+                rank=1,
+                source_ranks={"weibo_hot": 1},
+                source_payloads={},
+                first_seen_at=self.now,
+                last_seen_at=self.now,
+                enrichment_status="completed",
+                event_id=raw_event.id,
+            )
+        )
+        db.session.commit()
+
+        result = get_current_hotspots()
+
+        self.assertEqual(result["total"], 1)
+        self.assertEqual(result["events"][0]["id"], formal_event.id)
+        self.assertEqual(result["events"][0]["title"], "Analyzed formal event")
+        self.assertNotIn("source_ranks", result["events"][0])
 
     def test_heat_article_preserves_explicit_zero_quality_weights(self):
         article = self._article(88, "低质量样本", ["低质量", "样本"], "news")

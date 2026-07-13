@@ -12,7 +12,7 @@ if str(BACKEND_ROOT) not in sys.path:
 from app import create_app
 from app.core.security import create_token
 from app.extensions import db
-from app.models import DailyHotItem, DailyHotRun, User
+from app.models import DailyHotItem, DailyHotRun, Event, User
 
 
 class TestConfig:
@@ -184,6 +184,50 @@ class DailyHotApiTest(unittest.TestCase):
         self.assertEqual(kwargs["rrf_k"], 60)
         self.assertTrue(kwargs["force"])
         enqueue.assert_called_once_with(run.id, created_by=1)
+
+    def test_today_and_formal_hotspot_endpoints_keep_distinct_contracts(self):
+        event = Event(
+            title="Analyzed formal event",
+            is_hot=True,
+            hot_rank=1,
+            heat_index=91.0,
+        )
+        db.session.add(event)
+        db.session.commit()
+        run = self._run(count=1, status="success")
+        item = DailyHotItem.query.filter_by(run_id=run.id).one()
+        item.title = "Raw fused hot-list item"
+        item.event_id = event.id
+        item.enrichment_status = "completed"
+        db.session.commit()
+
+        formal_response = self.client.get(
+            "/api/hotspots",
+            headers=self.user_headers,
+        )
+        today_response = self.client.get(
+            "/api/hotspots/today",
+            headers=self.user_headers,
+        )
+
+        self.assertEqual(formal_response.status_code, 200)
+        formal_data = formal_response.get_json()["data"]
+        self.assertEqual(formal_data["total"], 1)
+        self.assertNotIn("items", formal_data)
+        self.assertEqual(formal_data["events"][0]["id"], event.id)
+        self.assertEqual(
+            formal_data["events"][0]["title"],
+            "Analyzed formal event",
+        )
+        self.assertNotIn("source_ranks", formal_data["events"][0])
+
+        self.assertEqual(today_response.status_code, 200)
+        today_data = today_response.get_json()["data"]
+        self.assertNotIn("events", today_data)
+        self.assertEqual(today_data["items"][0]["title"], "Raw fused hot-list item")
+        self.assertEqual(today_data["items"][0]["event_id"], event.id)
+        self.assertEqual(today_data["items"][0]["source_ranks"], {"weibo_hot": 1})
+        self.assertNotIn("heat_index", today_data["items"][0])
 
 
 if __name__ == "__main__":

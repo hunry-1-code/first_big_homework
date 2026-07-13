@@ -877,5 +877,13 @@ TDD 覆盖第三方单源失败仍生成融合结果、密钥不进入 errors/pa
 
 新增 `DAILY_HOT_ENRICH_TARGET_COUNT=20`。三条目隔离、active task 幂等与 API 入队聚焦测试 `10 passed`；Top10、任务和事件聚合联合验证 `56 passed, 3 warnings`。
 
+### 21.27 正式热点与今日 Top10 接口兼容性
+
+补充服务层和 API 层兼容契约测试，明确 `GET /api/hotspots` 只返回已经完成分析并具有正式热度状态的 `Event`，响应保持 `events/total` 结构；`GET /api/hotspots/today` 只返回独立持久化的原始/RRF 热榜条目，响应保持 `items/total` 结构，并允许补全成功后携带可空的 `event_id`。
+
+测试同时覆盖了一个重要边界：DailyHotItem 即使已经关联 Event，也不能仅凭热榜名次进入正式热点接口；正式热点仍由 Event 的 `is_hot/hot_rank` 和热度快照语义决定。两个接口的条目字段不会互相渗透，今日榜单不返回正式事件热度字段，正式热点不返回来源名次字段。
+
+新增的两项兼容测试直接在现有实现上通过，因此本步骤未修改生产代码。`test_hotspot_service.py` 与 `test_daily_hot_api.py` 完整联合回归结果为 `20 passed, 1 warning`；警告来自既有 jieba/pkg_resources 弃用提示。
+
 ---
 
