@@ -88,21 +88,21 @@ Support MySQL production migration and SQLite model creation tests. Do not mutat
 - Create: `backend/app/services/daily_hot_service.py`
 - Create: `backend/tests/test_daily_hot_service.py`
 
-- [ ] **Step 1: Write failing fake-registry tests**
+- [x] **Step 1: Write failing fake-registry tests**
 
 Use fake `weibo_hot`, `baidu_hot`, `zhihu_hot` crawlers. Assert two successful sources still produce a run when the third raises `CrawlerError`, and secrets are not stored in errors.
 
-- [ ] **Step 2: Run and verify RED**
+- [x] **Step 2: Run and verify RED**
 
-- [ ] **Step 3: Implement collection**
+- [x] **Step 3: Implement collection**
 
 For each configured source, call one hot-mode request with the configured limit. Read rank from `raw_json.rank` or stable list position. Convert RawDocument to `HotRankItem`, fuse, persist top N and source diagnostics in one transaction.
 
-- [ ] **Step 4: Implement run reuse**
+- [x] **Step 4: Implement run reuse**
 
 Reuse a successful fresh run within `DAILY_HOT_TTL_SECONDS`; create a new attempt when the previous run failed or is stale.
 
-- [ ] **Step 5: Run tests and commit**
+- [x] **Step 5: Run tests and commit**
 
 ### Task 4: Add Top10 query and administrator refresh APIs
 

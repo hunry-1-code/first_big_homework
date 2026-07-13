@@ -2,6 +2,7 @@ CREATE TABLE IF NOT EXISTS daily_hot_run (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     run_date DATE NOT NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    attempt INT NOT NULL DEFAULT 1,
     available_sources JSON NULL,
     failed_sources JSON NULL,
     errors JSON NULL,
@@ -9,7 +10,7 @@ CREATE TABLE IF NOT EXISTS daily_hot_run (
     config_hash VARCHAR(64) NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     completed_at DATETIME NULL,
-    CONSTRAINT uq_daily_hot_run_date_config UNIQUE (run_date, config_hash),
+    CONSTRAINT uq_daily_hot_run_date_config_attempt UNIQUE (run_date, config_hash, attempt),
     INDEX ix_daily_hot_run_status_created (status, created_at),
     INDEX ix_daily_hot_run_date (run_date),
     INDEX ix_daily_hot_run_config_hash (config_hash)
@@ -40,4 +41,3 @@ CREATE TABLE IF NOT EXISTS daily_hot_item (
     CONSTRAINT fk_daily_hot_item_event FOREIGN KEY (event_id) REFERENCES event(id),
     CONSTRAINT fk_daily_hot_item_task FOREIGN KEY (analysis_task_id) REFERENCES task(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-

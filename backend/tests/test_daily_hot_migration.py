@@ -54,13 +54,14 @@ class DailyHotMigrationTest(unittest.TestCase):
             tuple(item["column_names"])
             for item in inspector.get_unique_constraints("daily_hot_item")
         }
-        self.assertIn(("run_date", "config_hash"), run_uniques)
+        self.assertIn(("run_date", "config_hash", "attempt"), run_uniques)
         self.assertIn(("run_id", "normalized_key"), item_uniques)
         self.assertIn(("run_id", "rank"), item_uniques)
 
     def test_models_expose_json_and_nullable_enrichment_fields(self):
         for name in ("available_sources", "failed_sources", "errors"):
             self.assertTrue(hasattr(DailyHotRun, name))
+        self.assertTrue(hasattr(DailyHotRun, "attempt"))
         for name in ("source_ranks", "source_payloads"):
             self.assertTrue(hasattr(DailyHotItem, name))
         self.assertTrue(DailyHotItem.__table__.c.event_id.nullable)

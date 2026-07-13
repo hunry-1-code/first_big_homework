@@ -7,7 +7,8 @@ class DailyHotRun(db.Model):
         db.UniqueConstraint(
             "run_date",
             "config_hash",
-            name="uq_daily_hot_run_date_config",
+            "attempt",
+            name="uq_daily_hot_run_date_config_attempt",
         ),
         db.Index("ix_daily_hot_run_status_created", "status", "created_at"),
     )
@@ -15,6 +16,7 @@ class DailyHotRun(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     run_date = db.Column(db.Date, nullable=False, index=True)
     status = db.Column(db.String(20), nullable=False, default="pending")
+    attempt = db.Column(db.Integer, nullable=False, default=1)
     available_sources = db.Column(db.JSON)
     failed_sources = db.Column(db.JSON)
     errors = db.Column(db.JSON)
@@ -73,4 +75,3 @@ class DailyHotItem(db.Model):
     error_code = db.Column(db.String(64))
     error_message = db.Column(db.String(500))
     created_at = db.Column(db.DateTime, server_default=db.func.now())
-
