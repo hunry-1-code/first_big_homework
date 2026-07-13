@@ -18,6 +18,7 @@ from app.analysis.fake_detector import (
     _sensational_keywords,
     assess_suspicious_risk,
     batch_assess_articles,
+    title_content_consistency,
 )
 
 
@@ -191,13 +192,19 @@ class AssessSuspiciousRiskTest(unittest.TestCase):
         self.assertTrue(result["is_suspicious"] or result["score"] >= 40)
 
     def test_advertising_call_to_action_adds_low_weight_risk(self):
-        article = self._make_article(clean_content="点击链接扫码领取福利，并添加微信咨询")
+        article = self._make_article(
+            title="福利领取说明",
+            clean_content="点击链接扫码领取福利，并添加微信咨询",
+        )
         result = assess_suspicious_risk(article, self._make_event_context())
         self.assertEqual(result["score"], 33.0)
         self.assertIn("广告引流", result["reason"])
 
     def test_external_link_adds_low_weight_risk(self):
-        article = self._make_article(clean_content="更多内容请查看 http://unknown.example/path")
+        article = self._make_article(
+            title="更多内容查看",
+            clean_content="更多内容请查看 http://unknown.example/path",
+        )
         result = assess_suspicious_risk(article, self._make_event_context())
         self.assertEqual(result["score"], 28.0)
         self.assertIn("外部链接", result["reason"])
@@ -212,6 +219,39 @@ class AssessSuspiciousRiskTest(unittest.TestCase):
         article = self._make_article(title="通知", clean_content="内容")
         result = assess_suspicious_risk(article, self._make_event_context())
         self.assertEqual(result["score"], 25.0)
+
+    def test_short_title_can_be_consistent_with_related_body(self):
+        score = title_content_consistency(
+            "台风登陆",
+            "气象部门通报，今年第六号台风已经在沿海地区正式登陆。",
+        )
+
+        self.assertIsNotNone(score)
+        self.assertGreaterEqual(score, 0.5)
+
+    def test_short_title_is_inconsistent_with_unrelated_body(self):
+        score = title_content_consistency(
+            "台风登陆",
+            "某歌手巡回演唱会正式开票，多个场次座位即将售罄。",
+        )
+
+        self.assertEqual(score, 0.0)
+
+    def test_semantic_similarity_provider_is_used_when_injected(self):
+        calls = []
+
+        def semantic_similarity(title, content):
+            calls.append((title, content))
+            return 0.82
+
+        score = title_content_consistency(
+            "短标题",
+            "短正文",
+            semantic_similarity=semantic_similarity,
+        )
+
+        self.assertEqual(score, 0.82)
+        self.assertEqual(calls, [("短标题", "短正文")])
 
 
 class BatchAssessTest(unittest.TestCase):

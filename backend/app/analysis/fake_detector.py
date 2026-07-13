@@ -22,15 +22,44 @@ _ADVERTISING_PATTERNS = (
     "私信领取", "立即购买", "限时领取", "关注公众号",
 )
 _URL_PATTERN = re.compile(r"(?:https?://|www\.)[^\s]+", re.IGNORECASE)
+TITLE_CONTENT_CONSISTENCY_MIN = 0.30
+
+
+def title_content_consistency(
+    title: str,
+    content: str,
+    semantic_similarity=None,
+) -> float | None:
+    if semantic_similarity is not None:
+        return max(0.0, min(1.0, float(semantic_similarity(title, content))))
+    title = str(title or "").strip()
+    content = str(content or "").strip()[:800]
+    title_length = len(re.findall(r"[\u4e00-\u9fffA-Za-z0-9]", title))
+    content_length = len(re.findall(r"[\u4e00-\u9fffA-Za-z0-9]", content))
+    if title_length < 4 or content_length < 8:
+        return None
+    title_tokens = _meaningful_tokens(title)
+    body_tokens = _meaningful_tokens(content)
+    if not title_tokens or not body_tokens:
+        return None
+    return len(title_tokens & body_tokens) / len(title_tokens)
+
+
+def _meaningful_tokens(text: str) -> set[str]:
+    output = set(re.findall(r"[A-Za-z0-9_]{2,}", str(text or "").casefold()))
+    for segment in re.findall(r"[\u4e00-\u9fff]+", str(text or "")):
+        if len(segment) == 1:
+            continue
+        output.update(
+            segment[index : index + 2] for index in range(len(segment) - 1)
+        )
+    return output
 
 
 def _title_content_consistency_low(title: str, content: str) -> bool:
-    """Conservative character-overlap check for obviously unrelated Chinese text."""
-    title_chars = {char for char in title if "\u4e00" <= char <= "\u9fff"}
-    content_chars = {char for char in content[:500] if "\u4e00" <= char <= "\u9fff"}
-    if len(title_chars) < 6 or len(content_chars) < 10:
-        return False
-    return len(title_chars & content_chars) / len(title_chars) < 0.15
+    """Conservative wrapper for the legacy boolean risk rule."""
+    score = title_content_consistency(title, content)
+    return score is not None and score < TITLE_CONTENT_CONSISTENCY_MIN
 
 # ── 官方媒体名称模式 ────────────────────────────────────
 _OFFICIAL_MEDIA_PATTERNS = [
@@ -305,11 +334,23 @@ def assess_suspicious_risk(article, ctx: dict) -> dict:
         reasons.append("正文包含外部链接，需核验链接来源")
     feature_scores["external_link"] = 1.0 if has_external_link else 0.0
 
-    low_consistency = _title_content_consistency_low(title, content)
+    consistency_score = title_content_consistency(title, content)
+    low_consistency = (
+        consistency_score is not None
+        and consistency_score < TITLE_CONTENT_CONSISTENCY_MIN
+    )
     if low_consistency:
         score += 5
         reasons.append("标题与正文一致性较低")
-    feature_scores["title_content_consistency"] = 1.0 if low_consistency else 0.0
+    feature_scores["title_content_consistency"] = (
+        round(1.0 - consistency_score, 6)
+        if consistency_score is not None
+        else 0.0
+    )
+    evidence["title_content_consistency"] = {
+        "score": round(consistency_score, 6) if consistency_score is not None else None,
+        "status": "insufficient" if consistency_score is None else "available",
+    }
 
     # 4. 负面情绪：score < -0.5 +10
     sentiment = getattr(article, "sentiment_score", None)

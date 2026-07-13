@@ -59,13 +59,13 @@ git commit -m "fix: 改为文章级可疑信息交叉验证" -m "Co-Authored-By:
 - Modify: `backend/app/analysis/fake_detector.py`
 - Modify: `backend/tests/test_fake_detector.py`
 
-- [ ] **Step 1: Add failing cases**
+- [x] **Step 1: Add failing cases**
 
 Assert `台风登陆` versus a paragraph describing台风登陆 is consistent despite a short title; assert an unrelated concert body remains inconsistent. Add an injected semantic-similarity provider test.
 
-- [ ] **Step 2: Run and verify RED**
+- [x] **Step 2: Run and verify RED**
 
-- [ ] **Step 3: Implement hybrid consistency**
+- [x] **Step 3: Implement hybrid consistency**
 
 ```python
 def title_content_consistency(title, content, semantic_similarity=None):
@@ -80,7 +80,7 @@ def title_content_consistency(title, content, semantic_similarity=None):
 
 Use a configurable threshold and return `None` for insufficient text.
 
-- [ ] **Step 4: Run and commit**
+- [x] **Step 4: Run and commit**
 
 Run the full fake-detector suite and commit.
 
