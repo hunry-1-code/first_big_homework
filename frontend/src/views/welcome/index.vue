@@ -30,7 +30,7 @@
           class="shrink-0 text-xs px-3 py-1.5 rounded-full cursor-pointer font-medium transition-colors"
           :class="activeDate === '' ? 'bg-blue-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'"
           @click="filterByDate('')"
-        >全部 ({{ eventsStore.total }})</span>
+        >全部 ({{ realTotal }})</span>
         <span
           v-for="d in dateList"
           :key="d.date"
@@ -125,6 +125,7 @@ const keyword = ref("");
 const sortBy = ref<"time" | "heat">("heat");
 const activeDate = ref(""); // 空 = 全部
 const allEvents = ref<any[]>([]); // 缓存全部事件用于日期提取
+const realTotal = ref(0); // 后端真实总数，不受客户端筛选影响
 
 const isAdmin = computed(() => userStore.roles.includes("admin"));
 
@@ -162,16 +163,18 @@ async function filterByDate(date: string) {
   activeDate.value = date;
   keyword.value = "";
   if (date) {
-    // 用日期过滤（后端 API 支持 keyword 参数的模糊匹配不够精确，客户端过滤）
-    await eventsStore.loadEvents({ size: 100 });
-    allEvents.value = [...eventsStore.events];
+    if (allEvents.value.length === 0) {
+      await eventsStore.loadEvents({ size: 200 });
+      allEvents.value = [...eventsStore.events];
+      realTotal.value = eventsStore.total;
+    }
     eventsStore.events = allEvents.value.filter(e =>
       (e.first_publish_time || "").startsWith(date)
     );
-    eventsStore.total = eventsStore.events.length;
   } else {
-    await eventsStore.loadEvents();
+    await eventsStore.loadEvents({ size: 200 });
     allEvents.value = [...eventsStore.events];
+    realTotal.value = eventsStore.total;
   }
 }
 
@@ -189,8 +192,9 @@ function clearFilter() {
 }
 
 onMounted(async () => {
-  await eventsStore.loadEvents({ size: 100 });
+  await eventsStore.loadEvents({ size: 200 });
   allEvents.value = [...eventsStore.events];
+  realTotal.value = eventsStore.total;
   loadDailyHot();
 });
 
