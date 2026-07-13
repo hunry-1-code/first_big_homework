@@ -23,7 +23,7 @@ def cosine_similarity(first: Iterable[float] | None, second: Iterable[float] | N
     if left_norm == 0 or right_norm == 0:
         return None
     raw = sum(a * b for a, b in zip(left, right)) / (left_norm * right_norm)
-    return _clamp((raw + 1.0) / 2.0 if raw < 0 else raw)
+    return _clamp(max(0.0, raw))
 
 
 def set_similarity(first: Iterable[str] | None, second: Iterable[str] | None) -> float | None:

@@ -17,7 +17,7 @@
 - Modify: `backend/app/analysis/event_clusterer.py`
 - Modify: `backend/tests/test_event_aggregation_algorithms.py`
 
-- [ ] **Step 1: Add failing cosine and time tests**
+- [x] **Step 1: Add failing cosine and time tests**
 
 ```python
 from app.analysis.event_similarity import cosine_similarity
@@ -29,13 +29,13 @@ def test_orthogonal_and_negative_vectors_do_not_gain_similarity(self):
 
 Add a test calling `_time_compatibility` with a 60-day gap and a 30-day half-life; assert `0 < score < 0.5` instead of zero.
 
-- [ ] **Step 2: Run and verify RED**
+- [x] **Step 2: Run and verify RED**
 
 ```powershell
 python -m pytest backend/tests/test_event_aggregation_algorithms.py -q
 ```
 
-- [ ] **Step 3: Implement corrected formulas**
+- [x] **Step 3: Implement corrected formulas**
 
 ```python
 raw = dot / (left_norm * right_norm)
@@ -48,7 +48,7 @@ half_life = max(1.0, float(config.maximum_event_gap_days))
 return math.exp(-math.log(2.0) * gap_days / half_life)
 ```
 
-- [ ] **Step 4: Run tests and commit**
+- [x] **Step 4: Run tests and commit**
 
 ```powershell
 python -m pytest backend/tests/test_event_aggregation_algorithms.py -q

@@ -112,8 +112,11 @@ def _time_compatibility(document: AggregationDocument, cluster: EventCluster, co
     times = [item.effective_time for item in cluster.documents if item.effective_time]
     if document.effective_time is None or not times:
         return None
-    gap_days = min(abs((document.effective_time - value).total_seconds()) for value in times) / 86400
-    return max(0.0, 1.0 - gap_days / max(1, config.maximum_event_gap_days))
+    gap_days = min(
+        abs((document.effective_time - value).total_seconds()) for value in times
+    ) / 86400
+    half_life = max(1.0, float(config.maximum_event_gap_days))
+    return math.exp(-math.log(2.0) * gap_days / half_life)
 
 
 def _score(document: AggregationDocument, cluster: EventCluster, config):

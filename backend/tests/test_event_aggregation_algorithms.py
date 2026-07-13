@@ -9,8 +9,13 @@ if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
 from app.analysis.aggregation_config import AggregationConfig
-from app.analysis.event_clusterer import AggregationDocument, cluster_documents
-from app.analysis.event_similarity import score_event_match
+from app.analysis.event_clusterer import (
+    AggregationDocument,
+    EventCluster,
+    _time_compatibility,
+    cluster_documents,
+)
+from app.analysis.event_similarity import cosine_similarity, score_event_match
 from app.analysis.hot_detector import assign_event_cluster
 from app.core.config import Config
 
@@ -49,6 +54,10 @@ class AggregationConfigTest(unittest.TestCase):
 
 
 class EventSimilarityTest(unittest.TestCase):
+    def test_orthogonal_and_negative_vectors_do_not_gain_similarity(self):
+        self.assertEqual(cosine_similarity([1, 0], [0, 1]), 0.0)
+        self.assertEqual(cosine_similarity([1, 0], [-1, 1]), 0.0)
+
     def test_missing_bge_renormalizes_remaining_weights(self):
         result = score_event_match(
             config=AggregationConfig(),
@@ -121,6 +130,20 @@ class EventClustererTest(unittest.TestCase):
             [(item.article_id, item.cluster_index) for item in first.assignments],
             [(item.article_id, item.cluster_index) for item in second.assignments],
         )
+
+    def test_time_compatibility_uses_soft_half_life_decay(self):
+        older = self._document(1, "较早报道", 0, [1.0, 0.0])
+        later = self._document(2, "后续报道", 60 * 24, [1.0, 0.0])
+        cluster = EventCluster(cluster_index=0, documents=[older])
+
+        score = _time_compatibility(
+            later,
+            cluster,
+            AggregationConfig(maximum_event_gap_days=30),
+        )
+
+        self.assertGreater(score, 0.0)
+        self.assertLess(score, 0.5)
 
     def test_different_locations_remain_separate_despite_semantic_similarity(self):
         documents = [
