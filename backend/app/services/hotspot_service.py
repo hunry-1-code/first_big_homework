@@ -32,6 +32,10 @@ from app.models import (
     TopicResult,
 )
 from app.preprocessing.segmenter import segment_document
+from app.services.lifecycle_service import (
+    daily_counts_from_articles,
+    update_event_lifecycle,
+)
 from app.services.task_service import StaleTaskLeaseError, assert_task_lease
 
 
@@ -480,6 +484,13 @@ def _persist_heat(run, rows, articles, topic_rows, calculated_at, config):
         ]
         event.platform_count = result.raw_statistics["platform_count"]
         event.time_confidence = result.time_confidence
+        update_event_lifecycle(
+            event,
+            daily_counts_from_articles(
+                [article for _row, article in event_articles[result.event_id]]
+            ),
+            now=calculated_at,
+        )
         warnings.extend(result.warnings)
     if run.scope == "global" and processed_event_ids:
         stale_events = Event.query.filter(

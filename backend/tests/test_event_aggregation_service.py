@@ -2,6 +2,7 @@ import sys
 import unittest
 from datetime import datetime, timedelta
 from pathlib import Path
+from unittest.mock import patch
 
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
@@ -35,6 +36,7 @@ from app.services.event_aggregation_service import (
     review_merge_candidate,
     run_event_aggregation,
 )
+from app.services.event_service import get_event_detail
 
 
 class TestConfig:
@@ -205,11 +207,85 @@ class EventAggregationServiceTest(unittest.TestCase):
         self.assertIn("mention", representation.entities)
         self.assertIn("重庆", representation.entities["mention"])
         self.assertAlmostEqual(sum(value * value for value in representation.vector), 1.0, places=6)
+        self.assertEqual(event.lifecycle_status, "data_insufficient")
+        self.assertLess(event.lifecycle_confidence, 0.5)
+        self.assertIsInstance(event.lifecycle_evidence, dict)
+        self.assertIsNotNone(event.lifecycle_updated_at)
 
         repeated = run_event_aggregation(run.id, now=self.now)
         self.assertEqual(repeated["aggregation_run_id"], run.id)
         self.assertEqual(Event.query.count(), 1)
         self.assertEqual(EventArticleMembership.query.count(), 2)
+
+    def test_event_detail_does_not_mutate_persisted_lifecycle(self):
+        event = Event(title="只读生命周期事件")
+        db.session.add(event)
+        db.session.flush()
+        index = 1
+        for day, count in enumerate([1, 2, 3, 4]):
+            for _ in range(count):
+                article = self._article(
+                    index,
+                    f"第{day + 1}天报道{index}",
+                    ["事件", "进展"],
+                    [1.0, 0.0],
+                )
+                article.event_id = event.id
+                article.publish_time = self.now + timedelta(days=day)
+                index += 1
+        event.lifecycle_stage = "潜伏期"
+        event.lifecycle_status = "manual_review"
+        event.lifecycle_confidence = 0.42
+        event.lifecycle_evidence = {"source": "persisted"}
+        event.lifecycle_updated_at = self.now - timedelta(days=1)
+        event.updated_at = self.now - timedelta(days=2)
+        db.session.commit()
+        before = (
+            event.lifecycle_stage,
+            event.lifecycle_status,
+            event.lifecycle_confidence,
+            dict(event.lifecycle_evidence),
+            event.lifecycle_updated_at,
+            event.updated_at,
+        )
+        risk_rows = [
+            {
+                "is_suspicious": False,
+                "score": 0.0,
+                "reason": "未发现明显风险",
+                "method": "rule",
+            }
+            for _ in range(10)
+        ]
+
+        with patch(
+            "app.services.event_service._build_context", return_value={}
+        ), patch(
+            "app.services.event_service.batch_assess_articles", return_value=risk_rows
+        ), patch(
+            "app.services.event_service._extract_event_metadata",
+            return_value={
+                "time_code": "",
+                "location": "",
+                "key_figures": "",
+                "cause": "",
+            },
+        ):
+            data = get_event_detail(event.id)
+
+        db.session.refresh(event)
+        after = (
+            event.lifecycle_stage,
+            event.lifecycle_status,
+            event.lifecycle_confidence,
+            dict(event.lifecycle_evidence),
+            event.lifecycle_updated_at,
+            event.updated_at,
+        )
+        self.assertEqual(after, before)
+        self.assertEqual(data["lifecycle_stage"], "潜伏期")
+        self.assertEqual(data["lifecycle_status"], "manual_review")
+        self.assertEqual(data["lifecycle_confidence"], 0.42)
 
     def test_duplicate_article_inherits_event_without_changing_representation_center(self):
         representative = self._article(

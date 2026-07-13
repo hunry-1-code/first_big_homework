@@ -39,6 +39,10 @@ from app.models import (
     TopicResult,
 )
 from app.preprocessing.segmenter import segment_document
+from app.services.lifecycle_service import (
+    daily_counts_from_articles,
+    update_event_lifecycle,
+)
 from app.services.task_service import StaleTaskLeaseError, assert_task_lease
 
 
@@ -517,6 +521,11 @@ def _update_event(event, run, now):
     event.last_activity_time = max(times, default=None)
     event.independent_report_count = len([item for item in articles if not item.is_duplicate])
     event.platform_count = len({item.platform for item in articles if item.platform})
+    update_event_lifecycle(
+        event,
+        daily_counts_from_articles(articles),
+        now=now,
+    )
     versions = run.versions or {}
     representative_articles = [item for item in articles if not item.is_duplicate]
     embedding_rows = ArticleEmbedding.query.filter(

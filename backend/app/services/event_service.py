@@ -6,7 +6,7 @@ from datetime import datetime
 from sqlalchemy import or_
 
 from app.analysis.fake_detector import _build_context, batch_assess_articles
-from app.analysis.trend_predictor import get_lifecycle_change_points, predict_lifecycle_stage
+from app.analysis.trend_predictor import get_lifecycle_change_points
 from app.extensions import db
 from app.models import AnalysisRunArticle, Article, Event, EventHeatSnapshot, Report
 from app.services.event_similarity_service import search_historical_events
@@ -192,6 +192,14 @@ def _event_item(event: Event, snapshot: EventHeatSnapshot | None = None, platfor
         "is_hot": bool(event.is_hot),
         "hot_rank": event.hot_rank,
         "lifecycle_stage": api_lifecycle_stage(event.lifecycle_stage),
+        "lifecycle_status": event.lifecycle_status,
+        "lifecycle_confidence": float(event.lifecycle_confidence or 0),
+        "lifecycle_evidence": event.lifecycle_evidence or {},
+        "lifecycle_updated_at": (
+            event.lifecycle_updated_at.isoformat()
+            if event.lifecycle_updated_at
+            else None
+        ),
         "sentiment_positive": positive,
         "sentiment_negative": negative,
         "sentiment_neutral": neutral,
@@ -306,11 +314,6 @@ def get_event_detail(event_id: int) -> dict | None:
         trend_counts = list(daily.values())
         trend_heat = trend_counts  # fallback: 热度=报道量
     lifecycle_points = get_lifecycle_change_points(trend_counts, trend_dates)
-    # 根据实际趋势数据计算并持久化生命周期阶段
-    current_lifecycle = predict_lifecycle_stage(trend_counts)
-    if current_lifecycle != event.lifecycle_stage:
-        event.lifecycle_stage = current_lifecycle
-        db.session.commit()
     # 计算事件级风险摘要
     ctx = _build_context(event.id, articles)
     article_risks = batch_assess_articles(articles, ctx)
@@ -336,9 +339,6 @@ def get_event_detail(event_id: int) -> dict | None:
             if reason and "未发现" not in reason
         ))[:5],
     }
-
-    # 覆写 lifecycle_stage 为根据实时趋势数据计算的结果
-    data["lifecycle_stage"] = api_lifecycle_stage(current_lifecycle)
 
     # ── AI 元数据：从 articles 聚合 ──
     # AI 元数据：优先用 LLM 提取，失败回退 DB 已有值

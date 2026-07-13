@@ -292,13 +292,13 @@ git commit -m "feat: 增加可解释生命周期判定" -m "Co-Authored-By: Clau
 - Test: `backend/tests/test_event_aggregation_service.py`
 - Test: `backend/tests/test_hotspot_service.py`
 
-- [ ] **Step 1: Add failing persistence/read-only tests**
+- [x] **Step 1: Add failing persistence/read-only tests**
 
 Assert event update workflows save `lifecycle_status`, `lifecycle_confidence` and JSON evidence. Add a detail-read test that records `event.updated_at`, calls `get_event_detail()`, and asserts no lifecycle fields or timestamps were changed.
 
-- [ ] **Step 2: Run and verify RED**
+- [x] **Step 2: Run and verify RED**
 
-- [ ] **Step 3: Add model fields and idempotent migration**
+- [x] **Step 3: Add model fields and idempotent migration**
 
 ```python
 lifecycle_status = db.Column(db.String(24), nullable=False, default="data_insufficient")
@@ -307,20 +307,20 @@ lifecycle_evidence = db.Column(db.JSON)
 lifecycle_updated_at = db.Column(db.DateTime)
 ```
 
-- [ ] **Step 4: Add one event lifecycle update helper**
+- [x] **Step 4: Add one event lifecycle update helper**
 
 Create a focused service helper that receives an Event and daily counts, calls `analyze_lifecycle(previous_stage=event.lifecycle_stage)`, updates the four fields and commits only as part of the caller transaction.
 
-- [ ] **Step 5: Make event detail serialization read-only**
+- [x] **Step 5: Make event detail serialization read-only**
 
 Return lifecycle metadata without calling `db.session.commit()` or changing the Event.
 
-- [ ] **Step 6: Run migration, service and full core tests**
+- [x] **Step 6: Run migration, service and full core tests**
 
 ```powershell
 python -m pytest backend/tests/test_event_aggregation_service.py backend/tests/test_hotspot_service.py backend/tests/test_trend_predictor.py -q
 ```
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 Commit model, migration, services and tests together because they form one schema contract.

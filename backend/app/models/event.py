@@ -39,6 +39,12 @@ class Event(db.Model):
     sentiment_score = db.Column(db.Float, default=0)
     sentiment_updated_at = db.Column(db.DateTime)
     lifecycle_stage = db.Column(db.String(20), default="潜伏期")
+    lifecycle_status = db.Column(
+        db.String(24), nullable=False, default="data_insufficient"
+    )
+    lifecycle_confidence = db.Column(db.Float, nullable=False, default=0.0)
+    lifecycle_evidence = db.Column(db.JSON)
+    lifecycle_updated_at = db.Column(db.DateTime)
     center_vector = db.Column(db.JSON)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())

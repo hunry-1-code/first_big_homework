@@ -287,6 +287,9 @@ class HotspotServiceTest(unittest.TestCase):
             self.assertIsNotNone(event.current_heat_snapshot_id)
             self.assertEqual(event.independent_report_count, 3)
             self.assertEqual(event.platform_count, 3)
+            self.assertEqual(event.lifecycle_status, "data_insufficient")
+            self.assertIsInstance(event.lifecycle_evidence, dict)
+            self.assertIsNotNone(event.lifecycle_updated_at)
         self.assertEqual(len(get_current_hotspots()["events"]), 2)
 
     def test_heat_article_preserves_explicit_zero_quality_weights(self):

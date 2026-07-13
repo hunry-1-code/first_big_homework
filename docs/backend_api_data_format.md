@@ -19,6 +19,10 @@
 | `summary` | string | ✅ | 事件摘要描述 |
 | `heat_index` | float | ✅ | 综合热度指数，0-100，前端按 ≥80 红 / ≥50 橙 / <50 蓝 着色 |
 | `lifecycle_stage` | string | ✅ | 生命周期阶段：`"潜伏期"` / `"成长期"` / `"高潮期"` / `"消退期"` |
+| `lifecycle_status` | string | ✅ | 数据状态：`"sufficient"` / `"data_insufficient"`，历史人工状态可原样返回 |
+| `lifecycle_confidence` | float | ✅ | 生命周期判定置信度，0-1 |
+| `lifecycle_evidence` | object | ✅ | 点数、峰值比、近期斜率、波动和下降等可解释证据 |
+| `lifecycle_updated_at` | string/null | ✅ | 生命周期最近一次更新的 ISO 时间；详情 GET 不会修改该值 |
 | `sentiment_positive` | float | ✅ | 正面情感占比，0-1，如 `0.05` |
 | `sentiment_negative` | float | ✅ | 负面情感占比，0-1 |
 | `sentiment_neutral` | float | ✅ | 中立情感占比，0-1 |
@@ -66,6 +70,10 @@
 | `summary` | string | ✅ | |
 | `heat_index` | float | ✅ | |
 | `lifecycle_stage` | string | ✅ | `"潜伏期"` / `"成长期"` / `"高潮期"` / `"消退期"` |
+| `lifecycle_status` | string | ✅ | `"sufficient"` / `"data_insufficient"` 或已持久化的审核状态 |
+| `lifecycle_confidence` | float | ✅ | 0-1 |
+| `lifecycle_evidence` | object | ✅ | 生命周期判定依据 |
+| `lifecycle_updated_at` | string/null | ✅ | ISO 时间 |
 | `sentiment_positive` | float | ✅ | 0-1 |
 | `sentiment_negative` | float | ✅ | 0-1 |
 | `sentiment_neutral` | float | ✅ | 0-1 |
