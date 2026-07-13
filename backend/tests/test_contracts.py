@@ -20,8 +20,11 @@ from app.services.api_contract_service import api_platform_name, api_lifecycle_s
 class ApiOutputContractTest(unittest.TestCase):
     def test_maps_contract_enums_and_values(self):
         self.assertEqual(api_platform_name('weibo_hot'),'微博热搜')
-        self.assertEqual(api_lifecycle_stage('高潮期'),'爆发期')
-        self.assertEqual(api_sentiment_label('中立'),'中性')
+        self.assertEqual(api_lifecycle_stage('高潮期'),'高潮期')
+        self.assertEqual(api_lifecycle_stage('爆发期'),'潜伏期')
+        self.assertEqual(api_sentiment_label('neutral'),'中立')
+        self.assertEqual(api_sentiment_label('中性'),'中立')
+        self.assertEqual(api_sentiment_label('unknown'),'中立')
         self.assertEqual(clamp_heat(120),100.0)
         self.assertEqual(sum(normalized_sentiment(2,1,1)),1.0)
     def test_builds_trend_key_points(self):

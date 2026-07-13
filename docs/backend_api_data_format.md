@@ -2,6 +2,8 @@
 
 本文档描述前端各页面实际消费的数据字段，供后端开发同学对齐接口返回格式。
 
+> v2 契约对齐日期：2026-07-13。生命周期统一使用“潜伏期 / 成长期 / 高潮期 / 消退期”，文章情感标签统一使用“正面 / 中立 / 负面”。
+
 > 通用约定：所有接口返回 `{ "code": 200, "data": {...} }` 格式。`code !== 200` 视为错误。
 
 ---
@@ -16,10 +18,10 @@
 | `title` | string | ✅ | 事件标题（限 50 字） |
 | `summary` | string | ✅ | 事件摘要描述 |
 | `heat_index` | float | ✅ | 综合热度指数，0-100，前端按 ≥80 红 / ≥50 橙 / <50 蓝 着色 |
-| `lifecycle_stage` | string | ✅ | 生命周期阶段：`"潜伏期"` / `"成长期"` / `"爆发期"` / `"消退期"` |
+| `lifecycle_stage` | string | ✅ | 生命周期阶段：`"潜伏期"` / `"成长期"` / `"高潮期"` / `"消退期"` |
 | `sentiment_positive` | float | ✅ | 正面情感占比，0-1，如 `0.05` |
 | `sentiment_negative` | float | ✅ | 负面情感占比，0-1 |
-| `sentiment_neutral` | float | ✅ | 中性情感占比，0-1 |
+| `sentiment_neutral` | float | ✅ | 中立情感占比，0-1 |
 
 **查询参数**：`?page=1&size=20&keyword=xxx`
 
@@ -34,7 +36,7 @@
         "title": "某知名互联网企业疑似发生大规模用户数据泄露事件",
         "summary": "近日有网民爆料称...",
         "heat_index": 92.3,
-        "lifecycle_stage": "爆发期",
+        "lifecycle_stage": "高潮期",
         "sentiment_positive": 0.05,
         "sentiment_negative": 0.82,
         "sentiment_neutral": 0.13
@@ -63,7 +65,7 @@
 | `title` | string | ✅ | |
 | `summary` | string | ✅ | |
 | `heat_index` | float | ✅ | |
-| `lifecycle_stage` | string | ✅ | `"潜伏期"` / `"成长期"` / `"爆发期"` / `"消退期"` |
+| `lifecycle_stage` | string | ✅ | `"潜伏期"` / `"成长期"` / `"高潮期"` / `"消退期"` |
 | `sentiment_positive` | float | ✅ | 0-1 |
 | `sentiment_negative` | float | ✅ | 0-1 |
 | `sentiment_neutral` | float | ✅ | 0-1 |
@@ -125,7 +127,7 @@
 | `articles.articles[].comments_count` | int | 🟡 | 评论数 |
 | `articles.articles[].likes_count` | int | 🟡 | 点赞数 |
 | `articles.articles[].clean_content` | string | ✅ | 清洗后的正文摘要 |
-| `articles.articles[].sentiment_label` | string | ✅ | `"正面"` / `"中性"` / `"负面"` |
+| `articles.articles[].sentiment_label` | string | ✅ | `"正面"` / `"中立"` / `"负面"` |
 | `articles.articles[].is_suspicious` | bool | ✅ | 是否可疑（虚假检测） |
 | `articles.articles[].suspicious_score` | float | 🟡 | 可疑度分值 0-1，仅 `is_suspicious=true` 时需要 |
 
@@ -139,7 +141,7 @@
     "title": "某知名互联网企业疑似发生大规模用户数据泄露事件",
     "summary": "近日有网民爆料称某头部互联网公司发生用户隐私数据泄露...",
     "heat_index": 92.3,
-    "lifecycle_stage": "爆发期",
+    "lifecycle_stage": "高潮期",
     "sentiment_positive": 0.05,
     "sentiment_negative": 0.82,
     "sentiment_neutral": 0.13,
@@ -262,7 +264,7 @@
 | ⚠️ **平台字段名** | `"name": "样例数据"` | `"platform": "微博热搜"`（7 选 1） |
 | ⚠️ **趋势日期格式** | `"2026-07-08"`（ISO 全格式） | `"7/8"`（短格式 M/D） |
 | ⚠️ **趋势数据量** | 仅 2 个点 | 建议 7-14 个点 |
-| ⚠️ **情感标签** | 出现 `"中立"` | 只能是 `"中性"` |
+| ⚠️ **情感标签** | 出现 `"中性"` 或未知值 | 统一规范化为 `"中立"` |
 | 🔴 **User 表缺 status** | 无此字段 | 新增 `status` int 列 |
 
 ### 5.4 结论
@@ -277,6 +279,6 @@
 |------|------|
 | **平台名必须精确** | `platform` 字段只能使用 7 个值：`"微博热搜"` / `"微博搜索"` / `"知乎"` / `"B站"` / `"小红书"` / `"百度热搜"` / `"百度搜索"`。用错则图标和品牌色失效 |
 | `lifecycle_stage` 四选一 | 只能返回 4 个字符串之一，前端按值做阶段指示器 |
-| `sentiment_*` 三者之和应为 1.0 | 正面+中性+负面 = 1.0，前端饼图依赖此比例 |
+| `sentiment_*` 三者之和应为 1.0 | 正面+中立+负面 = 1.0，前端饼图依赖此比例 |
 | `heat_index` 建议 0-100 | 前端进度条和颜色阈值基于此范围 |
 | `trend` 建议 7-14 个点 | 少于 7 个点时前端自动生成模拟数据（影响准确性） |

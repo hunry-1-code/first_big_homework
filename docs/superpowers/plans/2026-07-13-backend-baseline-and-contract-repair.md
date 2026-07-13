@@ -93,7 +93,7 @@ git commit -m "fix: 修复内容分析关键词持久化与BGE调用" -m "Co-Aut
 - Test: `backend/tests/test_hotspot_service.py`
 - Test: `backend/tests/test_jobs.py`
 
-- [ ] **Step 1: Run direct downstream suites**
+- [x] **Step 1: Run direct downstream suites**
 
 ```powershell
 python -m pytest backend/tests/test_crawler_api.py backend/tests/test_hotspot_service.py backend/tests/test_jobs.py -q
@@ -101,19 +101,19 @@ python -m pytest backend/tests/test_crawler_api.py backend/tests/test_hotspot_se
 
 Expected: failures caused by JSON serialization disappear. Record any remaining independent failure by exact test name and traceback.
 
-- [ ] **Step 2: For every remaining independent failure, add or isolate its reproducer**
+- [x] **Step 2: For every remaining independent failure, add or isolate its reproducer**
 
 Do not edit production code until the failure is reduced to one focused test. The new test must fail for the observed independent reason, not for content-analysis serialization.
 
-- [ ] **Step 3: Apply the minimum independent fix**
+- [x] **Step 3: Apply the minimum independent fix**
 
 Use the root-cause evidence from Step 2. Do not change hotspot formulas, clustering thresholds or task semantics in this baseline task.
 
-- [ ] **Step 4: Re-run the downstream suites**
+- [x] **Step 4: Re-run the downstream suites**
 
 Expected: all three suites pass before proceeding.
 
-- [ ] **Step 5: Record the verification result**
+- [x] **Step 5: Record the verification result**
 
 If all failures disappear, proceed without a code commit. If a new independent failure appears, stop this task and insert a new focused TDD task into this plan before editing production code.
 
@@ -124,7 +124,7 @@ If all failures disappear, proceed without a code commit. If a new independent f
 - Modify: `backend/tests/test_contracts.py`
 - Modify: `docs/backend_api_data_format.md`
 
-- [ ] **Step 1: Change the contract test to the approved values**
+- [x] **Step 1: Change the contract test to the approved values**
 
 Replace stale expectations with:
 
@@ -141,7 +141,7 @@ self.assertEqual(api_lifecycle_stage("爆发期"), "潜伏期")
 self.assertEqual(api_sentiment_label("unknown"), "中立")
 ```
 
-- [ ] **Step 2: Run the contract test and verify RED**
+- [x] **Step 2: Run the contract test and verify RED**
 
 ```powershell
 python -m pytest backend/tests/test_contracts.py::ApiOutputContractTest::test_maps_contract_enums_and_values -q
@@ -149,7 +149,7 @@ python -m pytest backend/tests/test_contracts.py::ApiOutputContractTest::test_ma
 
 Expected: current code returns `中性` for neutral sentiment.
 
-- [ ] **Step 3: Implement the canonical mapping**
+- [x] **Step 3: Implement the canonical mapping**
 
 Use readable constants rather than one-line functions:
 
@@ -168,7 +168,7 @@ SENTIMENT_LABELS = {
 
 `api_lifecycle_stage()` returns the input only when it is canonical. `api_sentiment_label()` defaults to `中立`.
 
-- [ ] **Step 4: Run contract tests**
+- [x] **Step 4: Run contract tests**
 
 ```powershell
 python -m pytest backend/tests/test_contracts.py -q
@@ -176,11 +176,11 @@ python -m pytest backend/tests/test_contracts.py -q
 
 Expected: all pass.
 
-- [ ] **Step 5: Update stale API examples**
+- [x] **Step 5: Update stale API examples**
 
 In `docs/backend_api_data_format.md`, replace `爆发期` with `高潮期` and `中性` with `中立`, and mark the document as aligned to the v2 contract date.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```powershell
 git add backend/app/services/api_contract_service.py backend/tests/test_contracts.py docs/backend_api_data_format.md

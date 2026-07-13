@@ -670,6 +670,13 @@ idle → startAnalysis() → running (2s 轮询 GET /api/tasks/:id)
 - 聚焦红色测试修复前稳定失败，错误为 `ArticleKeyword is not JSON serializable` 和 `encoder.calls == 0`；
 - 修复后聚焦测试 `2 passed`；
 - `backend/tests/test_content_analysis_service.py` 完整套件 `11 passed`。
+- 爬虫 API、热点服务和后台任务下游套件共 `36 passed`，未再出现由关键词 JSON 序列化引发的连锁失败。
+
+### 21.2 API 枚举契约统一
+
+前端和后端的正式 v2 契约统一为：生命周期阶段使用“潜伏期 / 成长期 / 高潮期 / 消退期”，文章情感标签使用“正面 / 中立 / 负面”。后端兼容接收旧值“中性”，但对外规范化为“中立”；无效生命周期值回退到“潜伏期”，无效情感值回退到“中立”。
+
+TDD 验证：修改后的契约测试首先稳定复现 `neutral` 被错误映射为“中性”；修复映射后运行 `python -m pytest backend/tests/test_contracts.py -q`，结果为 `8 passed`。
 
 ---
 
