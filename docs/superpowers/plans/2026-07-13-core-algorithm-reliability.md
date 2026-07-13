@@ -129,7 +129,7 @@ git commit -m "feat: 增加事件聚类歧义区与二次重分配" -m "Co-Autho
 - Modify: `backend/app/propagation/builder.py`
 - Modify: `backend/tests/test_propagation.py`
 
-- [ ] **Step 1: Add failing evidence tests**
+- [x] **Step 1: Add failing evidence tests**
 
 Keep the existing unrelated-articles regression. Add:
 
@@ -144,13 +144,13 @@ def test_textual_weibo_repost_is_explicit_evidence(self):
 
 Add a related follow-up case without explicit repost and assert it creates one inferred edge with component evidence.
 
-- [ ] **Step 2: Run and verify RED**
+- [x] **Step 2: Run and verify RED**
 
 ```powershell
 python -m pytest backend/tests/test_propagation.py::PropagationBuilderTest -q
 ```
 
-- [ ] **Step 3: Separate scoring components**
+- [x] **Step 3: Separate scoring components**
 
 Replace duplicated `shared=sim` with a structured scorer:
 
@@ -168,15 +168,15 @@ class InferredEvidence:
 
 Require `semantic >= 0.20`, at least one supporting signal (`source` or `entity_or_keyword`), and `final_score >= 0.38`. Time and cross-platform status cannot create an edge by themselves.
 
-- [ ] **Step 4: Expand explicit parsing**
+- [x] **Step 4: Expand explicit parsing**
 
 Parse structured parent IDs first, then `//@账号`, `转自账号`, `来源：账号` text. Match normalized author names in both containment directions while rejecting one-character names.
 
-- [ ] **Step 5: Build conservative edges**
+- [x] **Step 5: Build conservative edges**
 
 Builder chooses at most one parent, prefers explicit evidence, includes component scores in `evidence`, and leaves unrelated nodes as independent roots.
 
-- [ ] **Step 6: Run tests and commit**
+- [x] **Step 6: Run tests and commit**
 
 ```powershell
 python -m pytest backend/tests/test_propagation.py -q

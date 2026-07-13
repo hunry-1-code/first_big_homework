@@ -189,6 +189,35 @@ class PropagationBuilderTest(unittest.TestCase):
         self.assertEqual(result['graph']['links'],[])
         self.assertEqual(result['summary']['origin_candidate_count'],2)
 
+    def test_textual_weibo_repost_is_explicit_evidence(self):
+        from app.propagation.builder import build_propagation_graph
+        parent = self._article(1, '某公司发布公告', 0, author='账号甲')
+        child = self._article(
+            2,
+            '转发公告',
+            1,
+            content='//@账号甲 某公司发布公告',
+        )
+
+        result = build_propagation_graph([parent, child])
+        edge = result['graph']['links'][0]
+
+        self.assertEqual(edge['source'], 1)
+        self.assertEqual(edge['evidence_type'], 'explicit')
+
+    def test_related_followup_exposes_component_evidence(self):
+        from app.propagation.builder import build_propagation_graph
+        parent = self._article(1, '某公司发布新产品', 0)
+        child = self._article(2, '某公司新产品引发关注', 2)
+
+        result = build_propagation_graph([parent, child])
+        edge = result['graph']['links'][0]
+
+        self.assertEqual(edge['evidence_type'], 'inferred')
+        self.assertGreaterEqual(edge['evidence_components']['semantic'], 0.20)
+        self.assertGreaterEqual(edge['evidence_components']['final_score'], 0.38)
+        self.assertTrue(edge['evidence_components']['entity_or_keyword'] > 0)
+
     def test_missing_author(self):
         """缺少作者使用默认值。"""
         class Stub:
