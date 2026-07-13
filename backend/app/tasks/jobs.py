@@ -68,7 +68,7 @@ def crawl_job(task_id: int, registry: CrawlerRegistry | None = None) -> dict:
         target_count=payload.get("target_count"),
         mode=mode,
     )
-    update_task(task_id, progress=30, message=f"采集完成，获得 {len(batch.documents)} 条原始数据。")
+    update_task(task_id, progress=25, message=f"采集完成，获得 {len(batch.documents)} 条原始数据。")
     record_stage(task_id, "crawl", "done", f"{len(batch.documents)}篇")
 
     processed = 0
@@ -92,7 +92,7 @@ def crawl_job(task_id: int, registry: CrawlerRegistry | None = None) -> dict:
                     True,
                 )
             )
-        progress = 30 + int(index / max(1, len(batch.documents)) * 65)
+        progress = 25 + int(index / max(1, len(batch.documents)) * 25)  # 预处理: 25-50%
         update_task(task_id, progress=progress, message=f"已处理 {index}/{len(batch.documents)} 条数据。")
 
     errors = [
@@ -287,7 +287,7 @@ def crawl_job(task_id: int, registry: CrawlerRegistry | None = None) -> dict:
             run_sentiment_analysis,
         )
 
-        update_task(task_id, progress=96, message="正在执行搜索语料内容分析。")
+        update_task(task_id, progress=52, message="正在执行内容分析（TF-IDF + BGE）...")
         record_stage(task_id, "preprocess", "done", f"{processed}篇")
         effective_platforms = platforms or list(batch.platform_counts.keys())
         analysis_run, analysis_reused = create_analysis_run(
@@ -301,7 +301,7 @@ def crawl_job(task_id: int, registry: CrawlerRegistry | None = None) -> dict:
         if not analysis_reused or analysis_run.status != "success":
             run_content_analysis(analysis_run.id, task_id=task_id)
         record_stage(task_id, "content_analysis", "done", f"{analysis_run.representative_count}篇代表")
-        update_task(task_id, progress=98, message="正在生成共享搜索事件。")
+        update_task(task_id, progress=66, message="正在执行事件聚合...")
         aggregation_run, aggregation_reused = create_aggregation_run(
             analysis_run.id,
             user_id=task.get("created_by"),
@@ -310,6 +310,7 @@ def crawl_job(task_id: int, registry: CrawlerRegistry | None = None) -> dict:
         if not aggregation_reused or aggregation_run.status != "success":
             run_event_aggregation(aggregation_run.id, task_id=task_id)
         record_stage(task_id, "aggregation", "done", f"{aggregation_run.statistics.get('cluster_count','?')}个簇")
+        update_task(task_id, progress=80, message="正在执行情感分析（LLM）...")
         sentiment_run, sentiment_reused = create_sentiment_run(
             aggregation_run.id,
             source_task_id=task_id,
@@ -318,6 +319,7 @@ def crawl_job(task_id: int, registry: CrawlerRegistry | None = None) -> dict:
         if not sentiment_reused or sentiment_run.status != "success":
             run_sentiment_analysis(sentiment_run.id, task_id=task_id)
         record_stage(task_id, "sentiment", "done", f"{sentiment_run.statistics.get('result_count','?')}篇")
+        update_task(task_id, progress=93, message="正在发布事件...")
         # 自动发布事件簇 → 用户可直接在看板看到结果
         from app.services.event_aggregation_service import publish_cluster
         from app.models import AggregationCluster
