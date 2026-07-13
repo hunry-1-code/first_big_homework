@@ -349,7 +349,7 @@ function initSentimentTrendChart() {
   });
 
   const dailyDates = daily.map((d: any) => {
-    if (d.date) return d.date.slice(5); // MM-DD
+    if (d.date) { const m = d.date.slice(5, 7).replace(/^0/, ''); const day = d.date.slice(8, 10).replace(/^0/, ''); return m + '/' + day; }
     if (d.calculated_at) return d.calculated_at.slice(5, 10);
     return "";
   }).filter(Boolean);
