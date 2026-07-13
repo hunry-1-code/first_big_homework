@@ -17,7 +17,7 @@
 - Create: `tests/test_run_keyword_e2e.py`
 - Reuse: `tools/validate_backend_live.py`
 
-- [ ] **Step 1: Write failing pure behavior tests**
+- [x] **Step 1: Write failing pure behavior tests**
 
 Test:
 
@@ -75,7 +75,7 @@ def test_artifact_sanitizer_removes_token_and_credentials():
     assert "token" not in serialized.lower()
 ```
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 ```powershell
 python -m pytest tests/test_run_keyword_e2e.py -q
@@ -83,7 +83,7 @@ python -m pytest tests/test_run_keyword_e2e.py -q
 
 Expected: module import failure.
 
-- [ ] **Step 3: Implement sanitization and cluster selection**
+- [x] **Step 3: Implement sanitization and cluster selection**
 
 `safe_artifact()` must reuse recursive secret removal from `validate_backend_live.py`, and additionally remove JWT/token/password fields.
 
@@ -98,7 +98,7 @@ Expected: module import failure.
 
 Return `None` when best score is below 6.
 
-- [ ] **Step 4: Implement frontend quality rules**
+- [x] **Step 4: Implement frontend quality rules**
 
 `assess_frontend_data_quality(detail, propagation, dom_text)` returns:
 
@@ -114,13 +114,13 @@ Return `None` when best score is below 6.
 
 Rules cover title relevance, article count, article relevance ratio, platform count, finite heat, sentiment sum, trend alignment, platform-count alignment, keyword diversity, risk semantics, propagation limitations, fixed risk placeholders, DOM undefined/NaN/object text and required sections.
 
-- [ ] **Step 5: Run focused tests**
+- [x] **Step 5: Run focused tests**
 
 ```powershell
 python -m pytest tests/test_run_keyword_e2e.py -q
 ```
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```powershell
 git add tools/run_keyword_e2e.py tests/test_run_keyword_e2e.py
@@ -133,7 +133,7 @@ git commit -m "test: add keyword end-to-end quality driver" -m "Co-Authored-By: 
 - Modify: `tools/run_keyword_e2e.py`
 - Modify: `tests/test_run_keyword_e2e.py`
 
-- [ ] **Step 1: Write failing process and payload tests**
+- [x] **Step 1: Write failing process and payload tests**
 
 Test that the child environment:
 
@@ -153,7 +153,7 @@ Test API request payload exactly:
 }
 ```
 
-- [ ] **Step 2: Implement process lifecycle**
+- [x] **Step 2: Implement process lifecycle**
 
 Implement:
 
@@ -171,7 +171,7 @@ Backend command:
 python -c "from app import create_app; app=create_app(); app.run(host='127.0.0.1', port=5000, debug=False, use_reloader=False)"
 ```
 
-- [ ] **Step 3: Implement authenticated API flow**
+- [x] **Step 3: Implement authenticated API flow**
 
 1. Login with configured demo admin.
 2. Save only user id/username/role.
@@ -190,7 +190,7 @@ QA question:
 请根据当前报道说明《功夫女足》电影的核心信息、舆论情绪和数据局限，并区分事实与推断。
 ```
 
-- [ ] **Step 4: Export intermediate database state**
+- [x] **Step 4: Export intermediate database state**
 
 Using the same SQLite URI with recovery disabled, export:
 
@@ -205,7 +205,7 @@ Using the same SQLite URI with recovery disabled, export:
 
 Raw and clean text are capped at 800 characters, with full length and SHA-256.
 
-- [ ] **Step 5: Run tests and commit**
+- [x] **Step 5: Run tests and commit**
 
 ```powershell
 python -m pytest tests/test_run_keyword_e2e.py -q
