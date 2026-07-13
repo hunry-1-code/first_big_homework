@@ -146,7 +146,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, nextTick } from "vue";
+import { onMounted, ref, computed, nextTick } from "vue";
 import { useRoute } from "vue-router";
 import { useEventsStore } from "@/store/modules/events";
 import { askQuestion, getQaHistory } from "@/api/qa";
