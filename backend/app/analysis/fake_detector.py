@@ -6,6 +6,7 @@ LLM 辅助：§6.1.1 Step 3（高风险事件调用 LLM，失败降级规则）
 """
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 
@@ -23,6 +24,14 @@ _ADVERTISING_PATTERNS = (
 )
 _URL_PATTERN = re.compile(r"(?:https?://|www\.)[^\s]+", re.IGNORECASE)
 TITLE_CONTENT_CONSISTENCY_MIN = 0.30
+RISK_FEATURE_WEIGHTS = {
+    "source_traceability": 0.20,
+    "cross_platform_corroboration": 0.20,
+    "title_content_consistency": 0.15,
+    "interaction_anomaly": 0.15,
+    "sensationalism": 0.15,
+    "advertising_or_external_link": 0.15,
+}
 
 
 def title_content_consistency(
@@ -269,12 +278,24 @@ def _estimate_anomaly_speed(article, ctx: dict) -> bool:
     return avg > 0 and interactions > avg * 2
 
 
+def _interaction_anomaly_score(article, ctx: dict) -> float:
+    interactions = (
+        (getattr(article, "comments_count", 0) or 0)
+        + (getattr(article, "reposts_count", 0) or 0)
+        + (getattr(article, "likes_count", 0) or 0)
+    )
+    average = float(ctx.get("avg_interactions", 0) or 0)
+    if average <= 0:
+        return 0.0
+    ratio = interactions / average
+    return max(0.0, min(1.0, (ratio - 1.0) / 2.0))
+
+
 def assess_suspicious_risk(article, ctx: dict) -> dict:
     """对单篇文章进行可疑信息风险评估。
 
     规格依据：项目需求规格说明书 §6.1.2 综合评分
     """
-    score = 25.0
     reasons = []
     feature_scores = {}
     evidence = {}
@@ -283,7 +304,6 @@ def assess_suspicious_risk(article, ctx: dict) -> dict:
     author = (getattr(article, "author", None) or "").strip()
     is_official = _match_official_media(author)
     if not author or author in ("未知", "匿名", "佚名"):
-        score += 15
         reasons.append("来源可信度较低（作者不可溯源）")
         feature_scores["source_traceability"] = 1.0
     else:
@@ -300,7 +320,6 @@ def assess_suspicious_risk(article, ctx: dict) -> dict:
     )
     missing_corroboration = len(corroboration) <= 1
     if missing_corroboration:
-        score += 15
         reasons.append("缺少跨平台佐证")
     feature_scores["cross_platform_corroboration"] = (
         1.0 if missing_corroboration else 0.0
@@ -316,23 +335,21 @@ def assess_suspicious_risk(article, ctx: dict) -> dict:
     text = title + content[:200]
     hit_keywords = [kw for kw in _sensational_keywords if kw in text]
     if hit_keywords:
-        score += 10
         reasons.append(f"标题/正文存在夸张煽动表达: {', '.join(hit_keywords[:3])}")
-    feature_scores["sensationalism"] = 1.0 if hit_keywords else 0.0
+    feature_scores["sensationalism"] = min(1.0, len(set(hit_keywords)) / 3.0)
     evidence["sensationalism"] = hit_keywords[:3]
 
     # Supplemental low-weight textual signals. None is sufficient to label a text fake.
     hit_ads = [pattern for pattern in _ADVERTISING_PATTERNS if pattern in content]
     if hit_ads:
-        score += 8
         reasons.append(f"正文存在广告引流表达: {', '.join(hit_ads[:2])}")
-    feature_scores["advertising"] = 1.0 if hit_ads else 0.0
 
     has_external_link = bool(_URL_PATTERN.search(content))
     if has_external_link:
-        score += 3
         reasons.append("正文包含外部链接，需核验链接来源")
-    feature_scores["external_link"] = 1.0 if has_external_link else 0.0
+    feature_scores["advertising_or_external_link"] = (
+        1.0 if hit_ads else 0.4 if has_external_link else 0.0
+    )
 
     consistency_score = title_content_consistency(title, content)
     low_consistency = (
@@ -340,7 +357,6 @@ def assess_suspicious_risk(article, ctx: dict) -> dict:
         and consistency_score < TITLE_CONTENT_CONSISTENCY_MIN
     )
     if low_consistency:
-        score += 5
         reasons.append("标题与正文一致性较低")
     feature_scores["title_content_consistency"] = (
         round(1.0 - consistency_score, 6)
@@ -355,27 +371,32 @@ def assess_suspicious_risk(article, ctx: dict) -> dict:
     # 4. 负面情绪：score < -0.5 +10
     sentiment = getattr(article, "sentiment_score", None)
     if sentiment is not None and sentiment < -0.5:
-        score += 10
-        reasons.append("负面情绪比例较高")
+        evidence["negative_sentiment"] = {
+            "score": float(sentiment),
+            "note": "情绪极性不直接计入可疑信息风险分",
+        }
     feature_scores["negative_sentiment"] = (
         1.0 if sentiment is not None and sentiment < -0.5 else 0.0
     )
 
     # 5. 传播速度异常 +10
-    anomalous_speed = _estimate_anomaly_speed(article, ctx)
+    anomaly_score = _interaction_anomaly_score(article, ctx)
+    anomalous_speed = anomaly_score > 0.5
     if anomalous_speed:
-        score += 10
         reasons.append("传播速度异常")
-    feature_scores["interaction_anomaly"] = 1.0 if anomalous_speed else 0.0
+    feature_scores["interaction_anomaly"] = round(anomaly_score, 6)
 
     # 6. 官方回应：有官方媒体介入 -20
     if ctx.get("has_official_media", False):
-        score -= 20
         reasons.append("有官方媒体或权威来源回应")
     feature_scores["official_response"] = (
         1.0 if ctx.get("has_official_media", False) else 0.0
     )
 
+    score = sum(
+        RISK_FEATURE_WEIGHTS[name] * feature_scores[name]
+        for name in RISK_FEATURE_WEIGHTS
+    ) * 100
     score = max(0.0, min(100.0, score))
     is_suspicious = score >= 40
 
@@ -391,11 +412,36 @@ def assess_suspicious_risk(article, ctx: dict) -> dict:
             if article_id not in ctx.get("corroboration_by_article", {})
             else []
         ),
-        "rule_version": "suspicious-risk-v2",
+        "rule_version": "suspicious-risk-v3-empirical",
     }
 
 
-def batch_assess_articles(articles: list, ctx: dict) -> list[dict]:
+def _parse_llm_review(response: dict) -> dict | None:
+    content = str((response or {}).get("content", "") or "").strip()
+    if content.startswith("```"):
+        content = re.sub(r"^```(?:json)?\s*|\s*```$", "", content, flags=re.I)
+    try:
+        value = json.loads(content)
+    except (TypeError, ValueError):
+        return None
+    if not isinstance(value, dict) or not str(value.get("reason", "")).strip():
+        return None
+    return {
+        "risk_level": str(value.get("risk_level", "uncertain"))[:24],
+        "reason": str(value.get("reason", "")).strip()[:500],
+        "confidence": max(0.0, min(1.0, float(value.get("confidence", 0) or 0))),
+        "model": (response or {}).get("model"),
+    }
+
+
+def batch_assess_articles(
+    articles: list,
+    ctx: dict,
+    *,
+    client=None,
+    llm_min_score: float | None = None,
+    llm_max_score: float | None = None,
+) -> list[dict]:
     """批量评估文章可疑风险。
 
     对评分 > 70 的文章尝试调用 LLM 做辅助分析，
@@ -407,25 +453,30 @@ def batch_assess_articles(articles: list, ctx: dict) -> list[dict]:
         return []
 
     results = []
-    _llm_client = None
+    from app.core.config import Config
+
+    minimum = float(
+        Config.RISK_LLM_MIN_SCORE if llm_min_score is None else llm_min_score
+    )
+    maximum = float(
+        Config.RISK_LLM_MAX_SCORE if llm_max_score is None else llm_max_score
+    )
+    _llm_client = client
 
     for article in articles:
         result = assess_suspicious_risk(article, ctx)
-        # 可疑文章尝试 LLM 辅助（≥40 分即触发，原为 ≥70）
-        if result["score"] >= 40:
+        if minimum <= result["score"] <= maximum:
             try:
                 from app.llm.client import LLMUnavailableError
 
                 try:
-                    from app.core.config import settings
-
                     if _llm_client is None:
                         from app.llm.client import LLMClient
 
                         _llm_client = LLMClient(
-                            api_key=getattr(settings, "LLM_API_KEY", ""),
-                            base_url=getattr(settings, "LLM_BASE_URL", ""),
-                            model_name=getattr(settings, "LLM_MODEL_NAME", ""),
+                            api_key=Config.LLM_API_KEY,
+                            base_url=Config.LLM_BASE_URL,
+                            model_name=Config.LLM_MODEL_NAME,
                             timeout=30,
                         )
 
@@ -434,15 +485,19 @@ def batch_assess_articles(articles: list, ctx: dict) -> list[dict]:
                     resp = _llm_client.chat([{
                         "role": "user",
                         "content": (
-                            f"判断以下信息是否存在虚假或可疑风险，用一句话说明原因：\n"
+                            "判断以下信息是否存在可疑风险。只返回 JSON："
+                            '{"risk_level":"low|medium|high","reason":"...","confidence":0.0}\n'
                             f"标题：{llm_title}\n内容：{llm_content}\n"
                             f"当前规则评分：{result['score']}/100\n"
                             f"已有风险因素：{result['reason']}"
                         ),
                     }])
-                    llm_reason = resp.get("content", "").strip()
-                    if llm_reason:
-                        result["reason"] = f"[规则] {result['reason']} | [LLM] {llm_reason}"
+                    review = _parse_llm_review(resp)
+                    if review:
+                        result["evidence"]["llm_review"] = review
+                        result["reason"] = (
+                            f"[规则] {result['reason']} | [LLM] {review['reason']}"
+                        )
                         result["method"] = "mixed"
                 except LLMUnavailableError:
                     pass  # LLM 不可用，保持 rule

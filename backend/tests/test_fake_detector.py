@@ -16,6 +16,7 @@ from app.analysis.fake_detector import (
     _load_official_media,
     _match_official_media,
     _sensational_keywords,
+    RISK_FEATURE_WEIGHTS,
     assess_suspicious_risk,
     batch_assess_articles,
     title_content_consistency,
@@ -113,7 +114,8 @@ class AssessSuspiciousRiskTest(unittest.TestCase):
             corroboration_evidence_by_article={1: []},
         )
         result = assess_suspicious_risk(article, ctx)
-        self.assertGreaterEqual(result["score"], 40)
+        self.assertEqual(result["score"], 20.0)
+        self.assertFalse(result["is_suspicious"])
         self.assertIn("缺少跨平台佐证", result["reason"])
 
     def test_article_level_corroboration_avoids_event_wide_penalty(self):
@@ -155,14 +157,15 @@ class AssessSuspiciousRiskTest(unittest.TestCase):
         article = self._make_article(title="突发！某地发生惊天大事震惊全网")
         ctx = self._make_event_context()
         result = assess_suspicious_risk(article, ctx)
-        self.assertGreater(result["score"], 30)
+        self.assertGreater(result["score"], 0)
         self.assertIn("标题", result["reason"])
 
     def test_negative_sentiment_adds_score(self):
         article = self._make_article(sentiment_score=-0.8)
         ctx = self._make_event_context()
         result = assess_suspicious_risk(article, ctx)
-        self.assertGreater(result["score"], 30)
+        self.assertEqual(result["score"], 0.0)
+        self.assertEqual(result["feature_scores"]["negative_sentiment"], 1.0)
 
     def test_official_media_response_reduces_score(self):
         article = self._make_article(author="人民日报")
@@ -181,6 +184,7 @@ class AssessSuspiciousRiskTest(unittest.TestCase):
     def test_high_risk_detected(self):
         article = self._make_article(
             title="震惊！炸裂！突发重大事件",
+            author="",
         )
         ctx = self._make_event_context(
             platforms={"weibo"},  # 单平台
@@ -193,32 +197,57 @@ class AssessSuspiciousRiskTest(unittest.TestCase):
 
     def test_advertising_call_to_action_adds_low_weight_risk(self):
         article = self._make_article(
-            title="福利领取说明",
+            title="点击链接扫码领取福利",
             clean_content="点击链接扫码领取福利，并添加微信咨询",
         )
         result = assess_suspicious_risk(article, self._make_event_context())
-        self.assertEqual(result["score"], 33.0)
+        self.assertEqual(result["score"], 15.0)
         self.assertIn("广告引流", result["reason"])
 
     def test_external_link_adds_low_weight_risk(self):
         article = self._make_article(
-            title="更多内容查看",
+            title="更多内容请查看",
             clean_content="更多内容请查看 http://unknown.example/path",
         )
         result = assess_suspicious_risk(article, self._make_event_context())
-        self.assertEqual(result["score"], 28.0)
+        self.assertEqual(result["score"], 6.0)
         self.assertIn("外部链接", result["reason"])
 
     def test_title_content_low_consistency_adds_low_weight_risk(self):
         article = self._make_article(title="城市暴雨应急救援进展", clean_content="明星演唱会门票正式开售，现场座位已经公布。")
         result = assess_suspicious_risk(article, self._make_event_context())
-        self.assertEqual(result["score"], 30.0)
+        self.assertEqual(result["score"], 15.0)
         self.assertIn("标题与正文一致性较低", result["reason"])
 
     def test_short_or_missing_text_does_not_trigger_consistency_rule(self):
         article = self._make_article(title="通知", clean_content="内容")
         result = assess_suspicious_risk(article, self._make_event_context())
-        self.assertEqual(result["score"], 25.0)
+        self.assertEqual(result["score"], 0.0)
+
+    def test_weighted_features_reconstruct_final_score(self):
+        article = self._make_article(
+            author="",
+            title="突发台风登陆",
+            clean_content="演唱会门票已经正式开售，请点击链接立即购买。",
+        )
+        ctx = self._make_event_context(
+            platforms={"weibo"},
+            corroboration_by_article={1: {"weibo"}},
+            corroboration_evidence_by_article={1: []},
+        )
+
+        result = assess_suspicious_risk(article, ctx)
+
+        self.assertTrue(
+            all(0.0 <= value <= 1.0 for value in result["feature_scores"].values())
+        )
+        expected = sum(
+            RISK_FEATURE_WEIGHTS[name] * result["feature_scores"][name]
+            for name in RISK_FEATURE_WEIGHTS
+        ) * 100
+        self.assertAlmostEqual(result["score"], expected, places=1)
+        self.assertGreaterEqual(result["score"], 0.0)
+        self.assertLessEqual(result["score"], 100.0)
 
     def test_short_title_can_be_consistent_with_related_body(self):
         score = title_content_consistency(
@@ -270,8 +299,58 @@ class BatchAssessTest(unittest.TestCase):
         result = batch_assess_articles(articles, ctx)
         self.assertEqual(len(result), 3)
 
+    def test_llm_is_called_only_for_configured_gray_zone(self):
+        class FakeClient:
+            def __init__(self):
+                self.calls = []
+
+            def chat(self, messages, **kwargs):
+                self.calls.append(messages)
+                return {
+                    "content": '{"risk_level":"medium","reason":"需要进一步核验","confidence":0.7}',
+                    "model": "fake-risk",
+                }
+
+        low = self._make_stub(1)
+        gray = self._make_stub(2, author="")
+        high = self._make_stub(
+            3,
+            author="",
+            title="震惊炸裂突发台风登陆",
+            clean_content="演唱会门票已经开售，点击链接立即购买。",
+        )
+        ctx = {
+            "event_id": 1,
+            "article_count": 3,
+            "platforms": {"weibo", "zhihu"},
+            "corroboration_by_article": {
+                1: {"weibo", "zhihu"},
+                2: {"weibo"},
+                3: {"weibo"},
+            },
+            "corroboration_evidence_by_article": {1: [4], 2: [], 3: []},
+            "has_official_media": False,
+            "first_publish_time": None,
+            "avg_interactions": 50,
+        }
+        client = FakeClient()
+
+        results = batch_assess_articles(
+            [low, gray, high],
+            ctx,
+            client=client,
+            llm_min_score=30,
+            llm_max_score=70,
+        )
+
+        self.assertEqual(len(client.calls), 1)
+        self.assertEqual(results[0]["method"], "rule")
+        self.assertEqual(results[1]["method"], "mixed")
+        self.assertEqual(results[2]["method"], "rule")
+        self.assertIn("llm_review", results[1]["evidence"])
+
     @staticmethod
-    def _make_stub(idx):
+    def _make_stub(idx, **overrides):
         class Stub:
             id = idx
             platform = "weibo"
@@ -285,7 +364,10 @@ class BatchAssessTest(unittest.TestCase):
             reposts_count = 0
             likes_count = 0
             event_id = 1
-        return Stub()
+        value = Stub()
+        for key, item in overrides.items():
+            setattr(value, key, item)
+        return value
 
 
 class EdgeCaseTest(unittest.TestCase):

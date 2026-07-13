@@ -122,6 +122,12 @@ class Config:
     LLM_BASE_URL = os.getenv("LLM_BASE_URL", "https://api.deepseek.com")
     LLM_MODEL_NAME = os.getenv("LLM_MODEL_NAME", "deepseek-chat")
     LLM_REQUEST_TIMEOUT = max(1, int(os.getenv("LLM_REQUEST_TIMEOUT", "30")))
+    RISK_LLM_MIN_SCORE = min(
+        100.0, max(0.0, float(os.getenv("RISK_LLM_MIN_SCORE", "30")))
+    )
+    RISK_LLM_MAX_SCORE = min(
+        100.0, max(RISK_LLM_MIN_SCORE, float(os.getenv("RISK_LLM_MAX_SCORE", "70")))
+    )
 
     SENTIMENT_ALGORITHM_VERSION = os.getenv(
         "SENTIMENT_ALGORITHM_VERSION", "sentiment-v1"

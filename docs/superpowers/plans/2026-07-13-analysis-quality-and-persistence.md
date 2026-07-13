@@ -92,13 +92,13 @@ Run the full fake-detector suite and commit.
 - Modify: `backend/.env.example`
 - Modify: `backend/tests/test_fake_detector.py`
 
-- [ ] **Step 1: Add tests for continuous feature output and LLM thresholds**
+- [x] **Step 1: Add tests for continuous feature output and LLM thresholds**
 
 Assert all feature values are between 0 and 1, final score is 0～100, and LLM is called only when the rule score is within configured gray-zone bounds.
 
-- [ ] **Step 2: Run and verify RED**
+- [x] **Step 2: Run and verify RED**
 
-- [ ] **Step 3: Implement versioned feature weights**
+- [x] **Step 3: Implement versioned feature weights**
 
 Use a config dictionary such as:
 
@@ -115,11 +115,11 @@ RISK_FEATURE_WEIGHTS = {
 
 Score is the weighted feature sum × 100. Mark these as empirical configuration, not trained probabilities.
 
-- [ ] **Step 4: Implement structured LLM review**
+- [x] **Step 4: Implement structured LLM review**
 
 Only scores within `RISK_LLM_MIN_SCORE` and `RISK_LLM_MAX_SCORE` call the LLM. Parse JSON, append evidence, and never erase explicit rule evidence.
 
-- [ ] **Step 5: Run and commit**
+- [x] **Step 5: Run and commit**
 
 Run fake-detector and event-service tests, then commit.
 
