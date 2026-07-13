@@ -140,12 +140,15 @@ def keyword_search():
 @crawler_bp.get("/platforms")
 @login_required
 def available_platforms():
-    """返回当前注册的搜索类爬虫平台列表（零 API 调用，只查注册表）。"""
+    """返回实际可用的搜索类爬虫平台列表（只返回有Key或公开可用的）。"""
     from app.crawler.factory import build_crawler_registry
     registry = build_crawler_registry(current_app.config)
+    # 排除：热榜类、演示类、不可用的
+    unavailable = {"sample", "rss", "douyin"}  # 抖音缺Key，标记不可用
     searchable = [
         name for name in registry.platforms()
-        if name not in {"sample", "rss"} and not name.endswith("_hot")
+        if name not in unavailable and not name.endswith("_hot")
+        and not name.startswith("rss_")  # RSS作为独立源，不在搜索平台里显示
     ]
     return ok({"platforms": sorted(searchable)})
 
