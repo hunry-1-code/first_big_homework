@@ -98,6 +98,7 @@ def extract_article_keywords(
 ) -> dict[int, list[ArticleKeyword]]:
     textrank_provider = textrank_provider or _default_textrank
     query_terms = [_normalize_term(term) for term in query_terms if _valid_term(_normalize_term(term))]
+    query_display_terms = {_display_term(term) for term in query_terms}
     output: dict[int, list[ArticleKeyword]] = {}
     for row_index, document in enumerate(documents):
         candidates: dict[str, tuple[float, str, str]] = {}
@@ -110,14 +111,21 @@ def extract_article_keywords(
 
         anchor_score = max((item[0] for item in candidates.values()), default=1.0)
         for term in query_terms:
-            candidates[term] = (max(anchor_score, candidates.get(term, (0.0, "", ""))[0]), "query", _term_type(term, document))
+            for existing in list(candidates):
+                if _display_term(existing) == _display_term(term):
+                    candidates.pop(existing)
+            candidates[term] = (
+                anchor_score * 0.6,
+                "query",
+                _term_type(term, document),
+            )
         for term, entity_type in document.entities.items():
             normalized = _normalize_term(term)
-            if _valid_term(normalized):
+            if _valid_term(normalized) and _display_term(normalized) not in query_display_terms:
                 candidates[normalized] = (max(anchor_score * 0.95, candidates.get(normalized, (0.0, "", ""))[0]), "entity", entity_type)
         for term in document.topics:
             normalized = _normalize_term(term)
-            if _valid_term(normalized):
+            if _valid_term(normalized) and _display_term(normalized) not in query_display_terms:
                 candidates[normalized] = (max(anchor_score * 0.9, candidates.get(normalized, (0.0, "", ""))[0]), "topic", "hashtag")
 
         ranked = sorted(

@@ -30,13 +30,14 @@ from app.models import (
     Report,
 )
 from app.services.event_aggregation_service import (
+    _ai_generate_summary,
     create_aggregation_run,
     find_search_cache,
     publish_cluster,
     review_merge_candidate,
     run_event_aggregation,
 )
-from app.services.event_service import get_event_detail
+from app.services.event_service import _event_keywords, get_event_detail
 
 
 class TestConfig:
@@ -170,6 +171,87 @@ class EventAggregationServiceTest(unittest.TestCase):
         self.assertTrue(reused_second)
         self.assertEqual(first.id, second.id)
         self.assertEqual(first.scope, "global")
+
+    def test_ai_summary_uses_explicit_event_keyword_payload(self):
+        class FakeClient:
+            def __init__(self):
+                self.messages = None
+
+            def chat(self, messages, **kwargs):
+                self.messages = messages
+                return {
+                    "content": "这是一段包含事件性质、关键信息和舆论焦点的完整测试摘要，用于验证关键词上下文传递。"
+                }
+
+        client = FakeClient()
+        payload = {
+            "keywords": [
+                {
+                    "word": "道路积水",
+                    "sentiment": "negative",
+                    "entity_type": "event",
+                },
+                {
+                    "word": "重庆",
+                    "sentiment": "neutral",
+                    "entity_type": "location",
+                },
+            ]
+        }
+        article = self._article(
+            1,
+            "重庆暴雨道路积水",
+            ["重庆", "暴雨", "积水"],
+            [1.0, 0.0],
+        )
+
+        with patch(
+            "app.services.event_aggregation_service._llm_client",
+            return_value=client,
+        ):
+            summary = _ai_generate_summary(
+                "重庆暴雨事件",
+                [article],
+                1,
+                event_keywords=payload,
+            )
+
+        self.assertIsNotNone(summary)
+        prompt = client.messages[-1]["content"]
+        self.assertIn("道路积水", prompt)
+        self.assertIn("重庆", prompt)
+
+    def test_event_keywords_preserve_query_term_with_lower_weight(self):
+        event = Event(title="重庆暴雨")
+        db.session.add(event)
+        db.session.flush()
+        articles = [
+            self._article(1, "重庆暴雨救援", ["重庆", "暴雨", "救援"], [1.0, 0.0]),
+            self._article(2, "重庆暴雨积水", ["重庆", "暴雨", "积水"], [0.9, 0.1]),
+        ]
+        for article in articles:
+            article.event_id = event.id
+        analysis = self._analysis_run(articles, mode="search", fingerprint="query-keyword")
+        for row in AnalysisRunArticle.query.filter_by(analysis_run_id=analysis.id).all():
+            row.keywords = [
+                {"term": "重庆暴雨", "score": 1.0, "source": "query"},
+                {"term": "应急救援", "score": 0.9, "source": "tfidf"},
+                {"term": "道路积水", "score": 0.8, "source": "tfidf"},
+            ]
+        db.session.commit()
+
+        payload = _event_keywords(event)
+        query_item = next(
+            item for item in payload["keywords"] if item["word"] == "重庆暴雨"
+        )
+        non_query_weights = [
+            item["weight"]
+            for item in payload["keywords"]
+            if item.get("source") != "query"
+        ]
+
+        self.assertEqual(query_item["source"], "query")
+        self.assertLess(query_item["weight"], max(non_query_weights))
 
     def test_search_scope_persists_clusters_without_formal_events(self):
         articles = [

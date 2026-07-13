@@ -136,6 +136,11 @@ class KeywordExtractorTest(unittest.TestCase):
         self.assertTrue(all(0.0 <= item.score <= 1.0 for item in keywords[1]))
         self.assertTrue(all(item.term for item in keywords[1]))
         self.assertIn("重庆暴雨", {item.term for item in keywords[1]})
+        query_item = next(item for item in keywords[1] if item.term == "重庆暴雨")
+        non_query_scores = [item.score for item in keywords[1] if item.source != "query"]
+        self.assertEqual(query_item.source, "query")
+        self.assertTrue(non_query_scores)
+        self.assertLess(query_item.score, max(non_query_scores))
 
     def test_textrank_only_fills_missing_slots(self):
         document = _documents(1)

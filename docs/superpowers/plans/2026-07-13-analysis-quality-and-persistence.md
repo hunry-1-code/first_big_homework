@@ -131,13 +131,13 @@ Run fake-detector and event-service tests, then commit.
 - Modify: `backend/tests/test_event_aggregation_service.py`
 - Modify: `backend/tests/test_content_analysis_features.py`
 
-- [ ] **Step 1: Add failing tests**
+- [x] **Step 1: Add failing tests**
 
 Add a test that `_ai_generate_summary()` receives either an Event or a keyword payload, never an Article passed to `_event_keywords`. Add a keyword test asserting the exact query term remains present with `source="query"` and reduced weight rather than deletion.
 
-- [ ] **Step 2: Run and verify RED**
+- [x] **Step 2: Run and verify RED**
 
-- [ ] **Step 3: Change summary signature**
+- [x] **Step 3: Change summary signature**
 
 ```python
 def _ai_generate_summary(title, articles, platform_count, *, event_keywords=None):
@@ -146,11 +146,11 @@ def _ai_generate_summary(title, articles, platform_count, *, event_keywords=None
 
 The caller loads `_event_keywords(event)` once and passes the payload explicitly.
 
-- [ ] **Step 4: Change query-term handling**
+- [x] **Step 4: Change query-term handling**
 
 Keep query keywords, cap their normalized display score below the highest event-specific term, and retain `source="query"`.
 
-- [ ] **Step 5: Run tests and commit**
+- [x] **Step 5: Run tests and commit**
 
 Run content-analysis feature and aggregation service suites, then commit.
 

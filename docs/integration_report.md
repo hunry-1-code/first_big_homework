@@ -769,5 +769,13 @@ LLM 默认只审查 `30～70` 分灰区，可通过 `RISK_LLM_MIN_SCORE` 和 `RI
 
 TDD 验证风险特征范围、加权分数重建、灰区调用次数和结构化审查证据。结果：可疑信息测试 `27 passed`，事件聚合下游 `14 passed, 2 warnings`，契约测试 `8 passed`。
 
+### 21.15 事件摘要关键词输入与查询词降权
+
+`_ai_generate_summary()` 改为通过关键字参数接收已经聚合好的 `event_keywords` payload，不再从第一篇 Article 调用只接受 Event 的 `_event_keywords()`。报告后处理先用正式 Event 加载一次关键词，再将同一 payload 传入摘要生成，避免对象类型错配和重复数据库查询。
+
+文章关键词提取保留精确查询词并固定 `source=query`，得分按当前最高事件特异词的 `0.6` 降权；展示规范化相同的 TF-IDF 词元会被查询词版本替换，避免“重庆 暴雨”和“重庆暴雨”同时出现。事件关键词聚合也不再删除查询词，而是追加 `source=query`，权重最高为 `0.6` 且低于排名第一的事件特异词。
+
+TDD 验证摘要 prompt 获得显式关键词 payload、文章查询词来源和降权、事件词云查询词保留。聚焦测试 `3 passed`，内容分析特征与事件聚合套件 `28 passed, 1 warning`。
+
 ---
 

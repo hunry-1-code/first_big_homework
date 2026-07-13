@@ -107,10 +107,14 @@ def _postprocess_published_event(event_id: int, publish_run_id: int, user_id: in
         event = db.session.get(Event, int(event_id))
         article_count = Article.query.filter_by(event_id=event.id).count()
         platforms = Article.query.with_entities(Article.platform).filter_by(event_id=event.id).distinct().count()
+        from app.services.event_service import _event_keywords
+
+        event_keyword_payload = _event_keywords(event)
         overview = event.summary or _ai_generate_summary(
             event.title or '未命名事件',
             Article.query.filter_by(event_id=event.id).limit(10).all(),
             platforms,
+            event_keywords=event_keyword_payload,
         )
         if overview is None:
             overview = '事件「' + (event.title or '未命名事件') + '」已聚合 ' + str(article_count) + ' 篇报道，覆盖 ' + str(platforms) + ' 个平台。'
@@ -445,18 +449,19 @@ def _ai_generate_title(titles: list[str]) -> str | None:
     return None
 
 
-def _ai_generate_summary(title: str, articles: list, platform_count: int) -> str | None:
+def _ai_generate_summary(
+    title: str,
+    articles: list,
+    platform_count: int,
+    *,
+    event_keywords: dict | None = None,
+) -> str | None:
     """用 LLM 生成事件研判摘要，融入结构化关键词数据。"""
     try:
         client = _llm_client()
         samples = "\n".join(f"- [{a.platform}] {a.title}" for a in articles[:8] if a.title)
-        # 从 event_keywords 获取结构化关键词
         kw_context = ""
-        try:
-            from app.services.event_service import _event_keywords
-            ek = _event_keywords(articles[0]) if articles and hasattr(articles[0], 'event_id') else None
-        except Exception:
-            ek = None
+        ek = event_keywords or {}
         if ek and ek.get("keywords"):
             neg_kw = [k["word"] for k in ek["keywords"] if k.get("sentiment") == "negative"][:5]
             pos_kw = [k["word"] for k in ek["keywords"] if k.get("sentiment") == "positive"][:5]

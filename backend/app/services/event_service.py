@@ -40,8 +40,8 @@ def _article_keywords(article_id: int) -> list[dict]:
 def _event_keywords(event: Event) -> dict:
     """从 AnalysisRunArticle 聚合事件的关键词列表。
 
-    策略：取每篇文章 TF-IDF 最高的关键词（跳过查询词），
-    按平均 score × log(出现次数) 排序，cosine 归一化权重。
+    策略：取每篇文章 TF-IDF 最高的事件特异词，按频率和分数排序；
+    查询词保留为 source=query，但展示权重低于最高事件特异词。
     """
     import math
     article_ids = [
@@ -64,9 +64,10 @@ def _event_keywords(event: Event) -> dict:
     unique_articles = len(article_ids)
     query_terms = {t for t, c in query_candidates.items() if c >= unique_articles * 0.5}
 
-    # 聚合：每篇文章取 top-3 非查询词，收集 score/sentiment/entity_type
+    # 聚合：每篇文章取 top-3 事件词；查询词单独保留并降权。
     from collections import Counter as _Cnt
     term_data: dict[str, dict] = {}
+    query_data: dict[str, dict] = {}
     for row in rows:
         seen: set[str] = set()
         take = 0
@@ -74,7 +75,23 @@ def _event_keywords(event: Event) -> dict:
             if not isinstance(kw, dict):
                 continue
             term = kw["term"].strip()
-            if term in query_terms or term in seen:
+            if term in seen:
+                continue
+            if term in query_terms:
+                seen.add(term)
+                if term not in query_data:
+                    query_data[term] = {
+                        "scores": [],
+                        "sentiments": [],
+                        "types": [],
+                    }
+                query_data[term]["scores"].append(float(kw.get("score", 0)))
+                query_data[term]["sentiments"].append(
+                    str(kw.get("sentiment", "neutral"))
+                )
+                query_data[term]["types"].append(
+                    str(kw.get("type", kw.get("entity_type", "concept")))
+                )
                 continue
             if len(term) <= 1 or not any('一' <= c <= '鿿' for c in term):
                 continue
@@ -99,22 +116,36 @@ def _event_keywords(event: Event) -> dict:
         ranked.append((term, freq_log, avg_score, cnt, dom_s, dom_t))
 
     ranked.sort(key=lambda x: (x[1], x[2], x[3]), reverse=True)
-    ranked = ranked[:30]
-    if not ranked:
+    ranked = ranked[: max(0, 30 - len(query_data))]
+    if not ranked and not query_data:
         return {"keywords": []}
 
-    total = len(ranked)
-    return {
-        "keywords": [
+    total = max(1, len(ranked))
+    output = [
             {
                 "word": term,
                 "weight": round(1.0 - (idx / total) * 0.85, 4),
                 "sentiment": sentiment,
                 "entity_type": etype,
+                "source": "event",
             }
             for idx, (term, freq_log, avg_score, cnt, sentiment, etype) in enumerate(ranked)
         ]
-    }
+    highest_event_weight = output[0]["weight"] if output else 1.0
+    query_weight = min(0.6, highest_event_weight * 0.6)
+    for index, (term, data) in enumerate(sorted(query_data.items())):
+        sentiment = _Cnt(data["sentiments"]).most_common(1)[0][0]
+        entity_type = _Cnt(data["types"]).most_common(1)[0][0]
+        output.append(
+            {
+                "word": term,
+                "weight": round(max(0.2, query_weight - index * 0.05), 4),
+                "sentiment": sentiment,
+                "entity_type": entity_type,
+                "source": "query",
+            }
+        )
+    return {"keywords": output}
 
 
 
