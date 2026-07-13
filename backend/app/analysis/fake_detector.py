@@ -91,6 +91,66 @@ def _build_context(event_id: int, articles: list) -> dict:
     has_official = False
     total_interactions = 0
     count = 0
+    corroboration_by_article = {
+        getattr(article, "id", None): {
+            getattr(article, "platform", "")
+        }
+        for article in articles
+        if getattr(article, "id", None) is not None
+    }
+    corroboration_evidence = {
+        article_id: set() for article_id in corroboration_by_article
+    }
+
+    duplicate_groups: dict[tuple[str, object], list] = {}
+    for article in articles:
+        article_id = getattr(article, "id", None)
+        duplicate_root = getattr(article, "duplicate_of_id", None) or article_id
+        if duplicate_root is not None:
+            duplicate_groups.setdefault(("duplicate", duplicate_root), []).append(article)
+        content_hash = getattr(article, "content_hash", None)
+        if content_hash:
+            duplicate_groups.setdefault(("content_hash", content_hash), []).append(article)
+
+    for group in duplicate_groups.values():
+        platforms_in_group = {
+            getattr(article, "platform", "")
+            for article in group
+            if getattr(article, "platform", "")
+        }
+        if len(platforms_in_group) <= 1:
+            continue
+        group_ids = {
+            getattr(article, "id", None)
+            for article in group
+            if getattr(article, "id", None) is not None
+        }
+        for article_id in group_ids:
+            corroboration_by_article.setdefault(article_id, set()).update(
+                platforms_in_group
+            )
+            corroboration_evidence.setdefault(article_id, set()).update(
+                group_ids - {article_id}
+            )
+
+    for index, first in enumerate(articles):
+        for second in articles[index + 1 :]:
+            if getattr(first, "platform", None) == getattr(second, "platform", None):
+                continue
+            first_entities = _article_entities(first)
+            second_entities = _article_entities(second)
+            if not first_entities or not first_entities & second_entities:
+                continue
+            if _article_text_similarity(first, second) < 0.60:
+                continue
+            first_id = getattr(first, "id", None)
+            second_id = getattr(second, "id", None)
+            if first_id is None or second_id is None:
+                continue
+            corroboration_by_article.setdefault(first_id, set()).add(second.platform)
+            corroboration_by_article.setdefault(second_id, set()).add(first.platform)
+            corroboration_evidence.setdefault(first_id, set()).add(second_id)
+            corroboration_evidence.setdefault(second_id, set()).add(first_id)
 
     for a in articles:
         platforms.add(getattr(a, "platform", ""))
@@ -112,7 +172,44 @@ def _build_context(event_id: int, articles: list) -> dict:
         "has_official_media": has_official,
         "first_publish_time": getattr(first_article, "publish_time", None) if first_article else None,
         "avg_interactions": total_interactions / count if count > 0 else 0,
+        "corroboration_by_article": corroboration_by_article,
+        "corroboration_evidence_by_article": {
+            article_id: sorted(evidence_ids)
+            for article_id, evidence_ids in corroboration_evidence.items()
+        },
     }
+
+
+def _article_entities(article) -> set[str]:
+    output = set()
+    entities = getattr(article, "entities", None) or {}
+    if isinstance(entities, dict):
+        for values in entities.values():
+            if isinstance(values, str):
+                values = [values]
+            output.update(str(value).strip().casefold() for value in values or [] if str(value).strip())
+    keywords = getattr(article, "keywords", None) or []
+    if isinstance(keywords, dict):
+        keywords = keywords.get("keywords", [])
+    for item in keywords if isinstance(keywords, (list, tuple, set)) else []:
+        value = item.get("term") if isinstance(item, dict) else item
+        if str(value or "").strip():
+            output.add(str(value).strip().casefold())
+    return output
+
+
+def _article_text_similarity(first, second) -> float:
+    def bigrams(article):
+        text = (
+            (getattr(article, "title", "") or "")
+            + (getattr(article, "clean_content", "") or "")[:300]
+        )
+        chinese = "".join(re.findall(r"[\u4e00-\u9fff]", text))
+        return {chinese[index : index + 2] for index in range(max(0, len(chinese) - 1))}
+
+    left = bigrams(first)
+    right = bigrams(second)
+    return len(left & right) / len(left | right) if left and right else 0.0
 
 
 def _estimate_anomaly_speed(article, ctx: dict) -> bool:
@@ -150,6 +247,8 @@ def assess_suspicious_risk(article, ctx: dict) -> dict:
     """
     score = 25.0
     reasons = []
+    feature_scores = {}
+    evidence = {}
 
     # 1. 来源可信度：作者未知或无标识 +15
     author = (getattr(article, "author", None) or "").strip()
@@ -157,12 +256,30 @@ def assess_suspicious_risk(article, ctx: dict) -> dict:
     if not author or author in ("未知", "匿名", "佚名"):
         score += 15
         reasons.append("来源可信度较低（作者不可溯源）")
+        feature_scores["source_traceability"] = 1.0
+    else:
+        feature_scores["source_traceability"] = 0.0
 
-    # 2. 多源交叉验证：只有一个平台报道 +15
-    platforms = ctx.get("platforms", set())
-    if len(platforms) <= 1:
+    # 2. 文章级交叉验证：该文章没有跨平台重复或高相似佐证 +15
+    article_id = getattr(article, "id", None)
+    corroboration = ctx.get("corroboration_by_article", {}).get(article_id)
+    if corroboration is None:
+        corroboration = {getattr(article, "platform", "")}
+    corroboration = {value for value in corroboration if value}
+    evidence_ids = list(
+        ctx.get("corroboration_evidence_by_article", {}).get(article_id, [])
+    )
+    missing_corroboration = len(corroboration) <= 1
+    if missing_corroboration:
         score += 15
-        reasons.append("缺少多源交叉验证")
+        reasons.append("缺少跨平台佐证")
+    feature_scores["cross_platform_corroboration"] = (
+        1.0 if missing_corroboration else 0.0
+    )
+    evidence["cross_platform_corroboration"] = {
+        "platforms": sorted(corroboration),
+        "article_ids": evidence_ids,
+    }
 
     # 3. 标题煽动性：命中关键词 +10
     title = (getattr(article, "title", "") or "").strip()
@@ -172,36 +289,51 @@ def assess_suspicious_risk(article, ctx: dict) -> dict:
     if hit_keywords:
         score += 10
         reasons.append(f"标题/正文存在夸张煽动表达: {', '.join(hit_keywords[:3])}")
+    feature_scores["sensationalism"] = 1.0 if hit_keywords else 0.0
+    evidence["sensationalism"] = hit_keywords[:3]
 
     # Supplemental low-weight textual signals. None is sufficient to label a text fake.
     hit_ads = [pattern for pattern in _ADVERTISING_PATTERNS if pattern in content]
     if hit_ads:
         score += 8
         reasons.append(f"正文存在广告引流表达: {', '.join(hit_ads[:2])}")
+    feature_scores["advertising"] = 1.0 if hit_ads else 0.0
 
-    if _URL_PATTERN.search(content):
+    has_external_link = bool(_URL_PATTERN.search(content))
+    if has_external_link:
         score += 3
         reasons.append("正文包含外部链接，需核验链接来源")
+    feature_scores["external_link"] = 1.0 if has_external_link else 0.0
 
-    if _title_content_consistency_low(title, content):
+    low_consistency = _title_content_consistency_low(title, content)
+    if low_consistency:
         score += 5
         reasons.append("标题与正文一致性较低")
+    feature_scores["title_content_consistency"] = 1.0 if low_consistency else 0.0
 
     # 4. 负面情绪：score < -0.5 +10
     sentiment = getattr(article, "sentiment_score", None)
     if sentiment is not None and sentiment < -0.5:
         score += 10
         reasons.append("负面情绪比例较高")
+    feature_scores["negative_sentiment"] = (
+        1.0 if sentiment is not None and sentiment < -0.5 else 0.0
+    )
 
     # 5. 传播速度异常 +10
-    if _estimate_anomaly_speed(article, ctx):
+    anomalous_speed = _estimate_anomaly_speed(article, ctx)
+    if anomalous_speed:
         score += 10
         reasons.append("传播速度异常")
+    feature_scores["interaction_anomaly"] = 1.0 if anomalous_speed else 0.0
 
     # 6. 官方回应：有官方媒体介入 -20
     if ctx.get("has_official_media", False):
         score -= 20
         reasons.append("有官方媒体或权威来源回应")
+    feature_scores["official_response"] = (
+        1.0 if ctx.get("has_official_media", False) else 0.0
+    )
 
     score = max(0.0, min(100.0, score))
     is_suspicious = score >= 40
@@ -211,6 +343,14 @@ def assess_suspicious_risk(article, ctx: dict) -> dict:
         "score": round(score, 1),
         "reason": "; ".join(reasons) if reasons else "未发现明显风险因素",
         "method": "rule",
+        "feature_scores": feature_scores,
+        "evidence": evidence,
+        "limitations": (
+            ["缺少文章级跨平台佐证数据"]
+            if article_id not in ctx.get("corroboration_by_article", {})
+            else []
+        ),
+        "rule_version": "suspicious-risk-v2",
     }
 
 

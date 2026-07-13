@@ -743,5 +743,13 @@ Event 新增 `lifecycle_status`、`lifecycle_confidence`、`lifecycle_evidence` 
 
 TDD 验证：修复前聚合和热点流程因字段不存在失败，详情结果也缺少结构化字段；修复后聚合/热点/生命周期三个核心套件 `51 passed, 2 warnings`。完整回归 `287 passed, 0 failed, 6 warnings`。
 
+### 21.12 可疑信息改为文章级跨平台佐证
+
+风险评估不再用事件总体平台数替代单篇文章的交叉验证。上下文优先根据 `duplicate_of_id` 和 `content_hash` 建立跨平台重复证据；如文章提供关键词或实体，还可在跨平台、共享实体且文本相似度不低于 `0.60` 时建立高相似佐证。每篇文章分别保存佐证平台集合和证据文章 ID。
+
+兼容输出 `score/reason/method/is_suspicious` 保持不变，并新增 `feature_scores`、`evidence`、`limitations` 和 `rule_version=suspicious-risk-v2`。没有文章级佐证时明确记录“缺少跨平台佐证”，不会因事件内其他无关平台报道而免除该风险，也不会惩罚已经存在跨平台重复证据的文章。
+
+TDD 验证修复前复现文章级上下文字段缺失、跨平台重复证据不生效和结构化输出缺失；修复后可疑信息测试 `22 passed`，事件聚合/详情下游套件 `14 passed, 2 warnings`。
+
 ---
 

@@ -16,7 +16,7 @@
 - Modify: `backend/app/analysis/fake_detector.py`
 - Modify: `backend/tests/test_fake_detector.py`
 
-- [ ] **Step 1: Add failing corroboration cases**
+- [x] **Step 1: Add failing corroboration cases**
 
 Add context fields `corroboration_by_article` and tests proving:
 
@@ -31,21 +31,21 @@ self.assertNotIn("缺少跨平台佐证", result["reason"])
 
 Also assert a genuinely uncorroborated single-platform article receives the risk feature.
 
-- [ ] **Step 2: Run and verify RED**
+- [x] **Step 2: Run and verify RED**
 
 ```powershell
 python -m pytest backend/tests/test_fake_detector.py -q
 ```
 
-- [ ] **Step 3: Build article-level corroboration evidence**
+- [x] **Step 3: Build article-level corroboration evidence**
 
 Use explicit duplicate group/content hash first, then cross-platform high-similarity shared-entity matches. Store platform count and evidence article IDs in context keyed by article ID.
 
-- [ ] **Step 4: Return structured feature evidence**
+- [x] **Step 4: Return structured feature evidence**
 
 Keep legacy `score`, `reason`, `method`, `is_suspicious`, and add `feature_scores`, `evidence`, `limitations`, `rule_version`.
 
-- [ ] **Step 5: Run tests and commit**
+- [x] **Step 5: Run tests and commit**
 
 ```powershell
 python -m pytest backend/tests/test_fake_detector.py -q
@@ -325,4 +325,3 @@ Mark each audit issue as fixed, partially addressed or deliberately replaced, wi
 - [ ] **Step 4: Commit**
 
 Commit only after fresh verification output is available.
-

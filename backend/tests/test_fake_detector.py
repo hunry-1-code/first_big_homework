@@ -87,6 +87,8 @@ class AssessSuspiciousRiskTest(unittest.TestCase):
             "event_id": 1,
             "article_count": 10,
             "platforms": {"weibo", "zhihu"},
+            "corroboration_by_article": {1: {"weibo", "zhihu"}},
+            "corroboration_evidence_by_article": {1: [2]},
             "has_official_media": False,
             "first_publish_time": None,
             "avg_interactions": 100,
@@ -104,9 +106,49 @@ class AssessSuspiciousRiskTest(unittest.TestCase):
 
     def test_no_cross_validation_adds_score(self):
         article = self._make_article()
-        ctx = self._make_event_context(platforms={"weibo"})  # 单一平台
+        ctx = self._make_event_context(
+            platforms={"weibo"},
+            corroboration_by_article={1: {"weibo"}},
+            corroboration_evidence_by_article={1: []},
+        )
         result = assess_suspicious_risk(article, ctx)
         self.assertGreaterEqual(result["score"], 40)
+        self.assertIn("缺少跨平台佐证", result["reason"])
+
+    def test_article_level_corroboration_avoids_event_wide_penalty(self):
+        article = self._make_article()
+        ctx = self._make_event_context(
+            platforms={"weibo"},
+            corroboration_by_article={1: {"weibo", "zhihu"}},
+            corroboration_evidence_by_article={1: [2]},
+        )
+
+        result = assess_suspicious_risk(article, ctx)
+
+        self.assertNotIn("缺少跨平台佐证", result["reason"])
+        self.assertEqual(result["feature_scores"]["cross_platform_corroboration"], 0.0)
+        self.assertEqual(
+            result["evidence"]["cross_platform_corroboration"]["article_ids"],
+            [2],
+        )
+
+    def test_build_context_uses_cross_platform_content_hash_duplicates(self):
+        first = self._make_article(
+            id=1,
+            platform="weibo",
+            content_hash="same-content",
+        )
+        second = self._make_article(
+            id=2,
+            platform="zhihu",
+            content_hash="same-content",
+        )
+
+        ctx = _build_context(1, [first, second])
+
+        self.assertEqual(ctx["corroboration_by_article"][1], {"weibo", "zhihu"})
+        self.assertEqual(ctx["corroboration_by_article"][2], {"weibo", "zhihu"})
+        self.assertEqual(ctx["corroboration_evidence_by_article"][1], [2])
 
     def test_sensational_title_adds_score(self):
         article = self._make_article(title="突发！某地发生惊天大事震惊全网")
@@ -141,6 +183,8 @@ class AssessSuspiciousRiskTest(unittest.TestCase):
         )
         ctx = self._make_event_context(
             platforms={"weibo"},  # 单平台
+            corroboration_by_article={1: {"weibo"}},
+            corroboration_evidence_by_article={1: []},
             has_official_media=False,
         )
         result = assess_suspicious_risk(article, ctx)
