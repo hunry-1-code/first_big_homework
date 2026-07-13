@@ -258,7 +258,7 @@
 
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref, computed } from "vue";
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
 import { searchCrawler } from "@/api/crawler";
 import { getMyTasks, getTask } from "@/api/tasks";
 import IconifyIconOffline from "@/components/ReIcon/src/iconifyIconOffline";
@@ -271,9 +271,10 @@ defineOptions({
 });
 
 const router = useRouter();
+const route = useRoute();
 
 // 表单状态
-const keyword = ref("");
+const keyword = ref((route.query.keyword as string) || "");
 const selectedPlatforms = ref<string[]>([]);
 const targetCount = ref(100);
 
