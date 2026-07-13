@@ -895,5 +895,13 @@ TDD 覆盖第三方单源失败仍生成融合结果、密钥不进入 errors/pa
 
 TDD 首先稳定复现模块缺失错误，随后覆盖隔离配置、递归脱敏、敏感文本扫描、LLM JSON 契约、外部错误分类、真实配置密钥集合、最小 Top10 参数、单次 LLM 调用和退出状态。首次隔离运行进一步复现了 Windows 下临时 SQLite 文件无法删除：应用上下文结束后 SQLAlchemy 连接池仍持有文件句柄。验证工具现于 `finally` 中显式移除 session 并释放 engine，回归测试证明探针返回后数据库文件可立即删除。验证工具与原爬虫验证器联合测试结果更新为 `15 passed, 5 subtests passed`。
 
+### 21.29 Top10 与 LLM 低频真实验证结果
+
+2026-07-13 19:17（Asia/Shanghai）执行隔离式最终探针。三个直接热榜来源 `weibo_hot / baidu_hot / zhihu_hot` 均成功返回有效数据；最小融合 Run 状态为 `success`，可用来源 3、失败来源 0，持久化和序列化均返回 1 条，响应包含可空 `event_id`，且 `scheduler_started=false`。
+
+同一进程仅进行一次 LLM 固定 JSON 探针调用，结果为 `SUCCESS`，实际返回模型名 `deepseek-v4-flash`，`content_valid=true`。该结果只证明当前密钥、网络、OpenAI-compatible 接口和最小结构化输出可用，不代表模型在情感、事件摘要、风险或问答任务上的准确率已经得到验证。
+
+原三平台爬虫验证结果保存于 `tests/daily_hot_live_validation_results.json`，隔离 Top10/LLM 结果保存于 `tests/final_backend_live_validation_results.json`。两份结果对当前配置中的所有已知密钥扫描命中数均为 0，Authorization、Bearer、Cookie、API Key 和 access token 文本标记扫描无命中。此前直接探针产生的 `backend/instance/opinion_analysis_dev.db` 修改已恢复，最终隔离探针没有修改跟踪数据库。
+
 ---
 

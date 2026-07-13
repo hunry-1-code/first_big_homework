@@ -1,0 +1,29 @@
+{
+  "keyword": "舆情",
+  "results": [
+    {
+      "platform": "weibo_hot",
+      "status": "SUCCESS",
+      "document_count": 1,
+      "preprocessing_status": "success",
+      "message": "",
+      "contract_errors": []
+    },
+    {
+      "platform": "baidu_hot",
+      "status": "SUCCESS",
+      "document_count": 1,
+      "preprocessing_status": "success",
+      "message": "",
+      "contract_errors": []
+    },
+    {
+      "platform": "zhihu_hot",
+      "status": "SUCCESS",
+      "document_count": 1,
+      "preprocessing_status": "success",
+      "message": "",
+      "contract_errors": []
+    }
+  ]
+}

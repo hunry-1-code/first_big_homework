@@ -262,7 +262,7 @@ git commit -m "test: add isolated backend live validator" -m "Co-Authored-By: Cl
 - Create: `tests/final_backend_live_validation_results.json`
 - Restore: `backend/instance/opinion_analysis_dev.db`
 
-- [ ] **Step 1: Confirm no backend Python process is running**
+- [x] **Step 1: Confirm no backend Python process is running**
 
 Run:
 
@@ -273,7 +273,7 @@ Get-Process python -ErrorAction SilentlyContinue |
 
 If a user-started backend process exists, do not stop it. Delay database restoration until it exits. If no process exists, continue.
 
-- [ ] **Step 2: Restore only the database modification produced by the earlier probe**
+- [x] **Step 2: Restore only the database modification produced by the earlier probe**
 
 Verify that the database is the only tracked non-document change, then run:
 
@@ -284,7 +284,7 @@ git status --short
 
 The live result JSON files must remain untracked or modified; the development database must be clean.
 
-- [ ] **Step 3: Run the isolated combined probe**
+- [x] **Step 3: Run the isolated combined probe**
 
 Run:
 
@@ -302,7 +302,7 @@ Expected runtime properties:
 - Top10 uses three sources with limit 1;
 - LLM makes one request.
 
-- [ ] **Step 4: Scan artifacts without displaying secrets**
+- [x] **Step 4: Scan artifacts without displaying secrets**
 
 Run an in-memory Python scan that loads `Config` and checks configured secret values against:
 
@@ -325,7 +325,7 @@ rg -n -i "authorization|bearer|cookie|api[_-]?key|access[_-]?token" `
 
 Expected: no matches.
 
-- [ ] **Step 5: Commit safe live artifacts**
+- [x] **Step 5: Commit safe live artifacts**
 
 Inspect both JSON files. Commit only after the secret scans pass:
 

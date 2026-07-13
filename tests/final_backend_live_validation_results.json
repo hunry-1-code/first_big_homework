@@ -1,0 +1,22 @@
+{
+  "validated_at": "2026-07-13T11:17:23.663116+00:00",
+  "daily_hot": {
+    "status": "success",
+    "available_sources": [
+      "baidu_hot",
+      "weibo_hot",
+      "zhihu_hot"
+    ],
+    "failed_sources": [],
+    "item_count": 1,
+    "returned_items": 1,
+    "has_event_id_field": true,
+    "scheduler_started": false
+  },
+  "llm": {
+    "status": "SUCCESS",
+    "model": "deepseek-v4-flash",
+    "content_valid": true
+  },
+  "safety_scan_passed": true
+}
