@@ -14,9 +14,20 @@ def get_profile(current_user: dict) -> dict:
 
 
 def update_profile(current_user: dict, payload: dict) -> dict:
+    from app.extensions import db
+    from app.models import User
     profile = get_profile(current_user)
     if "nickname" in payload:
         profile["nickname"] = str(payload["nickname"]).strip()[:50]
+    if "password" in payload:
+        pwd = str(payload["password"]).strip()
+        if 6 <= len(pwd) <= 128:
+            from app.api.auth import _hash_password
+            user = db.session.get(User, int(current_user["id"]))
+            if user:
+                hashed, _ = _hash_password(pwd)
+                user.password_hash = hashed
+                db.session.commit()
     return profile
 
 
