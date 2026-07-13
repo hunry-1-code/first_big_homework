@@ -5,7 +5,7 @@ export interface RiskRadarMetric {
 
 const SUPPORTED_PLATFORM_COUNT = 8;
 const ACTIVITY_HALF_SATURATION_PER_DAY = 10;
-const INTERACTION_REFERENCE = 10_000;
+const INTERACTION_REFERENCE = 500;
 
 function finiteNumber(value: unknown): number {
   const parsed = Number(value);
@@ -36,9 +36,13 @@ function interactionScore(data: any): number {
   const articles = Array.isArray(data?.articles?.articles)
     ? data.articles.articles
     : [];
-  if (articles.length === 0) return 0;
+  // 只计有互动数据的文章，避免无数据文章（百度新闻）拉低均值
+  const withData = articles.filter((a: any) =>
+    finiteNumber(a?.likes_count) + finiteNumber(a?.comments_count) + finiteNumber(a?.reposts_count) > 0
+  );
+  if (withData.length === 0) return 0;
 
-  const total = articles.reduce(
+  const total = withData.reduce(
     (sum: number, article: any) =>
       sum +
       Math.max(0, finiteNumber(article?.likes_count)) +
@@ -46,7 +50,7 @@ function interactionScore(data: any): number {
       Math.max(0, finiteNumber(article?.reposts_count)),
     0
   );
-  const average = total / articles.length;
+  const average = total / withData.length;
   return percentage(
     (Math.log1p(average) / Math.log1p(INTERACTION_REFERENCE)) * 100
   );

@@ -198,7 +198,12 @@ function buildPropagationData() {
 function buildInfluenceData() {
   const articles = eventData.value?.articles?.articles || [];
   if (articles.length === 0) return [];
-  return articles.map((a: any, i: number) => ({
+  const withInteractions = articles.filter((a: any) =>
+    (a.reposts_count ?? 0) + (a.comments_count ?? 0) + (a.likes_count ?? 0) > 0
+  );
+  // 如果全无互动数据，返回空（不显示全0的假排行）
+  if (withInteractions.length === 0) return [];
+  return withInteractions.map((a: any, i: number) => ({
     name: a.title?.length > 20 ? a.title.slice(0, 20) + "..." : (a.title || `报道${i + 1}`),
     fullName: a.title || "",
     platform: a.platform || "未知",
