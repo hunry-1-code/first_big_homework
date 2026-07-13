@@ -11,7 +11,12 @@ from sqlalchemy.exc import IntegrityError
 
 from app.analysis.feature_config import FeatureConfig
 from app.analysis.feature_matrix import build_feature_matrices
-from app.analysis.heat_calculator import HeatArticle, EventHeatInput, calculate_event_heats
+from app.analysis.heat_calculator import (
+    HeatArticle,
+    EventHeatInput,
+    calculate_event_heats,
+    calculate_single_event_heat,
+)
 from app.analysis.hotspot_config import HotspotConfig
 from app.analysis.result import AnalysisDocument, ContentAnalysisError, DatasetChangedError
 from app.analysis.topic_classifier import classify_topic
@@ -327,6 +332,127 @@ def _heat_article(
         ),
         spam_weight=float(1.0 if article.spam_weight is None else article.spam_weight),
     )
+
+
+def persist_event_heat_snapshot(
+    event_id: int,
+    *,
+    calculated_at: datetime,
+    aggregation_run_id: int,
+    config: HotspotConfig | None = None,
+) -> EventHeatSnapshot:
+    """Create or reuse a real heat snapshot for an aggregation-published event."""
+    config = config or _config_from_app()
+    event = db.session.get(Event, int(event_id))
+    if event is None:
+        raise KeyError(f"event not found: {event_id}")
+
+    existing = next(
+        (
+            snapshot
+            for snapshot in EventHeatSnapshot.query.filter_by(
+                event_id=event.id,
+                hotspot_run_id=None,
+            ).all()
+            if (snapshot.calculation_details or {}).get("aggregation_run_id")
+            == int(aggregation_run_id)
+        ),
+        None,
+    )
+    if existing is not None:
+        event.current_heat_snapshot_id = existing.id
+        event.heat_index = existing.final_heat
+        event.core_heat = existing.core_heat
+        event.spread_heat = existing.spread_heat
+        event.is_hot = bool(existing.eligible_as_hot)
+        event.hot_rank = existing.rank
+        event.time_confidence = existing.time_confidence
+        event.independent_report_count = int(
+            (existing.raw_statistics or {}).get("independent_report_count_7d", 0)
+        )
+        event.platform_count = int(
+            (existing.raw_statistics or {}).get("platform_count", 0)
+        )
+        return existing
+
+    articles = Article.query.filter_by(event_id=event.id).all()
+    if not articles:
+        raise ValueError("event has no articles for heat calculation")
+    snapshot_ids = [article.latest_snapshot_id for article in articles if article.latest_snapshot_id]
+    article_snapshots = {
+        item.id: item
+        for item in ArticleSnapshot.query.filter(ArticleSnapshot.id.in_(snapshot_ids)).all()
+    }
+    hotlist_ranks = []
+    for article in articles:
+        if article.source_type != "hotlist":
+            continue
+        raw_rank = (article.raw_json or {}).get("rank") or (article.raw_json or {}).get(
+            "realpos"
+        )
+        try:
+            rank = int(raw_rank)
+        except (TypeError, ValueError):
+            continue
+        if rank > 0:
+            hotlist_ranks.append(rank)
+    result = calculate_single_event_heat(
+        EventHeatInput(
+            event_id=event.id,
+            articles=[
+                _heat_article(
+                    article,
+                    article_snapshots.get(article.latest_snapshot_id),
+                    is_representative=not bool(article.is_duplicate),
+                )
+                for article in articles
+            ],
+            hotlist_ranks=hotlist_ranks,
+        ),
+        calculated_at=calculated_at,
+        config=config,
+    )
+    snapshot = EventHeatSnapshot(
+        hotspot_run_id=None,
+        event_id=event.id,
+        calculated_at=calculated_at,
+        raw_statistics=result.raw_statistics,
+        component_scores=result.component_scores,
+        core_heat=result.core_heat,
+        spread_heat=result.spread_heat,
+        final_heat=result.final_heat,
+        eligible_as_hot=result.eligible_as_hot,
+        rank=result.rank,
+        status_change=_status_change(
+            result.event_id,
+            result.eligible_as_hot,
+            result.final_heat,
+        ),
+        time_confidence=result.time_confidence,
+        formula_version=config.formula_version,
+        calculation_details={
+            "source": "aggregation_publish",
+            "aggregation_run_id": int(aggregation_run_id),
+            "core_weight": config.core_weight,
+            "spread_weight": config.spread_weight,
+            "warnings": result.warnings,
+        },
+    )
+    db.session.add(snapshot)
+    db.session.flush()
+    event.current_heat_snapshot_id = snapshot.id
+    event.heat_index = result.final_heat
+    event.core_heat = result.core_heat
+    event.spread_heat = result.spread_heat
+    event.is_hot = result.rank is not None
+    event.hot_rank = result.rank
+    event.last_activity_time = result.latest_activity_time
+    event.independent_report_count = result.raw_statistics[
+        "independent_report_count_7d"
+    ]
+    event.platform_count = result.raw_statistics["platform_count"]
+    event.time_confidence = result.time_confidence
+    return snapshot
 
 
 def _status_change(event_id: int, eligible: bool, final_heat: float) -> str:

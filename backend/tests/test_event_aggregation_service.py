@@ -27,6 +27,7 @@ from app.models import (
     EventArticleMembership,
     EventMergeRecord,
     EventRepresentation,
+    EventHeatSnapshot,
     EventSentimentSnapshot,
     Report,
 )
@@ -736,6 +737,10 @@ class EventAggregationServiceTest(unittest.TestCase):
             self._article(2, "重庆暴雨救援进展", ["重庆", "暴雨", "进展"], [0.99, 0.01]),
         ]
         analysis = self._analysis_run(articles, mode="search", fingerprint="publish")
+        articles[0].likes_count = 1200
+        articles[0].comments_count = 80
+        articles[1].likes_count = 600
+        articles[1].reposts_count = 120
         search_run, _ = create_aggregation_run(analysis.id)
         run_event_aggregation(search_run.id, now=self.now)
         cluster = AggregationCluster.query.one()
@@ -748,8 +753,20 @@ class EventAggregationServiceTest(unittest.TestCase):
         self.assertEqual(EventArticleMembership.query.filter_by(is_active=True).count(), 2)
         self.assertEqual(db.session.get(AggregationCluster, cluster.id).resolved_event_id, first["event_id"])
         self.assertEqual(EventSentimentSnapshot.query.filter_by(event_id=first["event_id"]).count(), 1)
+        self.assertEqual(EventHeatSnapshot.query.filter_by(event_id=first["event_id"]).count(), 1)
+        event = db.session.get(Event, first["event_id"])
+        heat_snapshot = db.session.get(EventHeatSnapshot, event.current_heat_snapshot_id)
+        self.assertIsNotNone(heat_snapshot)
+        self.assertIsNone(heat_snapshot.hotspot_run_id)
+        self.assertGreater(event.heat_index, 0)
+        self.assertIsNotNone(event.spread_heat)
+        self.assertEqual(
+            heat_snapshot.calculation_details["aggregation_run_id"],
+            first["aggregation_run_id"],
+        )
         self.assertTrue(Report.query.filter_by(event_id=first["event_id"]).one().overview_text)
         self.assertEqual(first["postprocess"]["sentiment"], "success")
+        self.assertEqual(first["postprocess"]["heat"], "success")
 
     def test_admin_can_publish_search_cluster_via_api(self):
         article = self._article(1, "重庆暴雨", ["重庆", "暴雨"], [1.0, 0.0])

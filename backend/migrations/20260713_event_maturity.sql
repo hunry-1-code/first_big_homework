@@ -16,6 +16,8 @@ ALTER TABLE event
     ADD COLUMN IF NOT EXISTS metadata_evidence JSON NULL;
 ALTER TABLE event
     ADD COLUMN IF NOT EXISTS metadata_updated_at DATETIME NULL;
+ALTER TABLE event_heat_snapshot
+    MODIFY COLUMN hotspot_run_id BIGINT NULL;
 
 UPDATE event
 SET lifecycle_status = COALESCE(lifecycle_status, 'data_insufficient'),

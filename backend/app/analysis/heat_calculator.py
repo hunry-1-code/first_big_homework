@@ -291,3 +291,17 @@ def calculate_event_heats(
     for rank, item in enumerate(ranked, start=1):
         item.rank = rank
     return results
+
+
+def calculate_single_event_heat(
+    event: EventHeatInput,
+    *,
+    calculated_at: datetime,
+    config: HotspotConfig,
+) -> EventHeatResult:
+    """Reuse the versioned heat formula for an event outside a HotspotRun."""
+    return calculate_event_heats(
+        [event],
+        calculated_at=calculated_at,
+        config=config,
+    )[0]

@@ -805,5 +805,15 @@ Event 新增 `metadata_status`、`metadata_version`、`metadata_confidence`、`m
 
 TDD 红灯复现 Event 字段缺失、聚合更新零元数据调用、迁移缺列和详情读取副作用。聚焦元数据测试为 `5 passed`；事件聚合、迁移、QA 和情感详情下游联合验证为 `33 passed, 8 warnings`。警告均为既有 SQLAlchemy `Query.get()`、jieba/pkg_resources 弃用提示。
 
+### 21.19 搜索发布事件的真实热度快照
+
+搜索或手动事件簇发布后不再使用只更新 Event 三个数字的临时公式。新增 `calculate_single_event_heat()` 复用正式热点公式：独立报道量、24/48 小时增长、平台覆盖、`log1p` 互动强度和指数半衰期仍由同一 `HotspotConfig` 与 `formula_version` 控制。相同报道和互动条件下，较旧事件因 freshness 分量衰减而获得更低热度。
+
+新增 `persist_event_heat_snapshot()`，在没有 HotspotRun 时创建来源为 `aggregation_publish` 的 `EventHeatSnapshot`。快照保存原始统计、分项得分、核心/传播/最终热度、权重、时间置信度、公式版本、警告和来源 `aggregation_run_id`，并同步 Event 的当前快照指针及展示字段。同一发布运行重复后处理时按 `aggregation_run_id` 复用快照，避免重复记录。
+
+`EventHeatSnapshot.hotspot_run_id` 改为可空，表示快照可由 HotspotRun 或 AggregationRun 产生，而不是创建伪造热点运行。新建 MySQL 表定义和成熟度迁移均已调整；SQLite 迁移会保留原数据并重建热度快照表，使既有非空约束安全变为可空。
+
+TDD 红灯复现搜索发布零快照、模型来源强制非空和迁移缺失；时间半衰期对比测试在现有正式公式上通过。修复后聚焦测试 `5 passed`，热点算法、热点服务、事件聚合与迁移联合验证 `57 passed, 3 warnings`。
+
 ---
 

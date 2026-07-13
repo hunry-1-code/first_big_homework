@@ -273,7 +273,7 @@ Commit schema, migration, prompts, services and tests.
 - Modify: `backend/tests/test_event_aggregation_service.py`
 - Modify: `backend/tests/test_hotspot_service.py`
 
-- [ ] **Step 1: Add a failing publication test**
+- [x] **Step 1: Add a failing publication test**
 
 Publish a search cluster without a HotspotRun and assert:
 
@@ -285,17 +285,17 @@ self.assertGreater(event.heat_index, 0)
 
 Add a time-decay comparison asserting an otherwise equal old event scores below a recent event.
 
-- [ ] **Step 2: Run and verify RED**
+- [x] **Step 2: Run and verify RED**
 
-- [ ] **Step 3: Extract a single-event heat calculation path**
+- [x] **Step 3: Extract a single-event heat calculation path**
 
 Reuse `heat_calculator` components for one event. Normalize interactions robustly with `log1p`, include report/platform counts, growth when available, and exponential half-life decay.
 
-- [ ] **Step 4: Persist a real `EventHeatSnapshot`**
+- [x] **Step 4: Persist a real `EventHeatSnapshot`**
 
 Save raw statistics, component scores, weights, `formula_version`, time confidence and warnings. Point Event summary fields to the new snapshot.
 
-- [ ] **Step 5: Run tests and commit**
+- [x] **Step 5: Run tests and commit**
 
 Run hotspot and aggregation suites, then commit.
 

@@ -84,24 +84,23 @@ def _postprocess_published_event(event_id: int, publish_run_id: int, user_id: in
             status["heat"] = "failed"
             status["warnings"].append(f"HEAT_POSTPROCESS_FAILED:{type(exc).__name__}")
     else:
-        # 无热点运行时的基础热度：基于文章数和时效性
+        # 搜索/手动发布没有 HotspotRun 时，仍持久化版本化热度快照。
         try:
-            event = db.session.get(Event, int(event_id))
-            if event:
-                article_count = Article.query.filter_by(event_id=event.id).count()
-                platform_count = Article.query.with_entities(Article.platform).filter_by(event_id=event.id).distinct().count()
-                hours_ago = max(0, (now - (event.first_publish_time or now)).total_seconds() / 3600)
-                decay = max(0.1, 1.0 - hours_ago / 168)  # 7天半衰期
-                event.heat_index = round(min(100, article_count * 2.0 * (1 + platform_count * 0.3)), 1)
-                event.core_heat = event.heat_index * 0.7
-                event.spread_heat = event.heat_index * 0.3
-                event.independent_report_count = article_count
-                event.platform_count = platform_count
-                db.session.commit()
-                status["heat"] = "basic"
+            from app.services.hotspot_service import persist_event_heat_snapshot
+
+            persist_event_heat_snapshot(
+                event_id,
+                calculated_at=now,
+                aggregation_run_id=publish_run_id,
+            )
+            db.session.commit()
+            status["heat"] = "success"
         except Exception as exc:
             db.session.rollback()
-            status["warnings"].append(f"BASIC_HEAT_FAILED:{type(exc).__name__}")
+            status["heat"] = "failed"
+            status["warnings"].append(
+                f"HEAT_SNAPSHOT_POSTPROCESS_FAILED:{type(exc).__name__}"
+            )
 
     try:
         event = db.session.get(Event, int(event_id))

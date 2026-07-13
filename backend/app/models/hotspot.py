@@ -155,7 +155,7 @@ class EventHeatSnapshot(db.Model):
     hotspot_run_id = db.Column(
         db.Integer,
         db.ForeignKey("hotspot_run.id", ondelete="CASCADE"),
-        nullable=False,
+        nullable=True,
     )
     event_id = db.Column(db.Integer, db.ForeignKey("event.id"), nullable=False)
     calculated_at = db.Column(db.DateTime, nullable=False)

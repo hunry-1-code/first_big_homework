@@ -372,6 +372,37 @@ class HeatCalculatorTest(unittest.TestCase):
         )
         self.assertGreater(first.spread_heat, next(item for item in results if item.event_id == 2).spread_heat)
 
+    def test_single_event_heat_decays_when_activity_is_old(self):
+        recent = EventHeatInput(
+            event_id=1,
+            articles=[
+                self._article(1, "news", hours_ago=2),
+                self._article(2, "weibo", hours_ago=2),
+                self._article(3, "zhihu", hours_ago=2),
+            ],
+        )
+        old = EventHeatInput(
+            event_id=2,
+            articles=[
+                self._article(4, "news", hours_ago=96),
+                self._article(5, "weibo", hours_ago=96),
+                self._article(6, "zhihu", hours_ago=96),
+            ],
+        )
+
+        recent_result = calculate_event_heats(
+            [recent], calculated_at=self.now, config=HotspotConfig()
+        )[0]
+        old_result = calculate_event_heats(
+            [old], calculated_at=self.now, config=HotspotConfig()
+        )[0]
+
+        self.assertGreater(recent_result.final_heat, old_result.final_heat)
+        self.assertGreater(
+            recent_result.component_scores["freshness_score"],
+            old_result.component_scores["freshness_score"],
+        )
+
     def test_hotlist_evidence_can_replace_two_platform_gate_but_not_report_gate(self):
         eligible = EventHeatInput(
             event_id=1,

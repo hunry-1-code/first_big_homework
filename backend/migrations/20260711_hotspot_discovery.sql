@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS hot_seed_expansion (
 
 CREATE TABLE IF NOT EXISTS topic_result (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    hotspot_run_id BIGINT NOT NULL,
+    hotspot_run_id BIGINT NULL,
     topic_index INT NOT NULL,
     keywords JSON NULL,
     category VARCHAR(30) NOT NULL DEFAULT '其他',
