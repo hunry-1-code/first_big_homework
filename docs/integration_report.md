@@ -953,3 +953,88 @@ TDD 首先复现模块缺失和真实 CLI 导入路径错误，修复后 E2E 驱
 
 ---
 
+## 二十三、merge 与最终修复（2026-07-13 ~ 2026-07-14）
+
+### 23.1 合并过程
+
+队友 `qxq` 在 branchhu 上 force-pushed 大量后端优化（40+ commits），涵盖算法重写、新模块、E2E 测试。本地与远程历史分叉。处理方式：
+
+```
+本地 branchhu (ad36cba) ← 分叉 → 远程 branchhu (70a0b36)
+                                    ↓
+                               git reset --hard origin/branchhu
+                                    ↓
+                               cherry-pick ad36cba (前端架构文档)
+                                    ↓
+                               backup-local-20260713 保留全部本地历史
+```
+
+合并后本地 = 队友后端优化 + 我们的前端架构文档。
+
+### 23.2 后端新增模块概览（队友 qxq）
+
+| 模块 | 文件 | 功能 |
+|------|------|------|
+| 每日热榜 Top10 | `daily_hot.py` + `daily_hot_service.py` + API | 多平台热榜采集、RRF 融合、定时刷新、enrichment 链 |
+| 事件成熟度 | `lifecycle_service.py` + migration | 新版 `analyze_lifecycle`（confidence/evidence/status） |
+| 传播图重写 | `propagation/scorer.py` + `builder.py` | 修复 `shared=sim` 重复变量，四维结构化 evidence |
+| 风险评估重写 | `fake_detector.py` | 六维度加权评分，bigram 标题一致性，文章级交叉验证 |
+| 聚类优化 | `event_clusterer.py` | 歧义区二次重分配，余弦 clamp 修正 |
+| 热度快照 | `persist_event_heat_snapshot()` | 搜索模式 publish 后持久化热度 |
+| AI 元数据持久化 | `event_service.py` | metadata_status/version/confidence 字段 |
+| 功夫女足 E2E | `tests/e2e/kung_fu_women_football/` | 18 步全链路验证 + 截图 |
+| 前端适配模块 | `riskRadar.ts` + `propagationPresentation.ts` + `lifecyclePresentation.ts` + `taskPresentation.ts` | 风险雷达/传播提示/生命周期提示/任务展示 |
+
+### 23.3 发现并修复的问题
+
+| # | 问题 | 根因 | 修复 | Commit |
+|:---:|------|------|------|:---:|
+| 1 | 热度全是 ~58.7 | `calculate_single_event_heat` 单事件百分位排名退化 | 改为绝对公式：`articles×2×(1+platforms×0.3)×decay + engagement` | `ce1fdca` |
+| 2 | 标题"女子嘴角水疱致脑死亡" | DB 有队友功夫女足测试数据残留，聚类时混入台风事件 | 删除 DB + 全新爬取 + `_ai_generate_title` 单篇也调用 | `ce1fdca` |
+| 3 | 微博标题 100+ 字带 hashtag | `_cluster_title` 单篇跳过 AI；微博 text_raw = 全文 | 单篇也走 LLM；fallback 去 hashtag+截断 | `ce1fdca` |
+| 4 | 热度 publish 时为 0 | APScheduler 恢复任务锁 DB，`persist_event_heat_snapshot` commit 失败 | SQLite WAL 模式允许并发读写 | `e7526cd` |
+| 5 | 每日热点 API 未接入前端 | 后端完整实现（`GET /api/hotspots/today`），前端无调用 | 看板新增「🔥 今日热点 Top10」标签行 | `e7526cd` |
+| 6 | 看板默认时间排序 | `sortBy` 默认 "time" | 改为默认 "heat" | `e7526cd` |
+| 7 | Event 表缺新列 | migration 脚本未运行 | 手动 ALTER TABLE 加 lifecycle_*/metadata_* | `ce1fdca` |
+| 8 | SQLite WAL/SHM 文件被 git 追踪 | WAL 模式下产生附加文件 | `.gitignore` 加 `*.db-shm` `*.db-wal` | `e7526cd` |
+
+### 23.4 模块调用审计
+
+对全部后端/前端模块进行全面调用审计，发现：
+
+- ✅ **13/14 模块正常运作**（extract_keywords_llm、_ai_generate_title/summary、persist_event_heat_snapshot、update_event_lifecycle、build_propagation_graph、fake_detector、daily_hot_job 等全部已接入）
+- 🔴 **1 处前端未接入**：`GET /api/hotspots/today` — 已修复
+- 🟡 **1 处半失效**：`persist_event_heat_snapshot` 被 DB 锁阻塞 — 已通过 WAL 修复
+
+### 23.5 全链路重跑结果（台风巴威，干净 DB）
+
+| 指标 | 数值 |
+|------|:---:|
+| 爬取 | 40 篇（百度/B站/微博/知乎） |
+| 聚类 | 7 个事件（最大 25 篇） |
+| AI 标题 | 全部干净（"台风巴威影响多地""沈阳青岛遭台风巴威袭击"等） |
+| 热度 | 43.1 / 25.2 / 22.6（有区分） |
+| 生命周期 | 成长期 + 潜伏期 |
+| 关键词 | 30 词/事件，情感着色 |
+
+### 23.6 待解决问题
+
+| 问题 | 说明 |
+|------|------|
+| 旧数据时间戳导致衰减过重 | Event #1 的 `first_publish_time` 是旧爬虫的 2025 年时间戳，decay=0.21 |
+| 互动量全为 0 | 百度新闻源无转评赞数据，TikHub 返回的互动字段未正确映射 |
+| `daily_hot_enrichment_job` 未触发验证 | 定时任务注册了但未手动触发过完整 enrich 链路 |
+
+---
+
+### 23.7 开发日志
+
+| # | Commit | 内容 |
+|:---:|--------|------|
+| — | `2c54aba` | **docs**: 前端架构与后端技术对接文档（cherry-pick） |
+| — | `ce1fdca` | **fix**: 热度百分位退化 + AI 标题单篇 + 数据污染清理 |
+| — | `d68f10d` | **fix**: 取消 DB 文件追踪 |
+| — | `e7526cd` | **fix**: 看板默认热度排序 + 今日热点 Top10 + SQLite WAL |
+
+---
+
