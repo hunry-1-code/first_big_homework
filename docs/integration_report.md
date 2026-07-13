@@ -678,5 +678,11 @@ idle → startAnalysis() → running (2s 轮询 GET /api/tasks/:id)
 
 TDD 验证：修改后的契约测试首先稳定复现 `neutral` 被错误映射为“中性”；修复映射后运行 `python -m pytest backend/tests/test_contracts.py -q`，结果为 `8 passed`。
 
+### 21.3 事件聚合默认参数统一
+
+应用配置此前已经使用调优参数，但纯算法 `AggregationConfig` 和 `.env.example` 仍保留旧参数，导致测试、离线算法和部署示例可能采用不同聚类边界。本次统一为：加入阈值 `0.55`、创建阈值 `0.40`、移动分差 `0.10`，BGE/TF-IDF/实体/时间权重分别为 `0.55/0.20/0.15/0.10`。真实 `backend/.env` 未读取、未修改。
+
+验证：配置测试修改后先复现 dataclass 与应用配置不一致；修复后事件聚合纯算法套件 `9 passed`，事件聚合服务套件 `13 passed, 1 warning`。同时更新了缺少 BGE 时按新权重重归一化的过期测试期望。
+
 ---
 

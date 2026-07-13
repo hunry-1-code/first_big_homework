@@ -195,7 +195,7 @@ git commit -m "fix: 统一生命周期与情感接口枚举" -m "Co-Authored-By:
 - Modify: `backend/.env.example`
 - Modify: `backend/tests/test_event_aggregation_algorithms.py`
 
-- [ ] **Step 1: Update the test to the approved tuned defaults**
+- [x] **Step 1: Update the test to the approved tuned defaults**
 
 Use:
 
@@ -211,7 +211,7 @@ self.assertEqual(first.time_weight, 0.10)
 
 Assert `Config` exposes identical values.
 
-- [ ] **Step 2: Run and verify RED**
+- [x] **Step 2: Run and verify RED**
 
 ```powershell
 python -m pytest backend/tests/test_event_aggregation_algorithms.py::AggregationConfigTest -q
@@ -219,11 +219,11 @@ python -m pytest backend/tests/test_event_aggregation_algorithms.py::Aggregation
 
 Expected: dataclass and application defaults disagree.
 
-- [ ] **Step 3: Change the dataclass defaults and example environment**
+- [x] **Step 3: Change the dataclass defaults and example environment**
 
 Set `AggregationConfig` defaults to the values above. Keep `Config` environment overrides, and update `.env.example` to the same defaults. Do not read or modify `backend/.env`.
 
-- [ ] **Step 4: Run aggregation algorithm tests**
+- [x] **Step 4: Run aggregation algorithm tests**
 
 ```powershell
 python -m pytest backend/tests/test_event_aggregation_algorithms.py -q
@@ -231,7 +231,7 @@ python -m pytest backend/tests/test_event_aggregation_algorithms.py -q
 
 Expected: all current algorithm tests pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add backend/app/analysis/aggregation_config.py backend/app/core/config.py backend/.env.example backend/tests/test_event_aggregation_algorithms.py

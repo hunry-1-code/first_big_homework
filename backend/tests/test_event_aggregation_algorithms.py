@@ -20,9 +20,13 @@ class AggregationConfigTest(unittest.TestCase):
         first = AggregationConfig()
         second = AggregationConfig()
 
-        self.assertEqual(first.attach_threshold, 0.72)
-        self.assertEqual(first.create_threshold, 0.58)
-        self.assertEqual(first.move_margin, 0.15)
+        self.assertEqual(first.attach_threshold, 0.55)
+        self.assertEqual(first.create_threshold, 0.40)
+        self.assertEqual(first.move_margin, 0.10)
+        self.assertEqual(first.bge_weight, 0.55)
+        self.assertEqual(first.tfidf_weight, 0.20)
+        self.assertEqual(first.entity_weight, 0.15)
+        self.assertEqual(first.time_weight, 0.10)
         self.assertEqual(first.config_hash(), second.config_hash())
         self.assertNotEqual(
             first.config_hash(), AggregationConfig(attach_threshold=0.75).config_hash()
@@ -33,9 +37,14 @@ class AggregationConfigTest(unittest.TestCase):
             AggregationConfig(create_threshold=0.8, attach_threshold=0.7)
 
     def test_application_defaults_match_algorithm_defaults(self):
-        self.assertEqual(Config.EVENT_AGGREGATION_ATTACH_THRESHOLD, 0.72)
-        self.assertEqual(Config.EVENT_AGGREGATION_CREATE_THRESHOLD, 0.58)
-        self.assertEqual(Config.EVENT_AGGREGATION_MOVE_MARGIN, 0.15)
+        defaults = AggregationConfig()
+        self.assertEqual(Config.EVENT_AGGREGATION_ATTACH_THRESHOLD, defaults.attach_threshold)
+        self.assertEqual(Config.EVENT_AGGREGATION_CREATE_THRESHOLD, defaults.create_threshold)
+        self.assertEqual(Config.EVENT_AGGREGATION_MOVE_MARGIN, defaults.move_margin)
+        self.assertEqual(Config.EVENT_AGGREGATION_BGE_WEIGHT, defaults.bge_weight)
+        self.assertEqual(Config.EVENT_AGGREGATION_TFIDF_WEIGHT, defaults.tfidf_weight)
+        self.assertEqual(Config.EVENT_AGGREGATION_ENTITY_WEIGHT, defaults.entity_weight)
+        self.assertEqual(Config.EVENT_AGGREGATION_TIME_WEIGHT, defaults.time_weight)
         self.assertEqual(Config.EVENT_SEARCH_CACHE_HOURS, 24)
 
 
@@ -51,7 +60,8 @@ class EventSimilarityTest(unittest.TestCase):
 
         self.assertAlmostEqual(sum(result.normalized_weights.values()), 1.0)
         self.assertNotIn("bge", result.normalized_weights)
-        self.assertAlmostEqual(result.final_score, 0.763636, places=6)
+        expected = (0.8 * 0.20 + 0.6 * 0.15 + 1.0 * 0.10) / 0.45
+        self.assertAlmostEqual(result.final_score, expected, places=6)
         self.assertIn("BGE_UNAVAILABLE", result.warnings)
 
     def test_explicit_location_conflict_blocks_attachment(self):

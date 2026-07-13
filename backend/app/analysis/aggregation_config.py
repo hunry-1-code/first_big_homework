@@ -7,12 +7,12 @@ from dataclasses import asdict, dataclass
 
 @dataclass(frozen=True, slots=True)
 class AggregationConfig:
-    attach_threshold: float = 0.72
-    create_threshold: float = 0.58
-    move_margin: float = 0.15
-    bge_weight: float = 0.45
-    tfidf_weight: float = 0.25
-    entity_weight: float = 0.20
+    attach_threshold: float = 0.55
+    create_threshold: float = 0.40
+    move_margin: float = 0.10
+    bge_weight: float = 0.55
+    tfidf_weight: float = 0.20
+    entity_weight: float = 0.15
     time_weight: float = 0.10
     candidate_limit: int = 20
     maximum_event_gap_days: int = 30
