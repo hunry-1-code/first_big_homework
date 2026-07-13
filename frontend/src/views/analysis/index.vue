@@ -114,7 +114,7 @@
             </span>
           </el-button>
           <el-button
-            v-if="state === 'running' || state === 'completed' || state === 'failed'"
+            v-if="state === 'completed' || state === 'failed'"
             size="large"
             @click="resetForm"
           >
