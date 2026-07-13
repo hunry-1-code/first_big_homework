@@ -4,6 +4,7 @@ import { noticesData } from "./data";
 import NoticeList from "./components/NoticeList.vue";
 
 import BellIcon from "~icons/lucide/bell";
+import ArrowRightIcon from "~icons/ep/arrow-right";
 const dropdownRef = ref();
 const notices = ref(noticesData);
 const activeKey = ref(noticesData[0]?.key);

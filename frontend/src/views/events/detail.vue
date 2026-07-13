@@ -11,6 +11,9 @@ import IconifyIconOffline from "@/components/ReIcon/src/iconifyIconOffline";
 import PlusIcon from "~icons/ep/plus";
 import MinusIcon from "~icons/ep/minus";
 import RefreshRightIcon from "~icons/ep/refresh-right";
+import { buildRiskRadarMetrics } from "./riskRadar";
+import { buildPropagationNotice } from "./propagationPresentation";
+import { buildLifecycleNote } from "./lifecyclePresentation";
 
 defineOptions({
   name: "EventDetail"
@@ -21,6 +24,10 @@ const router = useRouter();
 const eventData = ref<any>(null);
 const propagationData = ref<any>(null);
 const loading = ref(true);
+const propagationNotice = computed(() =>
+  buildPropagationNotice(propagationData.value)
+);
+const lifecycleNote = computed(() => buildLifecycleNote(eventData.value));
 
 const { isDark } = useDark();
 const currentZoom = ref(1.0);
@@ -571,7 +578,7 @@ function initPlatformChart() {
   });
 }
 
-// ==================== 4. 风险雷达图 ====================
+// ==================== 4. 舆情风险画像 ====================
 function initRadarChart() {
   if (!radarRef.value) return;
   if (radarChart) radarChart.dispose();
@@ -579,12 +586,7 @@ function initRadarChart() {
 
   const dark = isDark.value;
   const c = chartColors(dark);
-  const heatVal = Math.min(100, eventData.value.heat_index || 0);
-  const negVal = (eventData.value.sentiment_negative || 0) * 100;
-  const riskScore = eventData.value.report?.risk_data?.score || 0;
-  const fakeRisk = 45; // 模拟虚假信息风险
-  const spreadSpeed = Math.min(100, heatVal * 1.1);
-  const platformCount = Math.min(100, (eventData.value.platform?.platforms?.length || 1) * 15);
+  const metrics = buildRiskRadarMetrics(eventData.value);
 
   radarChart.setOption({
     tooltip: {
@@ -595,20 +597,13 @@ function initRadarChart() {
     },
     legend: {
       bottom: 0,
-      data: ["风险评估"],
+      data: ["舆情画像"],
       textStyle: { color: c.textColor, fontSize: 11 }
     },
     radar: {
       center: ["50%", "46%"],
       radius: "60%",
-      indicator: [
-        { name: "传播速度", max: 100 },
-        { name: "负面占比", max: 100 },
-        { name: "虚假风险", max: 100 },
-        { name: "社会敏感度", max: 100 },
-        { name: "波及平台", max: 100 },
-        { name: "持续时间", max: 100 }
-      ],
+      indicator: metrics.map(metric => ({ name: metric.name, max: 100 })),
       axisName: { color: c.textColor, fontSize: 11 },
       splitArea: {
         areaStyle: { color: [dark ? "rgba(37,47,63,0.3)" : "rgba(241,245,249,0.6)", dark ? "rgba(30,40,55,0.3)" : "rgba(255,255,255,0.6)"] }
@@ -616,10 +611,10 @@ function initRadarChart() {
     },
     series: [{
       type: "radar",
-      name: "风险评估",
+      name: "舆情画像",
       data: [{
-        value: [spreadSpeed, negVal, fakeRisk, riskScore, platformCount, heatVal * 0.7],
-        name: "风险评估",
+        value: metrics.map(metric => metric.value),
+        name: "舆情画像",
         areaStyle: { color: "rgba(239,68,68,0.15)" },
         lineStyle: { color: "#ef4444", width: 2 },
         itemStyle: { color: "#ef4444" },
@@ -1051,6 +1046,12 @@ function getProgressColor(heat: number) {
                 >▸</span>
               </template>
             </div>
+            <span
+              v-if="lifecycleNote"
+              class="text-[11px] text-slate-400 dark:text-slate-500"
+            >
+              {{ lifecycleNote }}
+            </span>
           </div>
         </div>
       </div>
@@ -1183,7 +1184,10 @@ function getProgressColor(heat: number) {
         <el-col :xs="24" :md="8" class="mb-4">
           <el-card shadow="never" class="!border-slate-200/60 dark:!border-slate-800/60 rounded-xl">
             <template #header>
-              <div class="font-bold text-slate-800 dark:text-slate-100">🛡️ 多维风险雷达</div>
+              <div>
+                <div class="font-bold text-slate-800 dark:text-slate-100">🛡️ 多维舆情画像</div>
+                <div class="text-xs text-slate-400 mt-1">归一化指标，均由当前事件真实采集数据计算</div>
+              </div>
             </template>
             <div ref="radarRef" class="w-full h-[320px]" />
           </el-card>
@@ -1272,6 +1276,12 @@ function getProgressColor(heat: number) {
             </div>
           </div>
         </template>
+        <div
+          v-if="propagationNotice"
+          class="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-700 dark:border-amber-800/60 dark:bg-amber-950/30 dark:text-amber-300"
+        >
+          {{ propagationNotice }}
+        </div>
         <div class="flex gap-3 mb-3">
           <div class="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
             <span class="w-2.5 h-2.5 rounded-full bg-red-500" /> 信息源头
@@ -1311,7 +1321,7 @@ function getProgressColor(heat: number) {
                   <div class="text-xs text-slate-400 dark:text-slate-500 mb-0.5">{{ kp.coord?.[0] || '' }}</div>
                   <div class="text-sm font-semibold text-slate-700 dark:text-slate-200">{{ kp.name }}</div>
                   <div class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                    {{ idx === 0 ? '事件首次在社交媒体平台出现，引发初始关注。' : idx === displayKeyPoints.length - 1 ? '事件持续发酵，主流媒体与官方渠道跟进报道。' : '报道量急剧攀升，事件进入全面爆发扩散阶段。' }}
+                    {{ idx === 0 ? '当前采集数据中的最早报道节点。' : idx === displayKeyPoints.length - 1 ? '当前采集窗口中的最新报道节点。' : '报道量出现阶段性变化的关键时间点。' }}
                   </div>
                 </div>
                 <div v-if="displayKeyPoints.length === 0" class="text-sm text-slate-400 dark:text-slate-500 py-4 text-center">

@@ -64,7 +64,6 @@ export default [
         meta: {
           icon: "ep:setting",
           title: "运维管理",
-          rank: 99,
           roles: ["admin"]
         }
       }

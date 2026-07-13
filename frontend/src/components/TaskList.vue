@@ -8,6 +8,13 @@
         </el-tag>
       </template>
     </el-table-column>
+    <el-table-column label="事件关键词" min-width="180">
+      <template #default="{ row }">
+        <span class="text-sm text-slate-700 dark:text-slate-300">
+          {{ taskKeyword(row) }}
+        </span>
+      </template>
+    </el-table-column>
     <el-table-column prop="status" label="状态" width="100">
       <template #default="{ row }">
         <el-tag :type="getStatusTag(row.status)" size="small" effect="dark">
@@ -20,7 +27,7 @@
         <div class="flex items-center gap-2">
           <el-progress
             :percentage="row.progress || 0"
-            :status="row.status === 'failed' ? 'exception' : (row.status === 'completed' ? 'success' : undefined)"
+            :status="row.status === 'failed' ? 'exception' : (['success', 'completed'].includes(row.status) ? 'success' : undefined)"
             :stroke-width="5"
             class="flex-1"
           />
@@ -36,6 +43,12 @@
 </template>
 
 <script setup lang="ts">
+import {
+  formatTaskStatus,
+  getTaskStatusTag,
+  taskKeyword
+} from "./taskPresentation";
+
 defineProps<{
   tasks: Array<{
     id: number;
@@ -43,6 +56,7 @@ defineProps<{
     status: string;
     progress: number;
     message: string;
+    payload?: { keyword?: string };
   }>;
 }>();
 
@@ -59,19 +73,6 @@ function getTypeTag(type: string): any {
   return "info";
 }
 
-function formatStatus(status: string) {
-  if (status === "pending") return "等待中";
-  if (status === "running") return "进行中";
-  if (status === "completed") return "已完成";
-  if (status === "failed") return "已失败";
-  return status;
-}
-
-function getStatusTag(status: string): any {
-  if (status === "pending") return "info";
-  if (status === "running") return "warning";
-  if (status === "completed") return "success";
-  if (status === "failed") return "danger";
-  return "info";
-}
+const formatStatus = formatTaskStatus;
+const getStatusTag = getTaskStatusTag;
 </script>

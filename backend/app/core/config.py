@@ -95,6 +95,9 @@ class Config:
     TASK_HEARTBEAT_INTERVAL_SECONDS = max(
         5, int(os.getenv("TASK_HEARTBEAT_INTERVAL_SECONDS", "30"))
     )
+    TASK_HEARTBEAT_ENABLED = (
+        os.getenv("TASK_HEARTBEAT_ENABLED", "true").lower() == "true"
+    )
     CRAWL_DUPLICATE_WINDOW_SECONDS = max(
         1, int(os.getenv("CRAWL_DUPLICATE_WINDOW_SECONDS", "60"))
     )

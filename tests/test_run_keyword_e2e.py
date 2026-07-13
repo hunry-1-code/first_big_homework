@@ -8,6 +8,8 @@ from pathlib import Path
 from tools.run_keyword_e2e import (
     assess_frontend_data_quality,
     build_backend_environment,
+    browser_artifact_names,
+    browser_console_issues,
     build_search_payload,
     choose_relevant_cluster,
     safe_artifact,
@@ -144,7 +146,10 @@ class KeywordE2EDriverTest(unittest.TestCase):
             "limitations": ["缺少平台原生转发链"],
             "graph": {"nodes": [{"id": 1}], "links": []},
         }
-        dom = "电影《功夫女足》定档 生命周期 成长期 风险评估 低风险 数据不足"
+        dom = (
+            "电影《功夫女足》定档 生命周期 成长期 多维舆情画像 "
+            "可疑风险 低风险 传播证据不足 不代表已验证传播路径"
+        )
 
         result = assess_frontend_data_quality(detail, propagation, dom)
 
@@ -188,11 +193,78 @@ class KeywordE2EDriverTest(unittest.TestCase):
         }
         self.assertTrue(expected.issubset(set(result["failed_rules"])))
 
+    def test_quality_gate_requires_low_volume_lifecycle_disclosure(self):
+        detail = {
+            "title": "功夫女足上映",
+            "summary": "影片上映引发讨论。",
+            "heat_index": 20,
+            "lifecycle_stage": "潜伏期",
+            "lifecycle_confidence": 0.68,
+            "lifecycle_evidence": {"low_volume": True},
+            "sentiment_positive": 0.2,
+            "sentiment_negative": 0.7,
+            "sentiment_neutral": 0.1,
+            "trend": {"dates": ["7/13"], "counts": [3]},
+            "platform": {"platforms": [{"platform": "百度", "count": 3}]},
+            "keywords": {
+                "keywords": [
+                    {"word": "功夫女足", "source": "event"},
+                    {"word": "上映", "source": "event"},
+                ]
+            },
+            "report": {"risk_data": {"score": 20, "level": "低风险"}},
+            "articles": {
+                "total": 3,
+                "articles": [
+                    {"title": "功夫女足电影上映", "clean_content": "影片上映"},
+                    {"title": "功夫女足口碑", "clean_content": "电影讨论"},
+                    {"title": "功夫女足票房", "clean_content": "影片票房"},
+                ],
+            },
+        }
+        result = assess_frontend_data_quality(
+            detail,
+            propagation={"coverage_status": "sufficient", "limitations": []},
+            dom_text="功夫女足 潜伏期 风险评估",
+        )
+
+        self.assertIn("LIFECYCLE_LIMITATION_VISIBLE", result["failed_rules"])
+
     def test_safe_slug_handles_chinese_keyword_and_event_id(self):
         self.assertEqual(
             safe_slug("《功夫女足》电影", event_id=12),
             "功夫女足电影-event-12",
         )
+
+    def test_browser_artifact_names_are_stable_and_filesystem_safe(self):
+        names = browser_artifact_names("《功夫女足》电影", event_id=12)
+
+        self.assertEqual(names["analysis"], "15_功夫女足电影-event-12_analysis.png")
+        self.assertEqual(names["dashboard"], "15_功夫女足电影-event-12_dashboard.png")
+        self.assertEqual(names["detail"], "15_功夫女足电影-event-12_detail.png")
+        self.assertEqual(
+            names["detail_middle"],
+            "15_功夫女足电影-event-12_detail_middle.png",
+        )
+        self.assertEqual(
+            names["detail_lower"],
+            "15_功夫女足电影-event-12_detail_lower.png",
+        )
+
+    def test_browser_console_issues_keep_only_warnings_and_errors(self):
+        issues = browser_console_issues(
+            [
+                {"level": "DEBUG", "message": "vite connected"},
+                {
+                    "level": "WARNING",
+                    "message": "Extraneous non-props attributes (data-insp-path) were passed",
+                },
+                {"level": "WARNING", "message": "invalid prop"},
+                {"level": "SEVERE", "message": "request failed"},
+            ]
+        )
+
+        self.assertEqual([item["level"] for item in issues], ["WARNING", "SEVERE"])
 
     def test_backend_environment_is_isolated_and_asynchronous(self):
         env = build_backend_environment(
@@ -204,6 +276,7 @@ class KeywordE2EDriverTest(unittest.TestCase):
         self.assertEqual(env["DATABASE_URL"], "sqlite:///D:/runs/kungfu.db")
         self.assertEqual(env["TASK_RECOVER_ON_STARTUP"], "false")
         self.assertEqual(env["TASKS_RUN_SYNC"], "false")
+        self.assertEqual(env["TASK_HEARTBEAT_ENABLED"], "false")
         self.assertEqual(env["AUTO_CREATE_DB"], "true")
         self.assertEqual(env["FLASK_DEBUG"], "0")
 

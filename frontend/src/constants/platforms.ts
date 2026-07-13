@@ -5,6 +5,7 @@ export interface PlatformInfo {
   color: string;
   bg: string;
   api: string;
+  icon: string;
 }
 
 export const PLATFORMS: PlatformInfo[] = [

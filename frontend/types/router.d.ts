@@ -96,6 +96,8 @@ declare global {
       icon?: string | FunctionalComponent;
       /** 是否在菜单中显示（默认`true`）`可选` */
       showLink?: boolean;
+      /** 页面级别权限设置 `可选` */
+      roles?: Array<string>;
       /** 菜单升序排序，值越高排的越后（只针对顶级路由）`可选` */
       rank?: number;
     };

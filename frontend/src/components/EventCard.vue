@@ -32,7 +32,7 @@
       <el-progress
         :percentage="Math.min(100, Math.round(event.heat_index || 0))"
         :show-text="false"
-        stroke-width="6"
+        :stroke-width="6"
         :color="getProgressColor(event.heat_index)"
         class="rounded-full"
       />
@@ -108,6 +108,10 @@ defineProps<{
     sentiment_negative: number;
     sentiment_neutral: number;
     platforms?: string[];
+    top_keywords?: Array<{
+      word: string;
+      sentiment: "positive" | "negative" | "neutral";
+    }>;
   };
 }>();
 

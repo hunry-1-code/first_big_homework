@@ -32,7 +32,10 @@ def _execute(app, function: Callable, task_id: int) -> object:
     stop_heartbeat = Event()
     database_uri = str(app.config.get("SQLALCHEMY_DATABASE_URI", ""))
     heartbeat_thread = None
-    if not (app.config.get("TASKS_RUN_SYNC", False) and database_uri.startswith("sqlite")):
+    heartbeat_enabled = app.config.get("TASK_HEARTBEAT_ENABLED", True)
+    if heartbeat_enabled and not (
+        app.config.get("TASKS_RUN_SYNC", False) and database_uri.startswith("sqlite")
+    ):
         heartbeat_thread = Thread(
             target=_heartbeat_loop,
             args=(app, task_id, lease_token, stop_heartbeat, app.config.get("TASK_HEARTBEAT_INTERVAL_SECONDS", 30)),

@@ -49,6 +49,8 @@ export type UserInfo = {
   phone: string;
   /** 简介 */
   description: string;
+  /** 当前角色 */
+  role?: string;
 };
 
 export type UserInfoResult = {

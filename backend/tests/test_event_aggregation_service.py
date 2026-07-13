@@ -338,6 +338,17 @@ class EventAggregationServiceTest(unittest.TestCase):
         event.lifecycle_evidence = {"source": "persisted"}
         event.lifecycle_updated_at = self.now - timedelta(days=1)
         event.updated_at = self.now - timedelta(days=2)
+        db.session.add(
+            EventHeatSnapshot(
+                event_id=event.id,
+                calculated_at=self.now + timedelta(days=4),
+                raw_statistics={"independent_report_count_7d": 10},
+                component_scores={},
+                core_heat=50,
+                spread_heat=20,
+                final_heat=42,
+            )
+        )
         db.session.commit()
         before = (
             event.lifecycle_stage,
@@ -392,6 +403,8 @@ class EventAggregationServiceTest(unittest.TestCase):
         self.assertEqual(data["metadata_status"], "success")
         self.assertEqual(data["metadata_version"], "event-metadata-v2")
         self.assertEqual(second["metadata_evidence"], {"source_article_ids": [1]})
+        self.assertEqual(data["trend"]["counts"], [1, 2, 3, 4])
+        self.assertEqual(len(data["trend"]["dates"]), 4)
         self.assertEqual(metadata_extract.call_count, 0)
         self.assertEqual(commit.call_count, 0)
 
@@ -764,7 +777,9 @@ class EventAggregationServiceTest(unittest.TestCase):
             heat_snapshot.calculation_details["aggregation_run_id"],
             first["aggregation_run_id"],
         )
-        self.assertTrue(Report.query.filter_by(event_id=first["event_id"]).one().overview_text)
+        report = Report.query.filter_by(event_id=first["event_id"]).one()
+        self.assertTrue(report.overview_text)
+        self.assertEqual(event.summary, report.overview_text)
         self.assertEqual(first["postprocess"]["sentiment"], "success")
         self.assertEqual(first["postprocess"]["heat"], "success")
 

@@ -74,7 +74,7 @@
         <el-table-column prop="nickname" label="昵称" min-width="110" />
         <el-table-column prop="role" label="角色" width="100" align="center">
           <template #default="{ row }">
-            <el-tag :type="row.role === 'admin' ? 'danger' : ''" size="small" effect="light">
+            <el-tag :type="row.role === 'admin' ? 'danger' : 'info'" size="small" effect="light">
               {{ row.role === 'admin' ? '管理员' : '普通用户' }}
             </el-tag>
           </template>

@@ -121,6 +121,7 @@ def _postprocess_published_event(event_id: int, publish_run_id: int, user_id: in
         if report is None:
             report = Report(event_id=event.id)
             db.session.add(report)
+        event.summary = overview
         report.overview_text = overview
         report.sentiment_data = {
             "positive": float(event.sentiment_positive or 0),

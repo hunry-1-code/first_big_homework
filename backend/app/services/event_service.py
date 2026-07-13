@@ -463,7 +463,24 @@ def get_event_detail(event_id: int) -> dict | None:
 
     sentiment = get_event_sentiment(event.id)
     data = _event_item(event)
-    if snapshots:
+    # “报道量趋势”按文章发布时间聚合；热度快照是系统观测时间，不能替代报道日期。
+    from collections import OrderedDict
+
+    daily = OrderedDict()
+    for a in sorted(articles, key=lambda x: x.publish_time or datetime.min):
+        if a.publish_time:
+            day = a.publish_time.strftime("%Y-%m-%d")
+            daily[day] = daily.get(day, 0) + 1
+    if daily:
+        trend_dates = list(daily.keys())
+        trend_counts = list(daily.values())
+        heat_by_day = {
+            item.calculated_at.strftime("%Y-%m-%d"): item.final_heat
+            for item in snapshots
+            if item.calculated_at
+        }
+        trend_heat = [heat_by_day.get(day) for day in trend_dates]
+    elif snapshots:
         trend_dates = [item.calculated_at.isoformat() for item in snapshots]
         trend_counts = [
             (item.raw_statistics or {}).get("independent_report_count_7d", 0)
@@ -471,17 +488,9 @@ def get_event_detail(event_id: int) -> dict | None:
         ]
         trend_heat = [item.final_heat for item in snapshots]
     else:
-        # 无快照时从 article.publish_time 实时聚合
-        from collections import OrderedDict
-
-        daily = OrderedDict()
-        for a in sorted(articles, key=lambda x: x.publish_time or datetime.min):
-            if a.publish_time:
-                day = a.publish_time.strftime("%Y-%m-%d")
-                daily[day] = daily.get(day, 0) + 1
-        trend_dates = list(daily.keys())
-        trend_counts = list(daily.values())
-        trend_heat = trend_counts  # fallback: 热度=报道量
+        trend_dates = []
+        trend_counts = []
+        trend_heat = []
     lifecycle_points = get_lifecycle_change_points(trend_counts, trend_dates)
     # 计算事件级风险摘要
     ctx = _build_context(event.id, articles)

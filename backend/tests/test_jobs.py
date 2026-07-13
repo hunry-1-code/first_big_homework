@@ -256,6 +256,16 @@ class JobTest(unittest.TestCase):
 
         thread.assert_not_called()
 
+    def test_explicitly_disabled_heartbeat_does_not_start_thread_for_async_sqlite(self):
+        task = create_task("crawl", created_by=1, payload={})
+        self.app.config["TASKS_RUN_SYNC"] = False
+        self.app.config["TASK_HEARTBEAT_ENABLED"] = False
+
+        with patch("app.tasks.runner.Thread") as thread:
+            runner._execute(self.app, lambda task_id: {"task_id": task_id}, task["id"])
+
+        thread.assert_not_called()
+
     def test_runner_recovers_pending_database_task_on_startup(self):
         task = create_task("crawl", created_by=1, payload={})
         self.app.config["TASKS_RUN_SYNC"] = True
