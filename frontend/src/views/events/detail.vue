@@ -115,10 +115,33 @@ function buildKeyPoints(dates: string[], counts: number[]) {
   return points;
 }
 
-// 供模板使用，基于模拟趋势数据计算关键节点
+// 传播关键节点时间轴 — 使用真实传播数据
 const displayKeyPoints = computed(() => {
+  const keyNodes = propagationData.value?.key_nodes;
+  if (keyNodes && keyNodes.length > 0) {
+    const typeLabels: Record<string, string> = {
+      origin_candidate: "信息源头",
+      influencer_amplification: "关键传播者",
+      media_intervention: "官方媒体介入",
+      official_response: "官方回应",
+      peak_content: "互动峰值",
+      ordinary: "其他节点"
+    };
+    return keyNodes.map((n: any) => ({
+      name: typeLabels[n.node_type || n.type] || n.node_type || "传播节点",
+      time: n.publish_time?.slice(0, 10) || "",
+      author: n.name || n.author || "",
+      title: n.title || ""
+    }));
+  }
+  // 回退：用趋势关键点
   const { dates, counts } = getEnrichedTrend();
-  return buildKeyPoints(dates, counts);
+  return buildKeyPoints(dates, counts).map(kp => ({
+    name: kp.name,
+    time: kp.coord?.[0] || "",
+    author: "",
+    title: ""
+  }));
 });
 
 // 仅返回该事件实际涉及的平台（后端有数据用后端，无数据从 articles 推断）
@@ -1323,14 +1346,14 @@ function getProgressColor(heat: number) {
                     class="absolute -left-[29px] top-0.5 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-slate-900 shadow-sm"
                     :class="idx === 0 ? 'bg-blue-500' : idx === displayKeyPoints.length - 1 ? 'bg-orange-500' : 'bg-red-500'"
                   />
-                  <div class="text-xs text-slate-400 dark:text-slate-500 mb-0.5">{{ kp.coord?.[0] || '' }}</div>
+                  <div class="text-xs text-slate-400 dark:text-slate-500 mb-0.5">{{ kp.time || '' }}</div>
                   <div class="text-sm font-semibold text-slate-700 dark:text-slate-200">{{ kp.name }}</div>
                   <div class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                    {{ idx === 0 ? '当前采集数据中的最早报道节点。' : idx === displayKeyPoints.length - 1 ? '当前采集窗口中的最新报道节点。' : '报道量出现阶段性变化的关键时间点。' }}
+                    {{ kp.author || kp.title || '' }}
                   </div>
                 </div>
                 <div v-if="displayKeyPoints.length === 0" class="text-sm text-slate-400 dark:text-slate-500 py-4 text-center">
-                  暂无关键节点数据，等待后端分析引擎填充。
+                  暂无关键传播节点数据，等待后端分析引擎填充。
                 </div>
               </div>
             </div>
