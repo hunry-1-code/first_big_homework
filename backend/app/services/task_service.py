@@ -78,10 +78,10 @@ def _serialize(task) -> dict:
         "stages": task.stages or [],
         "summary": task.summary or build_summary(task.id),
         "created_by": task.created_by,
-        "created_at": task.created_at.isoformat(timespec="seconds") if task.created_at else None,
-        "started_at": task.started_at.isoformat(timespec="seconds") if task.started_at else None,
-        "heartbeat_at": task.heartbeat_at.isoformat(timespec="seconds") if task.heartbeat_at else None,
-        "finished_at": task.finished_at.isoformat(timespec="seconds") if task.finished_at else None,
+        "created_at": task.created_at.isoformat(timespec="seconds") + "Z" if task.created_at else None,
+        "started_at": task.started_at.isoformat(timespec="seconds") + "Z" if task.started_at else None,
+        "heartbeat_at": task.heartbeat_at.isoformat(timespec="seconds") + "Z" if task.heartbeat_at else None,
+        "finished_at": task.finished_at.isoformat(timespec="seconds") + "Z" if task.finished_at else None,
     }
 
 
