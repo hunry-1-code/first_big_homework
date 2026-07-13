@@ -304,10 +304,10 @@ function initTrendChart() {
           name: kp.name,
           coord: kp.coord,
           value: kp.name,
-          symbol: "pin",
-          symbolSize: 40,
-          itemStyle: { color: "#f97316" },
-          label: { fontSize: 11, color: "#fff" }
+          symbol: "roundRect",
+          symbolSize: [Math.min(140, kp.name.length * 12 + 16), 26],
+          itemStyle: { color: "#f97316", borderRadius: 6 },
+          label: { show: true, fontSize: 11, color: "#fff", fontWeight: "bold" }
         })),
         animation: true
       } : undefined
