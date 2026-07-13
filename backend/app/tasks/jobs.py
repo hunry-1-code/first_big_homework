@@ -437,11 +437,16 @@ def _run_daily_hot_enrichment_chain(
     ]
     if not search_platforms:
         return None
+    # 动态分配爬取量：跨平台越多、排名越高 → 爬越多
+    source_ranks = item.source_ranks or {}
+    platform_count = len(source_ranks)
+    avg_rank = sum(source_ranks.values()) / platform_count if platform_count else 30
+    rank_factor = 1.0 + max(0, (30 - avg_rank) / 30)    # rank=1→2x, rank=30→1x
+    platform_factor = 1.0 + (platform_count - 1) * 0.5   # 1平台→1x, 3平台→2x
+    dynamic_target = max(10, min(50, int(10 * rank_factor * platform_factor)))
     service = CrawlService(
         registry,
-        default_target_count=current_app.config.get(
-            "DAILY_HOT_ENRICH_TARGET_COUNT", 20
-        ),
+        default_target_count=dynamic_target,
         maximum_target_count=current_app.config.get("CRAWL_MAX_TARGET_COUNT", 200),
         preferred_platform_limit=current_app.config.get(
             "CRAWL_PLATFORM_PREFERRED_LIMIT", 50
@@ -450,7 +455,7 @@ def _run_daily_hot_enrichment_chain(
     batch = service.collect(
         keyword=item.title,
         platforms=search_platforms,
-        target_count=current_app.config.get("DAILY_HOT_ENRICH_TARGET_COUNT", 20),
+        target_count=dynamic_target,
         mode="search",
     )
     article_ids = []
