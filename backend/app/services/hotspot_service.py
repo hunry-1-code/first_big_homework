@@ -456,6 +456,7 @@ def persist_event_heat_snapshot(
         final_heat=final_heat,
         eligible_as_hot=final_heat >= 40,
         rank=None,
+        latest_activity_time=event.last_activity_time,
         time_confidence="high" if source_ranks else ("medium" if total >= 3 else "low"),
         warnings=warnings,
     )
