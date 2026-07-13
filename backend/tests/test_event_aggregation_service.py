@@ -1,3 +1,4 @@
+import json
 import sys
 import unittest
 from datetime import datetime, timedelta
@@ -37,7 +38,11 @@ from app.services.event_aggregation_service import (
     review_merge_candidate,
     run_event_aggregation,
 )
-from app.services.event_service import _event_keywords, get_event_detail
+from app.services.event_service import (
+    _event_keywords,
+    get_event_detail,
+    update_event_metadata,
+)
 
 
 class TestConfig:
@@ -300,7 +305,18 @@ class EventAggregationServiceTest(unittest.TestCase):
         self.assertEqual(EventArticleMembership.query.count(), 2)
 
     def test_event_detail_does_not_mutate_persisted_lifecycle(self):
-        event = Event(title="只读生命周期事件")
+        event = Event(
+            title="只读生命周期事件",
+            time_code="2026年07月11日 12:00",
+            location="重庆",
+            key_figures="应急部门",
+            cause="持续强降雨",
+            metadata_status="success",
+            metadata_version="event-metadata-v2",
+            metadata_confidence=0.88,
+            metadata_evidence={"source_article_ids": [1]},
+            metadata_updated_at=self.now - timedelta(hours=1),
+        )
         db.session.add(event)
         db.session.flush()
         index = 1
@@ -352,8 +368,11 @@ class EventAggregationServiceTest(unittest.TestCase):
                 "key_figures": "",
                 "cause": "",
             },
-        ):
+        ) as metadata_extract, patch.object(
+            db.session, "commit", wraps=db.session.commit
+        ) as commit:
             data = get_event_detail(event.id)
+            second = get_event_detail(event.id)
 
         db.session.refresh(event)
         after = (
@@ -368,6 +387,127 @@ class EventAggregationServiceTest(unittest.TestCase):
         self.assertEqual(data["lifecycle_stage"], "潜伏期")
         self.assertEqual(data["lifecycle_status"], "manual_review")
         self.assertEqual(data["lifecycle_confidence"], 0.42)
+        self.assertEqual(data["location"], "重庆")
+        self.assertEqual(data["metadata_status"], "success")
+        self.assertEqual(data["metadata_version"], "event-metadata-v2")
+        self.assertEqual(second["metadata_evidence"], {"source_article_ids": [1]})
+        self.assertEqual(metadata_extract.call_count, 0)
+        self.assertEqual(commit.call_count, 0)
+
+    def test_event_update_persists_structured_metadata_once(self):
+        article = self._article(
+            1,
+            "重庆暴雨启动应急响应",
+            ["重庆", "暴雨", "应急", "响应"],
+            [1.0, 0.0],
+        )
+        analysis = self._analysis_run([article], fingerprint="metadata")
+        run, _ = create_aggregation_run(analysis.id)
+
+        class FakeClient:
+            def __init__(self):
+                self.calls = []
+
+            def chat(self, messages, **kwargs):
+                self.calls.append(messages)
+                return {
+                    "model": "test-model",
+                    "content": json.dumps(
+                        {
+                            "time_code": {
+                                "value": "2025年",
+                                "confidence": 0.2,
+                                "evidence_article_ids": [article.id],
+                            },
+                            "location": {
+                                "value": "重庆",
+                                "confidence": 0.95,
+                                "evidence_article_ids": [article.id],
+                            },
+                            "key_figures": {
+                                "value": "重庆市应急管理部门",
+                                "confidence": 0.9,
+                                "evidence_article_ids": [article.id],
+                            },
+                            "cause": {
+                                "value": "持续强降雨引发城市积水",
+                                "confidence": 0.85,
+                                "evidence_article_ids": [article.id],
+                            },
+                        },
+                        ensure_ascii=False,
+                    ),
+                }
+
+        client = FakeClient()
+        with patch(
+            "app.services.event_aggregation_service._llm_client",
+            return_value=client,
+        ):
+            run_event_aggregation(run.id, now=self.now)
+
+        event = Event.query.one()
+        self.assertEqual(len(client.calls), 1)
+        self.assertIn("evidence_article_ids", client.calls[0][0]["content"])
+        self.assertEqual(event.time_code, article.publish_time.strftime("%Y年%m月%d日 %H:%M"))
+        self.assertEqual(event.location, "重庆")
+        self.assertEqual(event.key_figures, "重庆市应急管理部门")
+        self.assertEqual(event.cause, "持续强降雨引发城市积水")
+        self.assertEqual(event.metadata_status, "success")
+        self.assertEqual(event.metadata_version, "event-metadata-v2")
+        self.assertGreater(event.metadata_confidence, 0.8)
+        self.assertEqual(event.metadata_evidence["source_article_ids"], [article.id])
+        self.assertIn("TIME_CODE_CONFLICT", event.metadata_evidence["warnings"])
+        self.assertEqual(event.metadata_updated_at, self.now)
+
+    def test_metadata_parse_failure_preserves_existing_nonempty_values(self):
+        article = self._article(
+            1,
+            "重庆暴雨处置进展",
+            ["重庆", "暴雨", "处置"],
+            [1.0, 0.0],
+        )
+        event = Event(
+            title="重庆暴雨",
+            first_publish_time=article.publish_time,
+            location="重庆",
+            key_figures="既有应急部门",
+            cause="既有原因说明",
+            metadata_status="success",
+            metadata_version="event-metadata-v2",
+            metadata_confidence=0.8,
+            metadata_evidence={"source_article_ids": [999]},
+        )
+        db.session.add(event)
+        db.session.flush()
+
+        class InvalidClient:
+            def chat(self, messages, **kwargs):
+                return {"content": "```json\nnot-json\n```"}
+
+        changed = update_event_metadata(
+            event,
+            [article],
+            now=self.now,
+            client=InvalidClient(),
+        )
+
+        self.assertTrue(changed)
+        self.assertEqual(event.location, "重庆")
+        self.assertEqual(event.key_figures, "既有应急部门")
+        self.assertEqual(event.cause, "既有原因说明")
+        self.assertEqual(
+            event.time_code,
+            article.publish_time.strftime("%Y年%m月%d日 %H:%M"),
+        )
+        self.assertEqual(event.metadata_status, "fallback")
+        self.assertEqual(event.metadata_evidence["source_article_ids"], [article.id])
+        self.assertTrue(
+            any(
+                warning.startswith("LLM_METADATA_FAILED:")
+                for warning in event.metadata_evidence["warnings"]
+            )
+        )
 
     def test_duplicate_article_inherits_event_without_changing_representation_center(self):
         representative = self._article(

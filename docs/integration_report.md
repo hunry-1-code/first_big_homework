@@ -795,5 +795,15 @@ SnowNLP 降级结果同时标记 `SNOWNLP_FALLBACK` 和 `DOMAIN_MISMATCH_FALLBAC
 
 TDD 红灯稳定复现传播因子为 `2.0`、摘要为 `None`、额外摘要 LLM 调用 4 次以及缺少领域降级警告。修复后运行 `python -m pytest backend/tests/test_sentiment_algorithms.py backend/tests/test_sentiment_service.py -q`，结果为 `20 passed, 1 warning`；警告是既有 SQLAlchemy `Query.get()` 弃用提示。
 
+### 21.18 事件 AI 元数据持久化与详情只读化
+
+Event 新增 `metadata_status`、`metadata_version`、`metadata_confidence`、`metadata_evidence` 和 `metadata_updated_at`。元数据版本为 `event-metadata-v2`，证据中保存字段级置信度、证据文章 ID、模型、警告和代表性文章集合指纹。MySQL 迁移 SQL 已补充五个字段；Python 迁移入口同时支持对既有 SQLite 开发库逐列升级。
+
+元数据生成从 `get_event_detail()` 移至事件成员更新边界。`_update_event()` 在正式事件发布或活跃成员发生实质变化时提取一次；代表性文章 ID 集合未变化时直接复用持久化结果。严格提示词要求四个字段分别返回 `value/confidence/evidence_article_ids`，证据 ID 必须来自输入文章。解析失败时保留已有非空地点、人物和起因，不用空字符串覆盖。
+
+`time_code` 优先使用 `first_publish_time` 的确定性格式。LLM 时间与首发时间不一致时保存 `TIME_CODE_CONFLICT`，但不会覆盖可靠时间。详情接口直接返回已持久化的元数据状态、版本、置信度、证据和更新时间，不再调用元数据 LLM；可疑信息风险在读取时仅做规则计算，不调用灰区 LLM，也不再修改 Article 或提交事务。
+
+TDD 红灯复现 Event 字段缺失、聚合更新零元数据调用、迁移缺列和详情读取副作用。聚焦元数据测试为 `5 passed`；事件聚合、迁移、QA 和情感详情下游联合验证为 `33 passed, 8 warnings`。警告均为既有 SQLAlchemy `Query.get()`、jieba/pkg_resources 弃用提示。
+
 ---
 

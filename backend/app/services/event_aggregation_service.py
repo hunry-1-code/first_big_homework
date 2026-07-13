@@ -531,6 +531,14 @@ def _update_event(event, run, now):
         daily_counts_from_articles(articles),
         now=now,
     )
+    from app.services.event_service import update_event_metadata
+
+    update_event_metadata(
+        event,
+        articles,
+        now=now,
+        client_factory=_llm_client,
+    )
     versions = run.versions or {}
     representative_articles = [item for item in articles if not item.is_duplicate]
     embedding_rows = ArticleEmbedding.query.filter(

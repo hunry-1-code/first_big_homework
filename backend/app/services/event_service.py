@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import re
 from collections import Counter
 from datetime import datetime
 
@@ -14,6 +16,7 @@ from app.services.api_contract_service import api_platform_name,api_lifecycle_st
 
 # 文章级关键词缓存（避免同一 event detail 请求中重复查询）
 _keywords_cache: dict[int, list[dict]] = {}
+EVENT_METADATA_VERSION = "event-metadata-v2"
 
 
 def _article_keywords(article_id: int) -> list[dict]:
@@ -150,52 +153,174 @@ def _event_keywords(event: Event) -> dict:
 
 
 
-def _extract_event_metadata(event, articles) -> dict:
-    """用 LLM 一次提取事件的时间、地点、人物和起因。失败则回退规则提取。"""
+def _extract_event_metadata(event, articles, *, client=None) -> dict:
+    """Extract evidence-linked fields; failures return structured warnings."""
     try:
-        from flask import current_app
-        from app.llm.client import LLMClient
-        from app.llm.prompts import EVENT_SUMMARY_PROMPT
-        client = LLMClient(
-            api_key=current_app.config.get("LLM_API_KEY", ""),
-            base_url=current_app.config.get("LLM_BASE_URL", ""),
-            model_name=current_app.config.get("LLM_MODEL_NAME", ""),
-            timeout=15,
-        )
-        samples = "\n".join(
-            f"- [{a.platform}] {a.title}"
-            for a in articles[:10] if a.title
-        )
+        if client is None:
+            from flask import current_app
+            from app.llm.client import LLMClient
+
+            client = LLMClient(
+                api_key=current_app.config.get("LLM_API_KEY", ""),
+                base_url=current_app.config.get("LLM_BASE_URL", ""),
+                model_name=current_app.config.get("LLM_MODEL_NAME", ""),
+                timeout=15,
+            )
+        from app.llm.prompts import EVENT_METADATA_PROMPT
+
+        allowed_ids = {int(article.id) for article in articles if article.id is not None}
+        samples = [
+            {
+                "article_id": int(article.id),
+                "platform": article.platform,
+                "title": article.title,
+                "content_excerpt": (article.clean_content or "")[:300],
+                "publish_time": article.publish_time.isoformat()
+                if article.publish_time
+                else None,
+            }
+            for article in articles[:10]
+            if article.id is not None
+        ]
         resp = client.chat([
-            {"role": "system", "content": EVENT_SUMMARY_PROMPT},
+            {"role": "system", "content": EVENT_METADATA_PROMPT},
             {"role": "user", "content": (
-                f"事件标题：{event.title or '未知'}\n相关报道：\n{samples}\n\n"
-                "请返回 JSON：{\"time_code\":\"发生时间\",\"location\":\"地点\","
-                "\"key_figures\":\"人物/机构\",\"cause\":\"起因概述(≤100字)\"}"
+                json.dumps(
+                    {
+                        "event_title": event.title or "未知",
+                        "first_publish_time": event.first_publish_time.isoformat()
+                        if event.first_publish_time
+                        else None,
+                        "articles": samples,
+                    },
+                    ensure_ascii=False,
+                )
             )}
-        ], temperature=0.3, max_tokens=200)
-        import json, re
-        text = resp["content"].strip()
+        ], temperature=0, max_tokens=500)
+        text = str(resp.get("content", "")).strip()
         fenced = re.fullmatch(r"```(?:json)?\s*(.*?)\s*```", text, re.DOTALL | re.IGNORECASE)
         if fenced:
-            text = fenced.group(1)
+            text = fenced.group(1).strip()
         value = json.loads(text)
-        if isinstance(value, dict):
-            return {
-                "time_code": str(value.get("time_code", "")).strip()[:50],
-                "location": str(value.get("location", "")).strip()[:100],
-                "key_figures": str(value.get("key_figures", "")).strip()[:200],
-                "cause": str(value.get("cause", "")).strip()[:200],
+        if not isinstance(value, dict):
+            raise ValueError("metadata response must be an object")
+        limits = {"time_code": 50, "location": 100, "key_figures": 500, "cause": 500}
+        fields = {}
+        for name, limit in limits.items():
+            item = value.get(name)
+            if not isinstance(item, dict):
+                continue
+            field_value = " ".join(str(item.get("value") or "").split())[:limit]
+            try:
+                confidence = max(0.0, min(1.0, float(item.get("confidence") or 0)))
+            except (TypeError, ValueError):
+                confidence = 0.0
+            evidence_ids = []
+            for raw_id in item.get("evidence_article_ids") or []:
+                try:
+                    article_id = int(raw_id)
+                except (TypeError, ValueError):
+                    continue
+                if article_id in allowed_ids and article_id not in evidence_ids:
+                    evidence_ids.append(article_id)
+            fields[name] = {
+                "value": field_value,
+                "confidence": round(confidence, 6),
+                "evidence_article_ids": evidence_ids,
             }
-    except Exception:
-        pass
-    # 规则回退
-    return {
-        "time_code": event.first_publish_time.strftime("%Y年%m月%d日 %H:%M") if event.first_publish_time else "",
-        "location": "",
-        "key_figures": "",
-        "cause": "",
+        return {
+            "fields": fields,
+            "model": resp.get("model") or getattr(client, "model_name", None),
+            "warnings": [],
+        }
+    except Exception as exc:
+        return {
+            "fields": {},
+            "model": None,
+            "warnings": [f"LLM_METADATA_FAILED:{type(exc).__name__}"],
+        }
+
+
+def update_event_metadata(
+    event: Event,
+    articles: list[Article],
+    *,
+    now: datetime,
+    client=None,
+    client_factory=None,
+) -> bool:
+    """Persist metadata when the representative article set materially changes."""
+    source_articles = [article for article in articles if not article.is_duplicate] or articles
+    source_ids = sorted(int(article.id) for article in source_articles if article.id is not None)
+    existing_evidence = dict(event.metadata_evidence or {})
+    if (
+        event.metadata_version == EVENT_METADATA_VERSION
+        and event.metadata_status in {"success", "fallback"}
+        and existing_evidence.get("source_article_ids") == source_ids
+    ):
+        return False
+
+    if client is None and client_factory is not None:
+        client = client_factory()
+    extracted = _extract_event_metadata(event, source_articles, client=client)
+    fields = extracted.get("fields") or {}
+    warnings = list(extracted.get("warnings") or [])
+    field_evidence = dict(existing_evidence.get("fields") or {})
+
+    deterministic_time = (
+        event.first_publish_time.strftime("%Y年%m月%d日 %H:%M")
+        if event.first_publish_time
+        else ""
+    )
+    llm_time = str((fields.get("time_code") or {}).get("value") or "").strip()
+    if deterministic_time:
+        if llm_time and llm_time != deterministic_time:
+            warnings.append("TIME_CODE_CONFLICT")
+        event.time_code = deterministic_time
+        earliest_ids = [
+            int(article.id)
+            for article in source_articles
+            if article.id is not None
+            and article.publish_time == event.first_publish_time
+        ]
+        field_evidence["time_code"] = {
+            "source": "first_publish_time",
+            "confidence": 1.0,
+            "evidence_article_ids": earliest_ids,
+        }
+    elif llm_time:
+        event.time_code = llm_time
+        field_evidence["time_code"] = {**fields["time_code"], "source": "llm"}
+
+    for name in ("location", "key_figures", "cause"):
+        item = fields.get(name) or {}
+        value = str(item.get("value") or "").strip()
+        if value:
+            setattr(event, name, value)
+            field_evidence[name] = {**item, "source": "llm"}
+
+    confidences = [
+        float(item.get("confidence") or 0)
+        for name, item in field_evidence.items()
+        if getattr(event, name, None)
+    ]
+    event.metadata_status = "success" if any(
+        str((fields.get(name) or {}).get("value") or "").strip()
+        for name in ("location", "key_figures", "cause")
+    ) else "fallback"
+    event.metadata_version = EVENT_METADATA_VERSION
+    event.metadata_confidence = round(
+        sum(confidences) / len(confidences) if confidences else 0.0,
+        6,
+    )
+    event.metadata_evidence = {
+        "fields": field_evidence,
+        "warnings": sorted(set(warnings)),
+        "source_article_ids": source_ids,
+        "model": extracted.get("model"),
     }
+    event.metadata_updated_at = now
+    return True
 
 
 def _event_item(event: Event, snapshot: EventHeatSnapshot | None = None, platforms: list[str] | None = None) -> dict:
@@ -229,6 +354,19 @@ def _event_item(event: Event, snapshot: EventHeatSnapshot | None = None, platfor
         "lifecycle_updated_at": (
             event.lifecycle_updated_at.isoformat()
             if event.lifecycle_updated_at
+            else None
+        ),
+        "time_code": event.time_code,
+        "location": event.location,
+        "key_figures": event.key_figures,
+        "cause": event.cause,
+        "metadata_status": event.metadata_status,
+        "metadata_version": event.metadata_version,
+        "metadata_confidence": float(event.metadata_confidence or 0),
+        "metadata_evidence": event.metadata_evidence or {},
+        "metadata_updated_at": (
+            event.metadata_updated_at.isoformat()
+            if event.metadata_updated_at
             else None
         ),
         "sentiment_positive": positive,
@@ -347,16 +485,12 @@ def get_event_detail(event_id: int) -> dict | None:
     lifecycle_points = get_lifecycle_change_points(trend_counts, trend_dates)
     # 计算事件级风险摘要
     ctx = _build_context(event.id, articles)
-    article_risks = batch_assess_articles(articles, ctx)
-    # 将评估结果持久化到 Article 模型
-    for article, risk in zip(articles, article_risks):
-        if getattr(article, "is_suspicious", None) != risk["is_suspicious"] or \
-           getattr(article, "suspicious_score", None) != risk["score"]:
-            article.is_suspicious = risk["is_suspicious"]
-            article.suspicious_score = risk["score"]
-            article.suspicious_reason = risk["reason"]
-            article.suspicious_method = risk["method"]
-    db.session.commit()
+    article_risks = batch_assess_articles(
+        articles,
+        ctx,
+        llm_min_score=101,
+        llm_max_score=100,
+    )
     suspicious_articles = [r for r in article_risks if r["is_suspicious"]]
     avg_risk = sum(r["score"] for r in article_risks) / len(article_risks) if article_risks else 0
     risk_data = {
@@ -370,14 +504,6 @@ def get_event_detail(event_id: int) -> dict | None:
             if reason and "未发现" not in reason
         ))[:5],
     }
-
-    # ── AI 元数据：从 articles 聚合 ──
-    # AI 元数据：优先用 LLM 提取，失败回退 DB 已有值
-    ai_meta = _extract_event_metadata(event, articles)
-    data["time_code"] = ai_meta["time_code"] if not event.time_code else event.time_code
-    data["location"] = event.location or ai_meta["location"]
-    data["key_figures"] = event.key_figures or ai_meta["key_figures"]
-    data["cause"] = event.cause or ai_meta["cause"]
 
     data.update(
         report={

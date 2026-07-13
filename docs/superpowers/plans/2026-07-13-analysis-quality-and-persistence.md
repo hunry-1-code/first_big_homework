@@ -232,13 +232,13 @@ Commit after green.
 - Modify: `backend/tests/test_event_aggregation_service.py`
 - Modify or create: `backend/tests/test_event_service.py`
 
-- [ ] **Step 1: Add failing persistence and no-read-side-effect tests**
+- [x] **Step 1: Add failing persistence and no-read-side-effect tests**
 
 Publish/update an event with a fake LLM, assert metadata fields and version are stored. Then reset the fake call counter, call `get_event_detail()` twice, and assert zero additional calls and no database writes.
 
-- [ ] **Step 2: Run and verify RED**
+- [x] **Step 2: Run and verify RED**
 
-- [ ] **Step 3: Add metadata fields**
+- [x] **Step 3: Add metadata fields**
 
 ```python
 metadata_status = db.Column(db.String(24), nullable=False, default="pending")
@@ -248,19 +248,19 @@ metadata_evidence = db.Column(db.JSON)
 metadata_updated_at = db.Column(db.DateTime)
 ```
 
-- [ ] **Step 4: Replace the prompt with strict JSON**
+- [x] **Step 4: Replace the prompt with strict JSON**
 
 Require `time_code`, `location`, `key_figures`, `cause`, per-field confidence and evidence article IDs. Reject Markdown wrappers after deterministic cleanup if JSON remains invalid.
 
-- [ ] **Step 5: Generate metadata during publication/update**
+- [x] **Step 5: Generate metadata during publication/update**
 
 Use `first_publish_time` as authoritative time fallback. Preserve existing non-empty metadata when LLM parsing fails.
 
-- [ ] **Step 6: Make detail serialization read-only and run tests**
+- [x] **Step 6: Make detail serialization read-only and run tests**
 
 Run aggregation, event, QA and report tests.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 Commit schema, migration, prompts, services and tests.
 
