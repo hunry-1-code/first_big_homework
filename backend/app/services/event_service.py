@@ -349,6 +349,47 @@ def update_event_metadata(
     return True
 
 
+def _rule_based_risk(event, articles) -> dict:
+    """规则回退：没有 LLM 报告时，用 fake_detector 分数推算风险等级。"""
+    suspicious = [a for a in articles if getattr(a, "is_suspicious", False)]
+    s_count = len(suspicious)
+    total = len(articles) or 1
+    s_ratio = s_count / total
+
+    # 平均可疑分数
+    scores = [float(getattr(a, "suspicious_score", 0) or 0) for a in articles]
+    avg_score = sum(scores) / len(scores) if scores else 0
+
+    # 综合风险分：可疑率 60% + 平均分 40%
+    risk_score = round(s_ratio * 60 + avg_score * 40, 1)
+
+    if risk_score >= 50:
+        level = "高风险"
+    elif risk_score >= 25:
+        level = "中风险"
+    else:
+        level = "低风险"
+
+    factors = []
+    if s_ratio > 0.2:
+        factors.append("可疑报道占比较高")
+    if avg_score > 0.3:
+        factors.append("文章可疑度平均分较高")
+    if total < 5:
+        factors.append("报道总量偏低，可能存在信息不完整")
+    if not factors:
+        factors.append("未检测到明显风险因素")
+
+    return {
+        "level": level,
+        "score": risk_score,
+        "total_count": total,
+        "suspicious_count": s_count,
+        "factors": factors,
+        "source": "rule_fallback",
+    }
+
+
 def _event_item(event: Event, snapshot: EventHeatSnapshot | None = None, platforms: list[str] | None = None) -> dict:
     if snapshot is None and event.current_heat_snapshot_id:
         snapshot = db.session.get(EventHeatSnapshot, event.current_heat_snapshot_id)
@@ -551,10 +592,15 @@ def get_event_detail(event_id: int) -> dict | None:
         ))[:5],
     }
 
+    # 风险数据：优先 LLM 报告，缺失时用规则回退
+    if report and report.risk_data:
+        risk_payload = report.risk_data
+    else:
+        risk_payload = _rule_based_risk(event, articles)
     data.update(
         report={
             "overview_text": report.overview_text if report else event.summary,
-            "risk_data": report.risk_data if (report and report.risk_data) else risk_data,
+            "risk_data": risk_payload,
         },
         trend={
             "dates": [short_date(value) for value in trend_dates[-14:]],

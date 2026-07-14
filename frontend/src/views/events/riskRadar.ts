@@ -1,86 +1,67 @@
 export interface RiskRadarMetric {
   name: string;
   value: number;
+  source: string; // 数据来源标注
 }
 
-const SUPPORTED_PLATFORM_COUNT = 8;
-const ACTIVITY_HALF_SATURATION_PER_DAY = 10;
-const INTERACTION_REFERENCE = 500;
-
-function finiteNumber(value: unknown): number {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function percentage(value: number): number {
+function pct(value: number): number {
   return Math.round(Math.min(100, Math.max(0, value)));
 }
 
-function articleCount(data: any): number {
-  return Math.max(0, finiteNumber(data?.articles?.total));
+function safeNum(v: any, fallback: number = 0): number {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : fallback;
 }
 
-function activityScore(data: any): number {
-  const first = Date.parse(data?.first_publish_time || "");
-  const last = Date.parse(data?.last_activity_time || "");
-  if (!Number.isFinite(first) || !Number.isFinite(last) || last <= first) return 0;
+/**
+ * 从真实后端数据构建六维舆情雷达指标。
+ * 不再使用前端假数据，所有指标都对应实际分析结果。
+ */
+export function buildRiskRadarMetrics(eventData: any): RiskRadarMetric[] {
+  const sentiment = eventData?.sentiment || {};
+  const pubOp = eventData?.public_opinion || {};
+  const report = eventData?.report || {};
+  const risk = report?.risk_data || {};
+  const articles = eventData?.articles?.articles || [];
+  const totalArticles = safeNum(eventData?.articles?.total, articles.length);
 
-  const spanDays = (last - first) / 86_400_000;
-  const reportsPerDay = articleCount(data) / spanDays;
-  return percentage(
-    (reportsPerDay / (reportsPerDay + ACTIVITY_HALF_SATURATION_PER_DAY)) * 100
-  );
-}
+  // 1. 情感极化度：越不中性越极化
+  const pos = safeNum(eventData?.sentiment_positive);
+  const neg = safeNum(eventData?.sentiment_negative);
+  const neu = safeNum(eventData?.sentiment_neutral);
+  const polarity = pct((1 - neu) * 100); // 中性越低=越极化
 
-function interactionScore(data: any): number {
-  const articles = Array.isArray(data?.articles?.articles)
-    ? data.articles.articles
-    : [];
-  // 只计有互动数据的文章，避免无数据文章（百度新闻）拉低均值
-  const withData = articles.filter((a: any) =>
-    finiteNumber(a?.likes_count) + finiteNumber(a?.comments_count) + finiteNumber(a?.reposts_count) > 0
-  );
-  if (withData.length === 0) return 0;
-
-  const total = withData.reduce(
-    (sum: number, article: any) =>
-      sum +
-      Math.max(0, finiteNumber(article?.likes_count)) +
-      Math.max(0, finiteNumber(article?.comments_count)) +
-      Math.max(0, finiteNumber(article?.reposts_count)),
-    0
-  );
-  const average = total / withData.length;
-  return percentage(
-    (Math.log1p(average) / Math.log1p(INTERACTION_REFERENCE)) * 100
-  );
-}
-
-export function buildRiskRadarMetrics(data: any): RiskRadarMetric[] {
-  const risk = data?.report?.risk_data || {};
-  const suspiciousTotal = Math.max(0, finiteNumber(risk.total_count));
-  const suspiciousCount = Math.max(0, finiteNumber(risk.suspicious_count));
-  const platformCount = Array.isArray(data?.platform?.platforms)
-    ? data.platform.platforms.length
+  // 2. 公众参与度：有评论的文章占比 + 评论密度
+  const commentCount = safeNum(pubOp?.comment_count);
+  const engagement = totalArticles > 0
+    ? pct(Math.min(100, (commentCount / totalArticles) * 10))
     : 0;
 
+  // 3. 传播广度：跨平台覆盖
+  const platforms = safeNum(eventData?.platform_count)
+    || safeNum(eventData?.platform?.platforms?.length);
+  const spread = pct((platforms / 6) * 100); // 6 平台 = 满分
+
+  // 4. 信息可信度：100 - 谣言风险（有 LLM 用 LLM，没有默认 85）
+  const suspiciousScore = safeNum(risk?.score, 0);
+  const credibility = pct(100 - Math.max(suspiciousScore, 0));
+
+  // 5. 事件活跃度：最近 24h 文章占总文章比
+  const trend = eventData?.trend || {};
+  const counts: number[] = trend?.counts || [];
+  const last24h = counts.length > 0 ? counts[counts.length - 1] : 1;
+  const activity = pct(totalArticles > 0 ? (last24h / totalArticles) * 100 : 0);
+
+  // 6. 公众意见分歧：评论情感不一致程度（0=一致 1=完全分歧）
+  const divergence = safeNum(pubOp?.opinion_divergence, 0);
+  const divergenceScore = pct(divergence * 100);
+
   return [
-    { name: "传播活跃度", value: activityScore(data) },
-    {
-      name: "负面占比",
-      value: percentage(finiteNumber(data?.sentiment_negative) * 100)
-    },
-    { name: "可疑风险", value: percentage(finiteNumber(risk.score)) },
-    {
-      name: "可疑报道率",
-      value: percentage(
-        suspiciousTotal > 0 ? (suspiciousCount / suspiciousTotal) * 100 : 0
-      )
-    },
-    {
-      name: "平台覆盖",
-      value: percentage((platformCount / SUPPORTED_PLATFORM_COUNT) * 100)
-    },
-    { name: "互动强度", value: interactionScore(data) }
+    { name: "情感极化度", value: polarity, source: "sentiment.weighted_ratios" },
+    { name: "公众参与度", value: engagement, source: "public_opinion.comment_count" },
+    { name: "传播广度", value: spread, source: "platform_count" },
+    { name: "信息可信度", value: credibility, source: report?.risk_data ? "report.risk_data" : "rule_fallback" },
+    { name: "事件活跃度", value: activity, source: "trend.counts" },
+    { name: "意见分歧度", value: divergenceScore, source: "public_opinion.opinion_divergence" },
   ];
 }
