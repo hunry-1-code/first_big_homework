@@ -272,6 +272,13 @@ def serialize_daily_hot_run(
         .limit(max(1, min(int(limit), 100)))
         .all()
     )
+    from app.models import Event
+    event_ids = [item.event_id for item in items if item.event_id]
+    event_map = {event.id: event for event in Event.query.filter(Event.id.in_(event_ids)).all()} if event_ids else {}
+    category_counts = {}
+    for event in event_map.values():
+        if event.topic_category:
+            category_counts[event.topic_category] = category_counts.get(event.topic_category, 0) + 1
     stale = (
         run.completed_at is None
         or (now - run.completed_at).total_seconds() > max(0, int(ttl_seconds))
@@ -285,6 +292,7 @@ def serialize_daily_hot_run(
         "available_sources": run.available_sources or [],
         "failed_sources": run.failed_sources or [],
         "errors": run.errors or {},
+        "category_counts": category_counts,
         "items": [
             {
                 "id": item.id,
@@ -300,6 +308,9 @@ def serialize_daily_hot_run(
                 "enrichment_status": item.enrichment_status,
                 "event_id": item.event_id,
                 "analysis_task_id": item.analysis_task_id,
+                "category": event_map[item.event_id].topic_category if item.event_id in event_map else None,
+                "topic_name": event_map[item.event_id].topic_name if item.event_id in event_map else None,
+                "topic_keywords": item.topic_keywords or [],
             }
             for item in items
         ],

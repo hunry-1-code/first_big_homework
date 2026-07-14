@@ -530,9 +530,15 @@ def _run_daily_hot_enrichment_chain(
         mode="search",
     )
     article_ids = []
+    comment_count = 0
+    comment_errors = []
     for document in batch.documents:
         article, _output = persist_raw_document(document, task_id)
         article_ids.append(article.id)
+        added, comment_error = _enrich_article_comments(article, document, registry)
+        comment_count += added
+        if comment_error:
+            comment_errors.append({"platform": document.platform, "article_id": article.id, "message": comment_error})
     if not article_ids:
         if batch.errors:
             raise RuntimeError("ENRICHMENT_CRAWL_FAILED")
@@ -581,7 +587,13 @@ def _run_daily_hot_enrichment_chain(
         cluster.id,
         user_id=task.get("created_by"),
     )
-    return int(published["event_id"]) if published.get("event_id") else None
+    event_id = int(published["event_id"]) if published.get("event_id") else None
+    if event_id is not None:
+        from app.services.event_topic_service import classify_event_topic
+        classification = classify_event_topic(event_id)
+        item.topic_keywords = classification.get("evidence") or []
+        db.session.commit()
+    return event_id
 
 
 def daily_hot_enrichment_job(
