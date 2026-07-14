@@ -575,8 +575,8 @@ def get_event_detail(event_id: int) -> dict | None:
     article_risks = batch_assess_articles(
         articles,
         ctx,
-        llm_min_score=101,
-        llm_max_score=100,
+        llm_min_score=40,  # 规则分≥40 触发 LLM 复核
+        llm_max_score=80,
     )
     suspicious_articles = [r for r in article_risks if r["is_suspicious"]]
     avg_risk = sum(r["score"] for r in article_risks) / len(article_risks) if article_risks else 0
