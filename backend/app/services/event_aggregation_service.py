@@ -180,12 +180,22 @@ def _merge_small_clusters_by_keywords(cluster_rows: dict, result, actions: dict)
     main_c = result.clusters[main_idx]
     main_row = cluster_rows.get(main_idx)
 
+    # 提取主题词：在大簇（≥3篇）中出现的高频词，用于精准匹配合并
+    from collections import Counter as _Ctr
+    kw_freq = _Ctr()
+    for c in result.clusters:
+        if len(c.documents) >= 3:
+            for k in (c.keywords or []):
+                kw_freq[str(k).casefold()] += 1
+    # 主题词：大簇中出现过的词。单篇簇关键词与主题词有交集 → 同主题 → 合并
+    theme_words = set(kw_freq.keys())
+
     merged_count = 0
     for si in small_indices:
         small_c = result.clusters[si]
         small_kws = {str(k).casefold() for k in (small_c.keywords or [])}
-        large_kws = {str(k).casefold() for k in (main_c.keywords or [])}
-        if small_kws & large_kws:
+        # 只用主题词匹配，不用全部关键词
+        if small_kws & theme_words:
             doc = small_c.documents[0]
             main_c.documents.append(doc)
             # 把旧簇的assignment迁移到主簇
