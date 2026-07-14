@@ -48,9 +48,10 @@
             <span v-if="myKeywords.length === 0" class="text-xs text-slate-400">添加关键词后点击即可快速分析</span>
           </div>
 
-          <el-button size="small" type="primary" plain @click="saveKeywords" :loading="saving">
-            保存关键词
-          </el-button>
+          <div class="flex gap-2">
+            <el-button size="small" type="primary" plain @click="saveKeywords" :loading="saving">保存关键词</el-button>
+            <el-button size="small" type="success" plain @click="monitorAll" :loading="monitoring" :disabled="myKeywords.length === 0">🔍 一键监控全部</el-button>
+          </div>
         </el-card>
       </el-col>
 
@@ -156,8 +157,27 @@ const myTasks = ref<any[]>([]);
 const crawlerPlatforms = ref<string[]>([]);
 const tasksLoading = ref(false);
 const saving = ref(false);
+const monitoring = ref(false);
 
 const isAdmin = computed(() => userStore.roles.includes("admin"));
+
+async function loadConfig() {
+  try {
+    const r = await http.request<any>("get", "/api/user/config");
+    myKeywords.value = r.data?.keywords || [];
+  } catch {}
+}
+
+async function monitorAll() {
+  monitoring.value = true;
+  try {
+    for (const kw of myKeywords.value) {
+      await http.request("post", "/api/crawler/search", { data: { keyword: kw, target_count: 30 } });
+    }
+    message(`已提交 ${myKeywords.value.length} 个关键词的监控任务`, { type: "success" });
+  } catch { message("提交失败", { type: "error" }); }
+  finally { monitoring.value = false; }
+}
 
 function addKeyword() {
   const w = keywordInput.value.trim();
@@ -181,6 +201,8 @@ async function saveKeywords() {
 function goAnalyze(kw: string) {
   router.push({ path: "/analysis", query: { keyword: kw } });
 }
+
+onMounted(() => { loadConfig(); loadMyTasks(); });
 
 async function loadMyTasks() {
   tasksLoading.value = true;

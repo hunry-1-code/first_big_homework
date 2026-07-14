@@ -32,13 +32,32 @@ def update_profile(current_user: dict, payload: dict) -> dict:
 
 
 def get_config(user_id: int) -> dict:
+    from app.models.user_config import UserConfig
+    row = UserConfig.query.filter_by(user_id=user_id).first()
+    if row:
+        return {
+            "user_id": user_id,
+            "followed_sources": row.followed_sources or DEFAULT_CONFIG["followed_sources"],
+            "keywords": row.keywords or DEFAULT_CONFIG["keywords"],
+        }
     return {"user_id": user_id, **DEFAULT_CONFIG}
 
 
 def update_config(user_id: int, payload: dict) -> dict:
-    followed_sources = payload.get("followed_sources", DEFAULT_CONFIG["followed_sources"])
-    keywords = payload.get("keywords", DEFAULT_CONFIG["keywords"])
-    return {"user_id": user_id, "followed_sources": followed_sources, "keywords": keywords}
+    from app.extensions import db
+    from app.models.user_config import UserConfig
+    row = UserConfig.query.filter_by(user_id=user_id).first()
+    if row is None:
+        row = UserConfig(user_id=user_id)
+        db.session.add(row)
+    row.followed_sources = payload.get("followed_sources", DEFAULT_CONFIG["followed_sources"])
+    row.keywords = payload.get("keywords", DEFAULT_CONFIG["keywords"])
+    db.session.commit()
+    return {
+        "user_id": user_id,
+        "followed_sources": row.followed_sources,
+        "keywords": row.keywords,
+    }
 
 
 def list_sources() -> list[dict]:
