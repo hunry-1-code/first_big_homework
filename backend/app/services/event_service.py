@@ -468,6 +468,12 @@ def get_event_detail(event_id: int) -> dict | None:
     from app.services.public_opinion_service import get_public_opinion_snapshot
     public_opinion = get_public_opinion_snapshot(event.id)
     data = _event_item(event)
+    # 用合并评论后的情感覆盖顶层字段
+    merged = sentiment.get("weighted_ratios", {})
+    if merged:
+        data["sentiment_positive"] = merged.get("positive", data.get("sentiment_positive", 0))
+        data["sentiment_negative"] = merged.get("negative", data.get("sentiment_negative", 0))
+        data["sentiment_neutral"] = merged.get("neutral", data.get("sentiment_neutral", 0))
     # “报道量趋势”按文章发布时间聚合；热度快照是系统观测时间，不能替代报道日期。
     from collections import OrderedDict
 
