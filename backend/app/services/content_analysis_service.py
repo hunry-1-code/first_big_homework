@@ -101,10 +101,12 @@ def _feature_status(article: Article, features: DocumentFeatures | None) -> tupl
     # 低质量内容过滤：内容过短无法提取有效语义
     content = (article.clean_content or article.raw_content or "").strip()
     title = (article.title or "").strip()
-    if len(content) < 50:
+    # 社交平台放宽到 30 字（抖音/微博/小红书短内容常见）
+    min_len = 30 if article.source_type == "social" else 50
+    if len(content) < min_len:
         return "skipped_low_quality", False
-    # 内容与标题几乎相同 → 无正文，纯转发/标题党
-    if len(content) < 120 and content[:40] == title[:40]:
+    # 内容与标题几乎相同 → 无正文，纯转发/标题党（社交平台不检查）
+    if article.source_type != "social" and len(content) < 120 and content[:40] == title[:40]:
         return "skipped_low_quality", False
     return "pending", True
 
@@ -217,10 +219,18 @@ def create_analysis_run(
     # 关键词相关性过滤：标题包含搜索关键词的才进入聚类（所有搜索模式都执行）
     if mode == "search" and keyword:
         kw = keyword.strip()
-        # 拆分关键词用于匹配（如"台风巴威" → ["台风","巴威"]）
-        kw_parts = [p for p in kw.split() if len(p) >= 1] if any(ch.isspace() for ch in kw) else []
-        if not kw_parts and len(kw) >= 2:
-            kw_parts = [kw]  # 连续中文短语作为整体匹配
+        # 拆分关键词：空格分隔 → 按词匹配；无空格中文 → 全词 + 每2字切分
+        kw_parts = []
+        if any(ch.isspace() for ch in kw):
+            kw_parts = [p for p in kw.split() if len(p) >= 1]
+        elif len(kw) >= 2:
+            kw_parts = [kw]  # 完整短语
+            # 中文多字词额外切分为2字片段（"台风巴威" → +"台风"+"巴威"）
+            if any('一' <= ch <= '鿿' for ch in kw) and len(kw) >= 4:
+                for i in range(0, len(kw) - 1, 2):
+                    part = kw[i:i+2]
+                    if part not in kw_parts:
+                        kw_parts.append(part)
         filtered_ids = []
         skipped = 0
         for article_id in requested_ids:

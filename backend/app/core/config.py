@@ -265,7 +265,7 @@ class Config:
 
     EVENT_AGGREGATION_ATTACH_THRESHOLD = min(
         1.0,
-        max(0.0, float(os.getenv("EVENT_AGGREGATION_ATTACH_THRESHOLD", "0.55"))),
+        max(0.0, float(os.getenv("EVENT_AGGREGATION_ATTACH_THRESHOLD", "0.50"))),
     )
     EVENT_AGGREGATION_CREATE_THRESHOLD = min(
         1.0,
