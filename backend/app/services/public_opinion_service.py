@@ -3,18 +3,22 @@ import re
 from app.models import Article, Comment
 
 # SnowNLP 对短文本不可靠，用关键词规则覆盖
-NEGATIVE_STRONG = ("举报", "可怕", "恐怖", "灾难", "惨", "死", "救命")
-NEGATIVE_WEAK = ("不满", "没人管", "失望", "愤怒", "质疑", "投诉", "糟糕", "骗人", "苦难", "娱乐化")
-POSITIVE_STRONG = ("支持", "感谢", "点赞", "辛苦", "加油", "平安", "保佑")
-POSITIVE_WEAK = ("很好", "不错", "厉害", "棒", "优秀", "赞")
+# 短评论情感关键词（<30字时 SnowNLP 不可靠，规则覆盖）
+NEGATIVE_STRONG = ("举报", "可怕", "恐怖", "灾难", "惨", "死", "救命", "害人", "造孽")
+NEGATIVE_WEAK = ("不满", "没人管", "失望", "愤怒", "质疑", "投诉", "糟糕", "骗人", "苦难", "娱乐化",
+                  "活该", "无语", "恶心", "过分", "荒唐", "悲哀", "心疼", "担心", "害怕",
+                  "吓人", "完了", "不好", "受罪", "遭殃", "可怜", "倒霉")
+POSITIVE_STRONG = ("支持", "感谢", "点赞", "辛苦", "加油", "平安", "保佑", "致敬", "好人")
+POSITIVE_WEAK = ("很好", "不错", "厉害", "棒", "优秀", "赞", "好样的", "给力", "牛",
+                  "暖心", "感动", "希望能", "顺利", "安全", "注意安全", "注意防范", "挺住")
 
 def _comment_weight(item) -> float:
-    """评论质量权重：长度贡献 + 点赞贡献，上限 1.0"""
+    """评论质量权重：长度为主 + 点赞为辅，上限 1.0"""
     length = len(item.content or "")
     likes = item.likes_count or 0
-    w_len = min(1.0, length / 50.0)       # 50字以上满分
-    w_likes = min(1.0, likes / 10.0)       # 10赞以上满分
-    return round(w_len * 0.4 + w_likes * 0.6, 4)  # 点赞权重高于长度
+    w_len = min(1.0, length / 50.0)        # 50字以上满分
+    w_likes = min(1.0, likes / 10.0)        # 10赞以上满分
+    return round(w_len * 0.6 + w_likes * 0.4, 4)  # 长度权重高于点赞（56%评论0赞）
 
 def _correct_sentiment(text: str, original_label: str | None) -> str:
     """短评论（<30字）SnowNLP 不可靠，用关键词规则覆盖。"""
@@ -37,10 +41,11 @@ def _correct_sentiment(text: str, original_label: str | None) -> str:
 def get_public_opinion_snapshot(event_id: int) -> dict:
     article_ids = [row[0] for row in Article.query.with_entities(Article.id).filter_by(event_id=event_id).all()]
     comments = Comment.query.filter(Comment.article_id.in_(article_ids)).all() if article_ids else []
-    # 加权情感统计
+    # 加权情感统计（带去重）
     counts = Counter()
     counts_raw = Counter()
     corrected_count = 0
+    seen_texts: dict[str, float] = {}  # 内容哈希 → 最大权重（去重取最高权）
     for item in comments:
         text = item.content or ""
         label = item.sentiment_label
@@ -50,6 +55,17 @@ def get_public_opinion_snapshot(event_id: int) -> dict:
             corrected_count += 1
         # 质量加权
         weight = _comment_weight(item)
+        # 去重：相同内容只保留最高权重的 sentiment
+        dedup_key = text.strip().casefold()
+        if dedup_key and len(dedup_key) >= 2:
+            prev_weight = seen_texts.get(dedup_key, -1)
+            if weight <= prev_weight:
+                continue  # 重复且权重不更高，跳过
+            if prev_weight > 0:
+                # 撤回旧记录的权重
+                old_label = _correct_sentiment(dedup_key, None)
+                counts[old_label] = max(0, counts[old_label] - prev_weight)
+            seen_texts[dedup_key] = weight
         counts[corrected] += weight
         counts_raw[label or "neutral"] += 1
     institutional_articles = Article.query.filter_by(event_id=event_id, source_layer="institutional").all()
