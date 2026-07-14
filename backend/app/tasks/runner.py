@@ -151,14 +151,31 @@ def recover_background_jobs(app, job_registry: dict[str, Callable] | None = None
         }
 
     from app.services.task_service import recoverable_task_ids
+    import time as _time
+
+    # SQLite 并发写会锁表，加简单重试
+    task_ids = []
+    for attempt in range(3):
+        try:
+            with app.app_context():
+                from app.models import Task
+                task_ids = recoverable_task_ids(
+                    list(job_registry),
+                    app.config.get("TASK_RUNNING_TIMEOUT_SECONDS", 3600),
+                )
+            break
+        except Exception:
+            if attempt < 2:
+                _time.sleep(0.5 * (attempt + 1))
+    if not task_ids:
+        return 0
 
     with app.app_context():
         from app.models import Task
-
-        task_ids = recoverable_task_ids(
-            list(job_registry),
-            app.config.get("TASK_RUNNING_TIMEOUT_SECONDS", 3600),
-        )
+        task_types = {
+            task.id: task.task_type
+            for task in Task.query.filter(Task.id.in_(task_ids))
+        }
         task_types = {
             task.id: task.task_type
             for task in Task.query.filter(Task.id.in_(task_ids))
