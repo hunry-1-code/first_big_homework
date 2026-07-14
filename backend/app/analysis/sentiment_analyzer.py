@@ -144,8 +144,70 @@ def analyze_with_snownlp(
     }
 
 
+COMMENT_BATCH_PROMPT = """你是舆情分析助手。分析以下多条公众评论的情感倾向。
+对每条评论输出：id（序号）、label（positive/negative/neutral）、reason（简短理由≤10字）。
+仅输出 JSON 数组，不要其他文字。
+示例：[{"id":0,"label":"negative","reason":"批评娱乐化"},{"id":1,"label":"positive","reason":"祝福平安"}]"""
+
+
+def analyze_comments_batch(
+    comments: list[dict],
+    *,
+    client=None,
+    batch_size: int = 30,
+) -> dict[int, dict]:
+    """批量 LLM 分析评论情感。comments: [{"id": idx, "text": "..."}]。
+    返回 {id: {label, score, reason, method}}。
+    """
+    if client is None:
+        from app.llm.client import LLMClient
+        from flask import current_app
+        client = LLMClient(
+            api_key=current_app.config.get("LLM_API_KEY", ""),
+            base_url=current_app.config.get("LLM_BASE_URL", ""),
+            model_name=current_app.config.get("LLM_MODEL_NAME", ""),
+            timeout=30,
+        )
+
+    results: dict[int, dict] = {}
+    for i in range(0, len(comments), batch_size):
+        batch = comments[i:i + batch_size]
+        items = [{"id": c["id"], "text": (c["text"] or "")[:200]} for c in batch]
+        try:
+            resp = client.chat(
+                [
+                    {"role": "system", "content": COMMENT_BATCH_PROMPT},
+                    {"role": "user", "content": json.dumps(items, ensure_ascii=False)},
+                ],
+                temperature=0.1,
+                max_tokens=len(batch) * 40,
+            )
+            parsed = json.loads(resp["content"].strip())
+            for item in parsed:
+                if isinstance(item, dict) and "id" in item:
+                    cid = int(item["id"])
+                    results[cid] = {
+                        "label": item.get("label", "neutral"),
+                        "score": {"positive": 0.6, "negative": -0.6, "neutral": 0.0}.get(item.get("label"), 0.0),
+                        "confidence": 0.85,
+                        "reason": str(item.get("reason", ""))[:50],
+                        "method": "llm_batch",
+                    }
+        except Exception:
+            # 单条回退 SnowNLP
+            for c in batch:
+                try:
+                    r = analyze_with_snownlp(c["text"] or "")
+                    results[c["id"]] = {**r, "method": "snownlp_fallback"}
+                except Exception:
+                    results[c["id"]] = {"label": "neutral", "score": 0.0, "confidence": 0.3, "reason": "", "method": "failed"}
+
+    return results
+
+
 __all__ = [
     "SentimentAnalysisError",
     "analyze_sentiment",
     "analyze_with_snownlp",
+    "analyze_comments_batch",
 ]

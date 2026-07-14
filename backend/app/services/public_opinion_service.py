@@ -1,6 +1,7 @@
 from collections import Counter
 import re
 from app.models import Article, Comment
+from app.extensions import db
 
 # SnowNLP 对短文本不可靠，用关键词规则覆盖
 # 短评论情感关键词（<30字时 SnowNLP 不可靠，规则覆盖）
@@ -112,12 +113,24 @@ def get_public_opinion_snapshot(event_id: int) -> dict:
     raw_total = sum(counts_raw.values())
     raw_dist = {k: counts_raw[k] for k in ("positive", "neutral", "negative")}
     negative_rate_w = weighted_dist.get("negative", 0)
+    # LLM 公众关注主题和叙事差异（评论>=10条时按需加载）
+    themes = None
+    narrative = None
+    try:
+        if total >= 10:
+            themes = extract_opinion_themes(event_id)
+            narrative = analyze_narrative_gap(event_id)
+    except Exception:
+        pass
+
     return {
         "comment_count": total,
-        "sentiment_distribution": raw_dist,  # 原始计数（兼容旧接口）
-        "weighted_sentiment": weighted_dist,  # 质量加权分布
+        "sentiment_distribution": raw_dist,
+        "weighted_sentiment": weighted_dist,
         "negative_rate": negative_rate_w,
-        "sentiment_corrected_count": corrected_count,  # 被规则校正的评论数
+        "sentiment_corrected_count": corrected_count,
+        "opinion_themes": themes,
+        "narrative_gap_analysis": narrative,
         "institutional_article_count": institutional,
         "analysis_mode": "narrative_gap" if institutional and total else "public_opinion_only" if total else "insufficient_data",
         "narrative_gap_available": bool(institutional and total),
@@ -130,3 +143,114 @@ def get_public_opinion_snapshot(event_id: int) -> dict:
         "narrative_gap_score": gap_score,
         "gap_interpretation": ("公众负面情绪高于机构回应覆盖" if gap_score is not None and gap_score >= 20 else "机构回应与公众情绪偏差有限" if gap_score is not None else None),
     }
+
+
+def extract_opinion_themes(event_id: int) -> list[dict]:
+    """LLM 从评论中提取公众关注主题（5-8个）。"""
+    article_ids = [r[0] for r in Article.query.with_entities(Article.id).filter_by(event_id=event_id).all()]
+    if not article_ids:
+        return []
+    # 取高质量评论样本（长文+高赞 top 50）
+    samples = Comment.query.filter(
+        Comment.article_id.in_(article_ids),
+    ).order_by(
+        (Comment.likes_count + Comment.replies_count).desc()
+    ).limit(50).all()
+    if not samples:
+        return []
+
+    try:
+        from app.llm.client import LLMClient
+        from flask import current_app
+        client = LLMClient(
+            api_key=current_app.config.get("LLM_API_KEY", ""),
+            base_url=current_app.config.get("LLM_BASE_URL", ""),
+            model_name=current_app.config.get("LLM_MODEL_NAME", ""),
+            timeout=20,
+        )
+        texts = "\n".join(f"- {c.content}" for c in samples if c.content)
+        resp = client.chat([
+            {"role": "system", "content": "你是舆情分析师。从以下公众评论中提取5-8个核心关注主题，每个主题给一个标签（≤8字）和代表性评论（≤30字）。输出JSON数组：[{\"theme\":\"...\",\"example\":\"...\",\"sentiment\":\"positive/negative/neutral\"}]"},
+            {"role": "user", "content": texts[:4000]},
+        ], temperature=0.2, max_tokens=500)
+        import json
+        return json.loads(resp["content"].strip())
+    except Exception:
+        return []
+
+
+def analyze_narrative_gap(event_id: int) -> dict | None:
+    """LLM 分析媒体叙事与公众意见的差异。"""
+    from app.models.event import Event
+    event = db.session.get(Event, event_id)
+    if not event:
+        return None
+    article_ids = [r[0] for r in Article.query.with_entities(Article.id).filter_by(event_id=event_id).all()]
+
+    # 文章摘要
+    articles = Article.query.filter(Article.id.in_(article_ids[:10])).all()
+    art_texts = "\n".join(f"- [{a.platform}] {a.title}" for a in articles if a.title)
+
+    # 评论样本
+    comments = Comment.query.filter(Comment.article_id.in_(article_ids)).order_by(
+        (Comment.likes_count + Comment.replies_count).desc()
+    ).limit(20).all()
+    cmt_texts = "\n".join(f"- [{c.sentiment_label}] {c.content}" for c in comments if c.content)
+
+    if not art_texts or not cmt_texts:
+        return None
+
+    try:
+        from app.llm.client import LLMClient
+        from flask import current_app
+        client = LLMClient(
+            api_key=current_app.config.get("LLM_API_KEY", ""),
+            base_url=current_app.config.get("LLM_BASE_URL", ""),
+            model_name=current_app.config.get("LLM_MODEL_NAME", ""),
+            timeout=20,
+        )
+        resp = client.chat([
+            {"role": "system", "content": "你是舆情分析师。对比媒体报道和公众评论，分析双方在关注点、情感倾向和核心诉求上的差异。输出JSON：{\"media_focus\":\"媒体强调...\",\"public_focus\":\"公众关注...\",\"gap\":\"核心差异...\",\"intensity\":\"low/medium/high\"}"},
+            {"role": "user", "content": f"媒体报道：\n{art_texts[:2000]}\n\n公众评论：\n{cmt_texts[:2000]}"},
+        ], temperature=0.3, max_tokens=300)
+        import json
+        return json.loads(resp["content"].strip())
+    except Exception:
+        return None
+
+
+def upgrade_comment_sentiments(event_id: int) -> int:
+    """用 LLM 批量升级事件下所有评论的情感标注。只处理未 LLM 分析过的评论。
+    返回升级条数。"""
+    article_ids = [r[0] for r in Article.query.with_entities(Article.id).filter_by(event_id=event_id).all()]
+    if not article_ids:
+        return 0
+    # 只取未 LLM 分析过的评论（优先选高质量：长文+高赞）
+    candidates = Comment.query.filter(
+        Comment.article_id.in_(article_ids),
+        Comment.analysis_status != "llm",
+    ).order_by(
+        (Comment.likes_count + Comment.replies_count).desc()
+    ).limit(100).all()
+
+    if not candidates:
+        return 0
+
+    try:
+        from app.analysis.sentiment_analyzer import analyze_comments_batch
+        batch_input = [{"id": c.id, "text": c.content or ""} for c in candidates]
+        results = analyze_comments_batch(batch_input)
+
+        upgraded = 0
+        for c in candidates:
+            r = results.get(c.id)
+            if r and r.get("method") == "llm_batch":
+                c.sentiment_label = r["label"]
+                c.sentiment_score = r.get("score", 0.0)
+                c.analysis_status = "llm"
+                upgraded += 1
+        db.session.commit()
+        return upgraded
+    except Exception:
+        db.session.rollback()
+        return 0

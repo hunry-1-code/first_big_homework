@@ -159,6 +159,20 @@ def run_search_analysis_pipeline(task_id: int, article_ids: list[int], keyword: 
         ),
     )
     record_stage(task_id, "done", "done", f"事件{publish_count}个")
+    # LLM 批量升级评论情感
+    if publish_count > 0:
+        try:
+            from app.services.public_opinion_service import upgrade_comment_sentiments
+            from app.models.event import Event
+            from app.models.event_aggregation import AggregationCluster
+            clusters = AggregationCluster.query.filter_by(aggregation_run_id=aggregation_run.id).all()
+            for cl in clusters:
+                if cl.resolved_event_id:
+                    n = upgrade_comment_sentiments(cl.resolved_event_id)
+                    if n > 0:
+                        record_stage(task_id, "sentiment", "done", f"LLM升级{n}条评论情感")
+        except Exception:
+            pass
     from app.services.task_service import build_summary
     s = build_summary(task_id)
     if s:
