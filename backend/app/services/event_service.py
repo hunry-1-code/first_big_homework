@@ -40,6 +40,32 @@ def _article_keywords(article_id: int) -> list[dict]:
     return []
 
 
+def _merged_keywords(event: Event, public_opinion: dict | None = None) -> dict:
+    """合并文章关键词 + 公众评论高频词，统一用于词云展示。"""
+    article_kws = _event_keywords(event)
+    keywords = list(article_kws.get("keywords") or [])
+
+    # 合并公众评论高频词（source=comment，权重按频次归一化）
+    if public_opinion:
+        pub_kws = public_opinion.get("public_keywords") or []
+        if pub_kws:
+            max_count = max(kw["count"] for kw in pub_kws) if pub_kws else 1
+            for kw in pub_kws[:10]:
+                # 去重：已在文章关键词中的跳过
+                if any(k.get("word") == kw["word"] for k in keywords):
+                    continue
+                keywords.append({
+                    "word": kw["word"],
+                    "weight": round(kw["count"] / max_count, 4),
+                    "sentiment": "neutral",  # 评论词无情感标注，默认中性
+                    "source": "comment",
+                })
+
+    # 按权重降序排列
+    keywords.sort(key=lambda k: k.get("weight", 0), reverse=True)
+    return {"keywords": keywords}
+
+
 def _event_keywords(event: Event) -> dict:
     """从 AnalysisRunArticle 聚合事件的关键词列表。
 
@@ -548,7 +574,7 @@ def get_event_detail(event_id: int) -> dict | None:
                 for platform, count in sorted(platform_counts.items()) if api_platform_name(platform)
             ]
         },
-        keywords=_event_keywords(event),
+        keywords=_merged_keywords(event, public_opinion),
         articles={
             "articles": [
                 {

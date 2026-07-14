@@ -818,9 +818,14 @@ function initBubbleChart() {
 
     // 情感着色：负面红、正面绿、中性灰蓝，透明度随字号衰减
     const sentiment = kw.sentiment || "neutral";
+    const isComment = kw.source === "comment";
     let color: string;
     const alpha = isTop ? 1.0 : isMid ? 0.75 : 0.45;
-    if (sentiment === "negative") {
+    if (isComment) {
+      color = dark
+        ? `rgba(216,180,254,${alpha})`
+        : `rgba(147,51,234,${(alpha * 0.85).toFixed(2)})`;
+    } else if (sentiment === "negative") {
       color = dark
         ? `rgba(252,165,165,${alpha})`
         : `rgba(220,38,38,${(alpha * 0.9).toFixed(2)})`;
