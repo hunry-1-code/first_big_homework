@@ -8,8 +8,10 @@ PLATFORMS = {
     "zhihu_hot": "知乎",
     "bilibili": "B站",
     "xiaohongshu": "小红书",
+    "douyin": "抖音",
     "baidu_hot": "百度热搜",
     "baidu": "百度搜索",
+    "rss_36kr": "36氪",
 }
 
 LIFECYCLE_STAGES = {"潜伏期", "成长期", "高潮期", "消退期"}

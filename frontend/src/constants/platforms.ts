@@ -26,7 +26,7 @@ export function getPlatform(name: string): PlatformInfo | undefined {
 
 /** 后端英文代码 → 前端中文名 */
 const EN_TO_CN: Record<string, string> = {
-  weibo: "微博热搜",
+  weibo: "微博搜索",
   weibo_search: "微博搜索",
   weibo_hot: "微博热搜",
   zhihu: "知乎",
