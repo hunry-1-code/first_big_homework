@@ -113,24 +113,18 @@ def get_public_opinion_snapshot(event_id: int) -> dict:
     raw_total = sum(counts_raw.values())
     raw_dist = {k: counts_raw[k] for k in ("positive", "neutral", "negative")}
     negative_rate_w = weighted_dist.get("negative", 0)
-    # LLM 公众关注主题和叙事差异（评论>=10条时按需加载）
-    themes = None
-    narrative = None
-    try:
-        if total >= 10:
-            themes = extract_opinion_themes(event_id)
-            narrative = analyze_narrative_gap(event_id)
-    except Exception:
-        pass
-
+    # 读取后台预计算的 LLM 主题和叙事差异
+    from app.models.event import Event as Evt
+    ev = db.session.get(Evt, event_id)
+    cached_meta = (ev.metadata_evidence or {}) if ev else {}
     return {
         "comment_count": total,
         "sentiment_distribution": raw_dist,
         "weighted_sentiment": weighted_dist,
         "negative_rate": negative_rate_w,
         "sentiment_corrected_count": corrected_count,
-        "opinion_themes": themes,
-        "narrative_gap_analysis": narrative,
+        "opinion_themes": cached_meta.get("opinion_themes"),  # 后台预计算
+        "narrative_gap_analysis": cached_meta.get("narrative_gap_analysis"),
         "institutional_article_count": institutional,
         "analysis_mode": "narrative_gap" if institutional and total else "public_opinion_only" if total else "insufficient_data",
         "narrative_gap_available": bool(institutional and total),

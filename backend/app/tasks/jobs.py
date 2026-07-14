@@ -159,11 +159,10 @@ def run_search_analysis_pipeline(task_id: int, article_ids: list[int], keyword: 
         ),
     )
     record_stage(task_id, "done", "done", f"事件{publish_count}个")
-    # LLM 批量升级评论情感
+    # LLM 批量升级评论情感 + 提取公众主题 + 叙事差异（后台预计算）
     if publish_count > 0:
         try:
-            from app.services.public_opinion_service import upgrade_comment_sentiments
-            from app.models.event import Event
+            from app.services.public_opinion_service import upgrade_comment_sentiments, extract_opinion_themes, analyze_narrative_gap
             from app.models.event_aggregation import AggregationCluster
             clusters = AggregationCluster.query.filter_by(aggregation_run_id=aggregation_run.id).all()
             for cl in clusters:
@@ -171,6 +170,20 @@ def run_search_analysis_pipeline(task_id: int, article_ids: list[int], keyword: 
                     n = upgrade_comment_sentiments(cl.resolved_event_id)
                     if n > 0:
                         record_stage(task_id, "sentiment", "done", f"LLM升级{n}条评论情感")
+                    # 预计算主题和叙事差异，存入 event metadata
+                    try:
+                        themes = extract_opinion_themes(cl.resolved_event_id)
+                        gap = analyze_narrative_gap(cl.resolved_event_id)
+                        from app.models.event import Event
+                        ev = db.session.get(Event, cl.resolved_event_id)
+                        if ev and (themes or gap):
+                            meta = ev.metadata_evidence or {}
+                            if themes: meta["opinion_themes"] = themes
+                            if gap: meta["narrative_gap_analysis"] = gap
+                            ev.metadata_evidence = meta
+                            db.session.commit()
+                    except Exception:
+                        pass
         except Exception:
             pass
     from app.services.task_service import build_summary
