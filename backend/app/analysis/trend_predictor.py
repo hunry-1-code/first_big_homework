@@ -1,17 +1,8 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass
-
-
-WINDOW_SIZE = 3
-LATENT_MAX_DAILY = 3        # 潜伏期：单日 ≤3 篇
-LATENT_MAX_TOTAL = 10        # 潜伏期：总量 ≤10 篇
-PEAK_TO_GROWTH_RATIO = 3.0   # 峰值 > 潜伏阈值 ×3 才算进入成长期
-GROWTH_RATE_MIN = 0.30
-PEAK_STABLE_RATE = 0.15
-DECLINE_FROM_PEAK = 0.50     # 当前值 < 峰值 ×0.5 → 消退期
-DECLINE_CONSECUTIVE_DAYS = 3
+from dataclasses import dataclass, field
+from typing import List
 
 
 @dataclass(frozen=True, slots=True)
@@ -21,88 +12,146 @@ class LifecyclePrediction:
     confidence: float
     evidence: dict
     reactivated: bool = False
+    momentum: float = 0.0          # -1~1, 正=上升趋势, 负=衰减
+    next_stage_hint: str = ""      # 预测下一个阶段
 
+
+# ── 核心算法：多信号融合生命周期判断 ──
 
 def analyze_lifecycle(
-    daily_counts: Sequence[int | float], previous_stage: str | None = None
+    daily_counts: Sequence[int | float],
+    previous_stage: str | None = None,
+    *,
+    daily_comments: Sequence[int | float] | None = None,
+    daily_sentiment_polarity: Sequence[float] | None = None,
+    daily_platform_count: Sequence[int | float] | None = None,
 ) -> LifecyclePrediction:
+    """多信号融合生命周期分析。
+
+    信号权重：报道量 40% + 评论量 35% + 情感极化 15% + 平台扩散 10%
+    所有信号归一化到 [0,1]（相对事件自身最大值），适应不同规模事件。
+    当评论/情感数据缺失时自动回退到纯报道量逻辑。
+    """
     counts = _normalized(daily_counts)
+    point_count = len(counts)
+    total_volume = sum(counts)
     canonical_previous = (
         previous_stage
         if previous_stage in {"潜伏期", "成长期", "高潮期", "消退期"}
         else None
     )
-    point_count = len(counts)
-    total = sum(counts)
-    if point_count < 4:
+
+    # 数据不足 → 沿用已有阶段
+    if point_count < 3:
         stage = canonical_previous or "潜伏期"
         return LifecyclePrediction(
-            stage=stage,
-            status="data_insufficient",
-            confidence=min(0.45, 0.15 + point_count * 0.08),
-            evidence={
-                "point_count": point_count,
-                "total_count": total,
-                "minimum_points": 4,
-                "reason": "有效日序列不足，沿用已有阶段或潜伏期",
-            },
+            stage=stage, status="data_insufficient",
+            confidence=min(0.40, 0.10 + point_count * 0.08),
+            evidence={"point_count": point_count, "reason": "有效日序列不足"},
+            momentum=0.0, next_stage_hint="",
         )
 
-    peak = max(counts)
-    current = counts[-1]
-    peak_index = max(range(point_count), key=counts.__getitem__)
-    recent = counts[-min(4, point_count) :]
-    recent_average = sum(counts[-3:]) / min(3, point_count)
-    recent_slope = _linear_slope(recent)
-    normalized_slope = recent_slope / max(1.0, peak)
-    peak_ratio = current / peak if peak else 0.0
-    recent_peak_ratio = recent_average / peak if peak else 0.0
-    recent_variation = (max(recent) - min(recent)) / max(1.0, peak)
-    sustained_decline = _has_sustained_decline(counts)
-    fallen_from_peak = (
-        peak > 0
-        and peak_index < point_count - 2
-        and current <= peak * (1.0 - DECLINE_FROM_PEAK)
-    )
-    reactivated = (
-        len(counts) >= 3
-        and counts[-3] < counts[-2] < counts[-1]
-        and normalized_slope >= 0.08
-        and peak_ratio >= 0.50
-    )
-    low_volume = peak <= 5 and total <= max(25.0, point_count * 5.0)
-    stable_near_peak = (
-        recent_peak_ratio >= 0.85
-        and recent_variation <= 0.20
-        and abs(normalized_slope) <= 0.08
+    # ── 构建综合信号 ──
+    vol = _norm_to_max(counts)                     # 报道量归一化
+    cmt = _norm_to_max(daily_comments) if daily_comments else None
+    pol = _norm_to_max(daily_sentiment_polarity) if daily_sentiment_polarity else None
+    plat = _norm_to_max(daily_platform_count) if daily_platform_count else None
+
+    # 综合得分：加权融合
+    combined = []
+    weights_used = {"volume": 0.4, "comments": 0.0, "sentiment": 0.0, "platforms": 0.0}
+    for i in range(point_count):
+        score = vol[i] * 0.4
+        w_total = 0.4
+        if cmt and i < len(cmt):
+            score += cmt[i] * 0.35
+            w_total += 0.35
+            weights_used["comments"] = 0.35
+        if pol and i < len(pol):
+            score += pol[i] * 0.15
+            w_total += 0.15
+            weights_used["sentiment"] = 0.15
+        if plat and i < len(plat):
+            score += plat[i] * 0.10
+            w_total += 0.10
+            weights_used["platforms"] = 0.10
+        combined.append(score / w_total)
+
+    peak = max(combined)
+    current = combined[-1]
+    peak_idx = max(range(point_count), key=combined.__getitem__)
+    recent = combined[-min(4, point_count):]
+    recent_avg = sum(combined[-3:]) / min(3, point_count)
+    slope = _linear_slope(recent)
+    norm_slope = slope / max(0.01, peak)
+    peak_ratio = current / max(0.01, peak)
+    recent_peak_ratio = recent_avg / max(0.01, peak)
+    variation = (max(recent) - min(recent)) / max(0.01, peak)
+
+    # ── 动量：综合信号的变化趋势 ──
+    if point_count >= 3:
+        earlier = sum(combined[-6:-3]) / min(3, max(1, point_count - 3))
+        later = sum(combined[-3:]) / min(3, point_count)
+        momentum = (later - earlier) / max(0.01, earlier) if earlier > 0 else (0.5 if later > 0 else 0.0)
+    else:
+        momentum = 0.0
+    momentum = round(max(-1.0, min(1.0, momentum)), 4)
+
+    # ── 持续衰减检测 ──
+    sustained_decline = (
+        point_count >= 4
+        and all(combined[-(i+1)] < combined[-(i+2)] for i in range(3))
+        and current <= peak * 0.55
     )
 
-    if sustained_decline or fallen_from_peak:
+    # ── 阶段判断 ──
+    # 消退期：持续衰减 或 已过峰值且当前 < 峰值×0.55
+    if sustained_decline or (peak_idx < point_count - 2 and peak_ratio < 0.55 and momentum < -0.05):
         stage = "消退期"
         confidence = 0.82
-    elif low_volume:
+        next_hint = "潜伏期" if peak_ratio < 0.25 else "消退期"
+    # 潜伏期：综合信号低且稳定
+    elif peak < 0.25 and abs(norm_slope) < 0.06:
         stage = "潜伏期"
-        confidence = 0.68
-    elif stable_near_peak:
+        confidence = 0.72
+        next_hint = "成长期" if momentum > 0.03 else "潜伏期"
+    # 高潮期：稳定在高位
+    elif recent_peak_ratio >= 0.80 and variation < 0.20 and abs(norm_slope) < 0.08:
         stage = "高潮期"
         confidence = 0.78
-    elif normalized_slope > 0.05 and current >= counts[0]:
+        next_hint = "消退期" if momentum < -0.03 else "高潮期"
+    # 成长期：上升趋势
+    elif momentum > 0.03 and current >= combined[0]:
         stage = "成长期"
-        confidence = min(0.90, 0.62 + normalized_slope)
-    elif peak <= LATENT_MAX_DAILY * PEAK_TO_GROWTH_RATIO:
-        stage = "潜伏期"
-        confidence = 0.56
-    else:
+        confidence = min(0.88, 0.60 + abs(momentum))
+        next_hint = "高潮期" if momentum > 0.12 else "成长期"
+    # 上升但不强 → 可能是成长期早期
+    elif momentum > 0.0:
         stage = "成长期"
         confidence = 0.55
+        next_hint = "成长期"
+    # 其他情况：低活跃 → 潜伏期
+    else:
+        stage = "潜伏期"
+        confidence = 0.50
+        next_hint = "潜伏期"
 
+    # ── 前一阶段约束（防抖动）──
     if canonical_previous == "高潮期" and stage in {"潜伏期", "成长期"}:
-        stage = "高潮期"
-        confidence = min(confidence, 0.60)
+        if momentum > -0.08:
+            stage = "高潮期"
+            confidence = min(confidence, 0.60)
     elif canonical_previous == "消退期":
-        if reactivated:
+        if momentum > 0.08 and peak_ratio > 0.40:
             stage = "成长期"
-            confidence = max(confidence, 0.72)
+            confidence = max(confidence, 0.68)
+            return LifecyclePrediction(
+                stage=stage, status="sufficient", confidence=confidence,
+                reactivated=True, momentum=momentum, next_stage_hint=next_hint,
+                evidence=_evidence(point_count, total_volume, peak, current, peak_idx,
+                                   peak_ratio, recent_peak_ratio, norm_slope, variation,
+                                   sustained_decline, weights_used),
+            )
         else:
             stage = "消退期"
             confidence = max(confidence, 0.70)
@@ -111,58 +160,46 @@ def analyze_lifecycle(
         confidence = min(confidence, 0.60)
 
     return LifecyclePrediction(
-        stage=stage,
-        status="sufficient",
+        stage=stage, status="sufficient",
         confidence=round(max(0.0, min(1.0, confidence)), 3),
-        reactivated=bool(canonical_previous == "消退期" and reactivated),
-        evidence={
-            "point_count": point_count,
-            "total_count": round(total, 3),
-            "peak": round(peak, 3),
-            "current": round(current, 3),
-            "peak_index": peak_index,
-            "peak_ratio": round(peak_ratio, 6),
-            "recent_peak_ratio": round(recent_peak_ratio, 6),
-            "normalized_recent_slope": round(normalized_slope, 6),
-            "recent_variation": round(recent_variation, 6),
-            "sustained_decline": sustained_decline,
-            "low_volume": low_volume,
-        },
+        momentum=momentum, next_stage_hint=next_hint,
+        evidence=_evidence(point_count, total_volume, peak, current, peak_idx,
+                           peak_ratio, recent_peak_ratio, norm_slope, variation,
+                           sustained_decline, weights_used),
     )
 
 
-def _normalized(values: Sequence[int | float]) -> list[float]:
-    return [max(0.0, float(value)) for value in values]
+def _evidence(point_count, total, peak, current, peak_idx,
+              peak_ratio, recent_peak_ratio, norm_slope, variation,
+              sustained_decline, weights) -> dict:
+    return {
+        "point_count": point_count,
+        "total_volume": round(total, 3),
+        "peak": round(peak, 3),
+        "current": round(current, 3),
+        "peak_index": peak_idx,
+        "peak_ratio": round(peak_ratio, 4),
+        "recent_peak_ratio": round(recent_peak_ratio, 4),
+        "normalized_slope": round(norm_slope, 4),
+        "recent_variation": round(variation, 4),
+        "sustained_decline": sustained_decline,
+        "signal_weights": weights,
+    }
 
 
-def _smooth(values: Sequence[int | float], window: int = WINDOW_SIZE) -> list[float]:
-    numbers = _normalized(values)
-    if not numbers:
+# ── 辅助函数 ──
+
+def _normalized(values: Sequence[int | float] | None) -> list[float]:
+    if values is None:
         return []
-    window = max(1, int(window))
-    if window == 1:
-        return numbers
-    radius = window // 2
-    smoothed = []
-    for index in range(len(numbers)):
-        start = max(0, index - radius)
-        end = min(len(numbers), index + radius + 1)
-        chunk = numbers[start:end]
-        smoothed.append(sum(chunk) / len(chunk))
-    return smoothed
+    return [max(0.0, float(v)) for v in values]
 
 
-def _growth_rate(values: Sequence[int | float]) -> list[float]:
-    numbers = _normalized(values)
-    if not numbers:
-        return []
-    rates = [0.0]
-    for previous, current in zip(numbers, numbers[1:]):
-        if previous == 0:
-            rates.append(1.0 if current > 0 else 0.0)
-        else:
-            rates.append((current - previous) / previous)
-    return rates
+def _norm_to_max(values: Sequence[float]) -> list[float]:
+    """归一化到 [0, 1]，相对自身最大值。"""
+    vals = [float(v) for v in values]
+    m = max(vals) if vals else 1.0
+    return [v / m if m > 0 else 0.0 for v in vals]
 
 
 def _linear_slope(values: Sequence[int | float]) -> float:
@@ -171,48 +208,41 @@ def _linear_slope(values: Sequence[int | float]) -> float:
         return 0.0
     x_mean = (len(numbers) - 1) / 2
     y_mean = sum(numbers) / len(numbers)
-    denominator = sum((index - x_mean) ** 2 for index in range(len(numbers)))
-    if denominator == 0:
+    denom = sum((i - x_mean) ** 2 for i in range(len(numbers)))
+    if denom == 0:
         return 0.0
-    return sum(
-        (index - x_mean) * (value - y_mean)
-        for index, value in enumerate(numbers)
-    ) / denominator
+    return sum((i - x_mean) * (v - y_mean) for i, v in enumerate(numbers)) / denom
 
 
-def _has_sustained_decline(values: Sequence[float]) -> bool:
-    if len(values) < DECLINE_CONSECUTIVE_DAYS + 1:
-        return False
-    recent = values[-(DECLINE_CONSECUTIVE_DAYS + 1) :]
-    is_decreasing = all(current < previous for previous, current in zip(recent, recent[1:]))
-    meaningful_drop = recent[-1] <= recent[0] * (1.0 - PEAK_STABLE_RATE)
-    return is_decreasing and meaningful_drop
+# ── 公开 API ──
 
-
-def predict_lifecycle_stage(daily_counts: list[int]) -> str:
-    return analyze_lifecycle(daily_counts).stage
+def predict_lifecycle_stage(daily_counts: list[int], **kwargs) -> str:
+    return analyze_lifecycle(daily_counts, **kwargs).stage
 
 
 def get_lifecycle_change_points(
-    daily_counts: Sequence[int | float], dates: Sequence[str]
+    daily_counts: Sequence[int | float],
+    dates: Sequence[str],
+    **kwargs,
 ) -> list[dict]:
     length = min(len(daily_counts), len(dates))
     if length < 2:
         return []
     points = []
-    previous_stage = analyze_lifecycle(list(daily_counts[:1])).stage
-    for index in range(1, length):
-        current_stage = analyze_lifecycle(
-            list(daily_counts[: index + 1]), previous_stage=previous_stage
+    prev = analyze_lifecycle(list(daily_counts[:1]), **kwargs).stage
+    for i in range(1, length):
+        cur = analyze_lifecycle(
+            list(daily_counts[: i + 1]), previous_stage=prev, **kwargs
         ).stage
-        if current_stage != previous_stage:
-            points.append(
-                {
-                    "date": dates[index],
-                    "from_stage": previous_stage,
-                    "to_stage": current_stage,
-                    "index": index,
-                }
-            )
-        previous_stage = current_stage
+        if cur != prev:
+            points.append({"date": dates[i], "from_stage": prev, "to_stage": cur, "index": i})
+        prev = cur
     return points
+
+
+__all__ = [
+    "LifecyclePrediction",
+    "analyze_lifecycle",
+    "get_lifecycle_change_points",
+    "predict_lifecycle_stage",
+]

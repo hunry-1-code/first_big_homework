@@ -670,12 +670,14 @@ def _persist_heat(run, rows, articles, topic_rows, calculated_at, config):
         ]
         event.platform_count = result.raw_statistics["platform_count"]
         event.time_confidence = result.time_confidence
+        from app.services.lifecycle_service import daily_comment_counts, daily_sentiment_polarity
+        event_arts = [article for _row, article in event_articles[result.event_id]]
         update_event_lifecycle(
             event,
-            daily_counts_from_articles(
-                [article for _row, article in event_articles[result.event_id]]
-            ),
+            daily_counts_from_articles(event_arts),
             now=calculated_at,
+            daily_comments=daily_comment_counts(event_arts),
+            daily_sentiment=daily_sentiment_polarity(event_arts),
         )
         warnings.extend(result.warnings)
     if run.scope == "global" and processed_event_ids:

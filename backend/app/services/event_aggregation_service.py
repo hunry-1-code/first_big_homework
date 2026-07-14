@@ -647,10 +647,13 @@ def _update_event(event, run, now):
     event.last_activity_time = max(times, default=None)
     event.independent_report_count = len([item for item in articles if not item.is_duplicate])
     event.platform_count = len({item.platform for item in articles if item.platform})
+    from app.services.lifecycle_service import daily_comment_counts, daily_sentiment_polarity
     update_event_lifecycle(
         event,
         daily_counts_from_articles(articles),
         now=now,
+        daily_comments=daily_comment_counts(articles),
+        daily_sentiment=daily_sentiment_polarity(articles),
     )
     from app.services.event_service import update_event_metadata
 
