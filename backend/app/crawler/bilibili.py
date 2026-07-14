@@ -159,18 +159,29 @@ class BilibiliCrawler:
     def fetch_comments(self, oid: str, *, page: int = 1, limit: int = 50) -> list[RawComment]:
         """Fetch public first-level comments and their replies without TikHub."""
         self._initialize_public_device()
+        # B站 API ps 上限因视频而异，安全值 20
+        ps = min(limit, 20)
         if str(oid).upper().startswith("BV"):
-            detail = self.client.get_json(
-                f"{self.base_url}/x/web-interface/view",
-                headers=self._headers(), params={"bvid": oid},
-            )
-            raise_for_api_error(detail, self.platform)
-            oid = str((detail.get("data") or {}).get("aid") or "")
+            try:
+                detail = self.client.get_json(
+                    f"{self.base_url}/x/web-interface/view",
+                    headers=self._headers(), params={"bvid": oid},
+                )
+                raise_for_api_error(detail, self.platform)
+                oid = str((detail.get("data") or {}).get("aid") or "")
+            except Exception:
+                pass  # bvid→aid 失败则用 bvid 继续
             if not oid:
-                raise CrawlerError(self.platform, "BILIBILI_AID_MISSING", "video detail did not include aid", False)
+                return []
+        try:
+            oid_int = int(oid) if oid else 0
+        except (ValueError, TypeError):
+            return []
+        if not oid_int:
+            return []
         payload = self.client.get_json(
             f"{self.base_url}/x/v2/reply", headers=self._headers(),
-            params={"type": 1, "oid": int(oid), "pn": page, "ps": min(limit, 50), "sort": 2},
+            params={"type": 1, "oid": oid_int, "pn": page, "ps": ps, "sort": 2},
         )
         raise_for_api_error(payload, self.platform)
         replies = ((payload.get("data") or {}).get("replies") or [])

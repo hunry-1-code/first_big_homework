@@ -2,19 +2,56 @@ from collections import Counter
 import re
 from app.models import Article, Comment
 
-NEGATIVE = ("不满", "没人管", "失望", "愤怒", "质疑", "投诉", "糟糕", "骗人")
-POSITIVE = ("支持", "感谢", "点赞", "辛苦", "很好", "加油")
+# SnowNLP 对短文本不可靠，用关键词规则覆盖
+NEGATIVE_STRONG = ("举报", "可怕", "恐怖", "灾难", "惨", "死", "救命")
+NEGATIVE_WEAK = ("不满", "没人管", "失望", "愤怒", "质疑", "投诉", "糟糕", "骗人", "苦难", "娱乐化")
+POSITIVE_STRONG = ("支持", "感谢", "点赞", "辛苦", "加油", "平安", "保佑")
+POSITIVE_WEAK = ("很好", "不错", "厉害", "棒", "优秀", "赞")
+
+def _comment_weight(item) -> float:
+    """评论质量权重：长度贡献 + 点赞贡献，上限 1.0"""
+    length = len(item.content or "")
+    likes = item.likes_count or 0
+    w_len = min(1.0, length / 50.0)       # 50字以上满分
+    w_likes = min(1.0, likes / 10.0)       # 10赞以上满分
+    return round(w_len * 0.4 + w_likes * 0.6, 4)  # 点赞权重高于长度
+
+def _correct_sentiment(text: str, original_label: str | None) -> str:
+    """短评论（<30字）SnowNLP 不可靠，用关键词规则覆盖。"""
+    if not text or len(text) >= 30:
+        return original_label or "neutral"
+    has_neg_strong = any(w in text for w in NEGATIVE_STRONG)
+    has_neg_weak = any(w in text for w in NEGATIVE_WEAK)
+    has_pos_strong = any(w in text for w in POSITIVE_STRONG)
+    has_pos_weak = any(w in text for w in POSITIVE_WEAK)
+    if has_neg_strong:
+        return "negative"
+    if has_neg_weak and not has_pos_strong:
+        return "negative"
+    if has_pos_strong and not has_neg_strong:
+        return "positive"
+    if has_pos_weak and not has_neg_weak:
+        return "positive"
+    return original_label or "neutral"
 
 def get_public_opinion_snapshot(event_id: int) -> dict:
     article_ids = [row[0] for row in Article.query.with_entities(Article.id).filter_by(event_id=event_id).all()]
     comments = Comment.query.filter(Comment.article_id.in_(article_ids)).all() if article_ids else []
+    # 加权情感统计
     counts = Counter()
+    counts_raw = Counter()
+    corrected_count = 0
     for item in comments:
         text = item.content or ""
         label = item.sentiment_label
-        if not label:
-            label = "negative" if any(x in text for x in NEGATIVE) else "positive" if any(x in text for x in POSITIVE) else "neutral"
-        counts[label] += 1
+        # 短评论情感校正
+        corrected = _correct_sentiment(text, label)
+        if corrected != label:
+            corrected_count += 1
+        # 质量加权
+        weight = _comment_weight(item)
+        counts[corrected] += weight
+        counts_raw[label or "neutral"] += 1
     institutional_articles = Article.query.filter_by(event_id=event_id, source_layer="institutional").all()
     institutional = len(institutional_articles)
     total = len(comments)
@@ -45,17 +82,25 @@ def get_public_opinion_snapshot(event_id: int) -> dict:
     response_rate = response_articles / institutional if institutional else None
     negative_rate = counts["negative"] / total if total else None
     gap_score = round(max(0.0, negative_rate - response_rate) * 100, 2) if negative_rate is not None and response_rate is not None else None
+    # 加权分布归一化
+    total_weight = sum(counts.values())
+    weighted_dist = {k: round(counts[k] / total_weight, 4) if total_weight else 0 for k in ("positive", "neutral", "negative")}
+    raw_total = sum(counts_raw.values())
+    raw_dist = {k: counts_raw[k] for k in ("positive", "neutral", "negative")}
+    negative_rate_w = weighted_dist.get("negative", 0)
     return {
         "comment_count": total,
-        "sentiment_distribution": {key: counts[key] for key in ("positive", "neutral", "negative")},
-        "negative_rate": negative_rate,
+        "sentiment_distribution": raw_dist,  # 原始计数（兼容旧接口）
+        "weighted_sentiment": weighted_dist,  # 质量加权分布
+        "negative_rate": negative_rate_w,
+        "sentiment_corrected_count": corrected_count,  # 被规则校正的评论数
         "institutional_article_count": institutional,
         "analysis_mode": "narrative_gap" if institutional and total else "public_opinion_only" if total else "insufficient_data",
         "narrative_gap_available": bool(institutional and total),
         "coverage_warning": None if institutional else "INSTITUTIONAL_DATA_NOT_COLLECTED",
         "public_keywords": [{"word": word, "count": count} for word, count in word_counts.most_common(10)],
         "public_demands": [{"demand": word, "count": count} for word, count in demand_counts.most_common(8)],
-        "opinion_divergence": round(1 - (max(counts.values()) / total), 4) if total else None,
+        "opinion_divergence": round(1 - (max(counts.values()) / total_weight), 4) if total_weight else None,
         "official_keywords": [{"word": word, "count": count} for word, count in official_words.most_common(10)],
         "institutional_response_rate": response_rate,
         "narrative_gap_score": gap_score,
