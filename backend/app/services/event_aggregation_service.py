@@ -655,6 +655,7 @@ def _update_event(event, run, now):
         now=now,
         daily_comments=daily_comment_counts(articles),
         daily_sentiment=daily_sentiment_polarity(articles),
+        crawl_mode="search",
     )
     from app.services.event_service import update_event_metadata
 

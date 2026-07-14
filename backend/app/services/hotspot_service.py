@@ -678,6 +678,7 @@ def _persist_heat(run, rows, articles, topic_rows, calculated_at, config):
             now=calculated_at,
             daily_comments=daily_comment_counts(event_arts),
             daily_sentiment=daily_sentiment_polarity(event_arts),
+            crawl_mode="monitor",
         )
         warnings.extend(result.warnings)
     if run.scope == "global" and processed_event_ids:
