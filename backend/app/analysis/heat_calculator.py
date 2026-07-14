@@ -33,6 +33,7 @@ class EventHeatInput:
     event_id: int
     articles: list[HeatArticle]
     hotlist_ranks: list[int] = field(default_factory=list)
+    comment_sentiment_intensity: float | None = None  # 评论情感烈度（0-1），越高越极化
 
 
 @dataclass(slots=True)
@@ -191,9 +192,13 @@ def calculate_event_heats(
             max(0.0, 100.0 - (max(1, int(rank)) - 1) * 5.0)
             for rank in event.hotlist_ranks
         ]
+        # 评论情感烈度：情绪越极化，传播热度越高
+        sentiment_boost = 0.0
+        if event.comment_sentiment_intensity is not None and event.comment_sentiment_intensity > 0:
+            sentiment_boost = float(event.comment_sentiment_intensity) * 30.0  # 最高加30分
         spread_raw = (
-            sum(article_spread) + (mean(hotlist_scores) if hotlist_scores else 0.0)
-            if article_spread or hotlist_scores
+            sum(article_spread) + sentiment_boost + (mean(hotlist_scores) if hotlist_scores else 0.0)
+            if article_spread or hotlist_scores or sentiment_boost > 0
             else None
         )
         raw = {
@@ -244,14 +249,19 @@ def calculate_event_heats(
         }
         core_heat = round(mean(components.values()), 6)
         spread_heat = spread_scores.get(event_id)
+        # 评论情感烈度加成：直接加到最终热度
+        sentiment_boost = 0.0
+        if data["event"].comment_sentiment_intensity is not None:
+            sentiment_boost = float(data["event"].comment_sentiment_intensity) * 15.0
         warnings = []
         if spread_heat is None:
-            final_heat = core_heat
+            final_heat = min(100.0, core_heat + sentiment_boost)
             warnings.append("SPREAD_DATA_UNAVAILABLE")
         else:
             final_heat = round(
                 config.core_weight * core_heat
-                + config.spread_weight * spread_heat,
+                + config.spread_weight * spread_heat
+                + sentiment_boost,
                 6,
             )
         raw = data["raw"]

@@ -563,6 +563,17 @@ def _persist_heat(run, rows, articles, topic_rows, calculated_at, config):
             rank = raw.get("rank") or raw.get("realpos")
             if isinstance(rank, int):
                 hotlist_ranks.append(rank)
+        # 评论情感烈度：用于增强传播热度
+        sentiment_intensity = None
+        try:
+            from app.services.public_opinion_service import get_public_opinion_snapshot
+            op = get_public_opinion_snapshot(event_id)
+            w = op.get("weighted_sentiment", {})
+            if w:
+                # 烈度 = 情绪离均匀分布的距离，0=均匀 0.67=极端
+                sentiment_intensity = round(max(abs(w.get(k, 0) - 1/3) for k in ("positive", "negative", "neutral")), 4)
+        except Exception:
+            pass
         inputs.append(
             EventHeatInput(
                 event_id=event_id,
@@ -575,6 +586,7 @@ def _persist_heat(run, rows, articles, topic_rows, calculated_at, config):
                     for row, article in values
                 ],
                 hotlist_ranks=hotlist_ranks,
+                comment_sentiment_intensity=sentiment_intensity,
             )
         )
     results = calculate_event_heats(
