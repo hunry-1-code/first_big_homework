@@ -462,6 +462,8 @@ def get_event_detail(event_id: int) -> dict | None:
     from app.services.sentiment_analysis_service import get_event_sentiment
 
     sentiment = get_event_sentiment(event.id)
+    from app.services.public_opinion_service import get_public_opinion_snapshot
+    public_opinion = get_public_opinion_snapshot(event.id)
     data = _event_item(event)
     # “报道量趋势”按文章发布时间聚合；热度快照是系统观测时间，不能替代报道日期。
     from collections import OrderedDict
@@ -526,6 +528,7 @@ def get_event_detail(event_id: int) -> dict | None:
             "key_points": trend_key_points([short_date(value) for value in trend_dates[-14:]],trend_counts[-14:]),
         },
         sentiment=sentiment,
+        public_opinion=public_opinion,
         platform={
             "platforms": [
                 {

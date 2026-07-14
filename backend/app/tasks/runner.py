@@ -197,8 +197,8 @@ def start_recovery_scheduler(app, scheduler=None):
     )
     # daily_hot 定时调度已禁用（避免自动爬虫消耗 API 配额）
     # 如需开启，取消下面两行注释：
-    # from app.tasks.scheduler import register_daily_hot_refresh
-    # register_daily_hot_refresh(app, scheduler)
+    from app.tasks.scheduler import register_daily_hot_refresh
+    register_daily_hot_refresh(app, scheduler)
     scheduler.start()
     app.extensions["task_recovery_scheduler"] = scheduler
     return scheduler

@@ -5,6 +5,7 @@ import re
 from datetime import datetime, timezone
 
 from app.crawler.base import CrawlRequest, RawDocument
+from app.crawler.comments import RawComment
 from app.crawler.errors import CrawlerError, raise_for_api_error
 
 
@@ -68,7 +69,7 @@ class BilibiliCrawler:
             f"{self.base_url}/x/web-interface/search/type",
             headers=headers,
             params={
-                "search_type": "article",
+                "search_type": request.extra.get("search_type", "video"),
                 "keyword": request.keyword or "",
                 "page": request.extra.get("page", 1),
                 "page_size": min(50, request.limit),
@@ -78,7 +79,8 @@ class BilibiliCrawler:
         items = (payload.get("data") or {}).get("result") or []
         documents = []
         for item in items[: request.limit]:
-            art_id = str(item.get("id") or item.get("cvid") or item.get("bid") or "")
+            bvid = str(item.get("bvid") or "")
+            art_id = bvid or str(item.get("id") or item.get("cvid") or item.get("bid") or "")
             if not art_id:
                 continue
             publish_time = item.get("pubdate") or item.get("ctime")
@@ -95,6 +97,23 @@ class BilibiliCrawler:
 
             # 拉取专栏全文（仅纯数字ID的文章有 detail API）
             try:
+                if bvid:
+                    detail = self.client.get_json(
+                        f"{self.base_url}/x/web-interface/view",
+                        headers=headers,
+                        params={"bvid": bvid},
+                    )
+                    if detail.get("code") == 0:
+                        d = detail.get("data") or {}
+                        full_content = d.get("desc") or full_content
+                        owner = d.get("owner") or {}
+                        author_name = owner.get("name") or author_name
+                        author_mid = str(owner.get("mid")) if owner.get("mid") else author_mid
+                        stats = d.get("stat") or {}
+                        view_count = stats.get("view") or view_count
+                        like_count = stats.get("like") or like_count
+                        reply_count = stats.get("reply") or reply_count
+                else:
                     detail = self.client.get_json(
                         f"{self.base_url}/x/article/view",
                         headers=headers,
@@ -115,7 +134,7 @@ class BilibiliCrawler:
             documents.append(
                 RawDocument(
                     platform=self.platform,
-                    source_url=f"https://www.bilibili.com/read/cv{art_id}",
+                    source_url=(f"https://www.bilibili.com/video/{art_id}" if bvid else f"https://www.bilibili.com/read/cv{art_id}"),
                     source_article_id=art_id,
                     title=_plain(item.get("title")),
                     raw_content=full_content,
@@ -126,7 +145,7 @@ class BilibiliCrawler:
                     likes_count=like_count,
                     comments_count=reply_count,
                     views_count=view_count,
-                    content_type="text",
+                    content_type="video" if bvid else "text",
                     raw_json=item,
                 )
             )
@@ -136,3 +155,34 @@ class BilibiliCrawler:
     def _article_id_pattern(art_id: str) -> bool:
         """判断 ID 是否是专栏文章格式（纯数字ID）。"""
         return art_id.isdigit() and len(art_id) >= 6
+
+    def fetch_comments(self, oid: str, *, page: int = 1, limit: int = 50) -> list[RawComment]:
+        """Fetch public first-level comments and their replies without TikHub."""
+        self._initialize_public_device()
+        if str(oid).upper().startswith("BV"):
+            detail = self.client.get_json(
+                f"{self.base_url}/x/web-interface/view",
+                headers=self._headers(), params={"bvid": oid},
+            )
+            raise_for_api_error(detail, self.platform)
+            oid = str((detail.get("data") or {}).get("aid") or "")
+            if not oid:
+                raise CrawlerError(self.platform, "BILIBILI_AID_MISSING", "video detail did not include aid", False)
+        payload = self.client.get_json(
+            f"{self.base_url}/x/v2/reply", headers=self._headers(),
+            params={"type": 1, "oid": int(oid), "pn": page, "ps": min(limit, 50), "sort": 2},
+        )
+        raise_for_api_error(payload, self.platform)
+        replies = ((payload.get("data") or {}).get("replies") or [])
+        result = []
+        for item in replies[:limit]:
+            if len(result) >= limit:
+                break
+            member = item.get("member") or {}
+            result.append(RawComment(platform=self.platform, source_comment_id=str(item.get("rpid")), content=_plain(item.get("content", {}).get("message")), author=member.get("uname"), likes_count=int(item.get("like", 0) or 0), replies_count=int(item.get("rcount", 0) or 0), raw_json=item))
+            for child in (item.get("replies") or [])[:20]:
+                if len(result) >= limit:
+                    break
+                cm = child.get("member") or {}
+                result.append(RawComment(platform=self.platform, source_comment_id=str(child.get("rpid")), parent_source_comment_id=str(item.get("rpid")), content=_plain(child.get("content", {}).get("message")), author=cm.get("uname"), likes_count=int(child.get("like", 0) or 0), raw_json=child))
+        return result

@@ -88,6 +88,7 @@ def answer_question(user_id: int, question: str, event_id=None, platform: str | 
     )
 
     method = "llm"
+    warnings = []
     model_name = None
     try:
         messages = [{"role": "system", "content": system_prompt}]
@@ -102,6 +103,7 @@ def answer_question(user_id: int, question: str, event_id=None, platform: str | 
         model_name = response.get("model")
     except Exception:
         method = "fallback"
+        warnings = ["LLM_UNAVAILABLE"]
         if event_id is not None:
             event = db.session.get(Event, int(event_id))
             answer = f"当前大模型服务不可用。已检索到事件「{event.title}」，包含 {Article.query.filter_by(event_id=event.id).count()} 篇报道，请稍后重试。"
@@ -125,6 +127,7 @@ def answer_question(user_id: int, question: str, event_id=None, platform: str | 
         "event_id": event_id,
         "method": method,
         "model_name": model_name,
+        "warnings": warnings,
     }
 
 

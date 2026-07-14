@@ -208,6 +208,10 @@ def create_analysis_run(
     # 回退：无 task_id 时用关键词匹配
     elif mode == "search" and keyword:
         keyword_parts = [kw.strip() for kw in (keyword or "").split() if len(kw.strip()) >= 2]
+        # A contiguous Chinese search phrase is a retrieval intent, not an exact
+        # title phrase. The upstream crawler has already established relevance.
+        if len(keyword_parts) == 1 and keyword_parts[0] == keyword and not any(ch.isspace() for ch in keyword):
+            keyword_parts = []
         filtered_ids = []
         skipped = 0
         for article_id in requested_ids:
@@ -215,7 +219,7 @@ def create_analysis_run(
             if article is None:
                 continue
             title = (article.title or "")
-            if keyword in title or any(part in title for part in keyword_parts if part):
+            if not keyword_parts or keyword in title or any(part in title for part in keyword_parts if part):
                 filtered_ids.append(article_id)
             else:
                 skipped += 1

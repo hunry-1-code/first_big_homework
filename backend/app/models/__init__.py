@@ -1,5 +1,6 @@
 from app.models.analysis_run import AnalysisRun, AnalysisRunArticle
 from app.models.article import Article
+from app.models.comment import Comment
 from app.models.article_embedding import ArticleEmbedding
 from app.models.article_snapshot import ArticleSnapshot
 from app.models.crawl_source import CrawlSource
@@ -41,6 +42,7 @@ __all__ = [
     "AggregationCluster",
     "AggregationRun",
     "Article",
+    "Comment",
     "ArticleEmbedding",
     "ArticleSnapshot",
     "ArticleSentimentResult",

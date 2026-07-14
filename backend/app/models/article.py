@@ -16,6 +16,8 @@ class Article(db.Model):
     crawl_task_id = db.Column(db.Integer, nullable=True, index=True)
     platform = db.Column(db.String(50), nullable=False)
     source_type = db.Column(db.String(20), nullable=False, default="news")
+    source_layer = db.Column(db.String(24), nullable=False, default="unknown", server_default="unknown")
+    source_role = db.Column(db.String(32), nullable=False, default="unknown", server_default="unknown")
     source_article_id = db.Column(db.String(255), nullable=True)
     url = db.Column(db.String(2048), nullable=False)
     url_hash = db.Column(db.String(64), unique=True, nullable=False, index=True)

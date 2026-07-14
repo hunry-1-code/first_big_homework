@@ -40,7 +40,11 @@ class Config:
         "weibo": os.getenv("TIKHUB_WEIBO_API_KEY", ""),
         "xiaohongshu": os.getenv("TIKHUB_XIAOHONGSHU_API_KEY", ""),
         "douyin": os.getenv("TIKHUB_DOUYIN_API_KEY", ""),
+        "zhihu": os.getenv("TIKHUB_ZHIHU_API_KEY", ""),
     }
+    COMMENT_MAX_PER_ARTICLE = min(200, max(1, int(os.getenv("COMMENT_MAX_PER_ARTICLE", "50"))))
+    COMMENT_MAX_REPLIES = min(100, max(0, int(os.getenv("COMMENT_MAX_REPLIES", "20"))))
+    BILIBILI_FETCH_DANMAKU = os.getenv("BILIBILI_FETCH_DANMAKU", "false").lower() == "true"
 
     ZHIHU_API_BASE_URL = os.getenv(
         "ZHIHU_API_BASE_URL", "https://developer.zhihu.com"

@@ -103,10 +103,18 @@ class HttpClient:
                         False,
                     )
                 if status in {401, 403}:
+                    message = f"request rejected with HTTP {status}"
+                    try:
+                        error_payload = json.loads(self._read_body(response).decode("utf-8-sig"))
+                        detail = error_payload.get("detail", {}) if isinstance(error_payload, dict) else {}
+                        if isinstance(detail, dict):
+                            message = detail.get("message_zh") or detail.get("message") or message
+                    except Exception:
+                        pass
                     raise CrawlerError(
                         self.platform,
                         f"CRAWL_HTTP_{status}",
-                        f"request rejected with HTTP {status}",
+                        message,
                         False,
                     )
                 retryable = status == 429 or status >= 500

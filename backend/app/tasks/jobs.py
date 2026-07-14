@@ -10,6 +10,8 @@ from app.crawler.factory import build_crawler_registry
 from app.extensions import db
 from app.models import HotSeedExpansion
 from app.services.article_pipeline_service import persist_raw_document
+from app.services.comment_service import persist_comment
+from app.crawler.tikhub_comments import TikHubCommentAdapter
 from app.services.crawl_service import CrawlService
 from app.services.task_service import get_task, update_task, record_stage, build_summary
 
@@ -45,6 +47,33 @@ def _raw_document(item: dict) -> RawDocument:
     )
 
 
+def _enrich_article_comments(article, document, registry) -> tuple[int, str | None]:
+    platform = document.platform
+    if platform not in {"zhihu", "weibo", "douyin", "xiaohongshu", "bilibili"}:
+        return 0, None
+    try:
+        limit = current_app.config.get("COMMENT_MAX_PER_ARTICLE", 50)
+        if platform == "bilibili":
+            crawler = registry.get("bilibili")
+            rows = crawler.fetch_comments(document.source_article_id, limit=limit)
+        else:
+            keys = current_app.config.get("TIKHUB_PLATFORM_API_KEYS", {})
+            key = keys.get(platform) or current_app.config.get("TIKHUB_API_KEY", "")
+            adapter = TikHubCommentAdapter(platform, key, current_app.config.get("TIKHUB_BASE_URL", "https://api.tikhub.io"), current_app.config.get("CRAWL_REQUEST_TIMEOUT", 30))
+            rows = adapter.fetch(document.source_article_id, limit=limit, reply_limit=current_app.config.get("COMMENT_MAX_REPLIES", 20))
+        count = 0
+        for raw in rows:
+            try:
+                persist_comment(article, raw)
+                count += 1
+            except ValueError:
+                continue
+        return count, None
+    except Exception as exc:
+        db.session.rollback()
+        return 0, str(exc)
+
+
 def crawl_job(task_id: int, registry: CrawlerRegistry | None = None) -> dict:
     task = get_task(task_id)
     if task is None:
@@ -75,11 +104,17 @@ def crawl_job(task_id: int, registry: CrawlerRegistry | None = None) -> dict:
     failed = 0
     persisted_hot_documents = []
     persisted_article_ids = []
+    comment_count = 0
+    comment_errors = []
     for index, document in enumerate(batch.documents, start=1):
         try:
             article, _output = persist_raw_document(document, task_id)
             processed += 1
             persisted_article_ids.append(article.id)
+            added, comment_error = _enrich_article_comments(article, document, registry)
+            comment_count += added
+            if comment_error:
+                comment_errors.append({"platform": document.platform, "article_id": article.id, "message": comment_error})
             if mode == "hot" and document.source_type == "hotlist":
                 persisted_hot_documents.append((article, document))
         except Exception as exc:
@@ -110,6 +145,8 @@ def crawl_job(task_id: int, registry: CrawlerRegistry | None = None) -> dict:
         "failed": failed,
         "platform_counts": batch.platform_counts,
         "errors": errors,
+        "comments_collected": comment_count,
+        "comment_errors": comment_errors,
     }
     if mode == "hot" and persisted_hot_documents:
         update_task(task_id, progress=96, message="正在整理热榜种子并扩展多平台搜索。")
@@ -324,14 +361,16 @@ def crawl_job(task_id: int, registry: CrawlerRegistry | None = None) -> dict:
         from app.services.event_aggregation_service import publish_cluster
         from app.models import AggregationCluster
         publish_count = 0
-        for cluster in AggregationCluster.query.filter_by(
-            aggregation_run_id=aggregation_run.id
-        ).order_by(AggregationCluster.member_count.desc()).all():
-            try:
-                publish_cluster(cluster.id, user_id=task.get("created_by"))
-                publish_count += 1
-            except Exception:
-                pass
+        auto_publish = current_app.config.get("AUTO_PUBLISH_EVENTS", False)
+        if auto_publish:
+            for cluster in AggregationCluster.query.filter_by(
+                aggregation_run_id=aggregation_run.id
+            ).order_by(AggregationCluster.member_count.desc()).all():
+                try:
+                    publish_cluster(cluster.id, user_id=task.get("created_by"))
+                    publish_count += 1
+                except Exception:
+                    pass
         record_stage(task_id, "publish", "done", f"{publish_count}个事件")
         summary.update(
             analysis_run_id=analysis_run.id,

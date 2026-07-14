@@ -109,12 +109,14 @@ def _postprocess_published_event(event_id: int, publish_run_id: int, user_id: in
         from app.services.event_service import _event_keywords
 
         event_keyword_payload = _event_keywords(event)
-        ai_report = _ai_generate_report(
-            event.title or '未命名事件',
-            Article.query.filter_by(event_id=event.id).limit(10).all(),
-            platforms,
-            event_keywords=event_keyword_payload,
-        )
+        ai_report = None
+        if event.metadata_status != "success":
+            ai_report = _ai_generate_report(
+                event.title or '未命名事件',
+                Article.query.filter_by(event_id=event.id).limit(10).all(),
+                platforms,
+                event_keywords=event_keyword_payload,
+            )
         if ai_report:
             event.time_code = ai_report.get("time_code") or event.time_code
             event.location = ai_report.get("location") or event.location
@@ -414,10 +416,8 @@ def _cluster_title(cluster) -> str:
     raw = max(cluster.documents, key=lambda item: (len(item.title), -item.article_id)).title or "未命名事件"
     # 尝试 AI 生成标题（单篇也走 AI，因为微博 text_raw 是全文）
     titles = list(dict.fromkeys(d.title for d in cluster.documents if d.title and len(d.title) > 5))
-    if titles:
-        ai_title = _ai_generate_title(titles[:10])
-        if ai_title:
-            return ai_title
+    # Event metadata is generated in one structured LLM call later. Keep title
+    # selection deterministic here to avoid duplicate model calls per event.
     # 回退：去 hashtag + 截断到 60 字
     import re as _re
     cleaned = _re.sub(r'#\S+?#', '', raw)  # 去微博 hashtag
@@ -472,6 +472,7 @@ def _ai_generate_report(
 
     领域无关提示词，适用自然灾害/政治/经济/娱乐等所有事件类型。
     """
+    result = ""
     try:
         client = _llm_client()
         samples = "\n".join(f"- [{a.platform}] {a.title}" for a in articles[:8] if a.title)
@@ -519,8 +520,12 @@ def _ai_generate_report(
                 "trend": str(data.get("trend", ""))[:20],
             }
     except Exception:
-        pass
+        if result and not result.startswith("{"):
+            return {"overview": result[:300], "time_code": "", "location": "", "key_figures": "", "cause": "", "focus": "", "trend": ""}
     return None
+
+# Backward-compatible name used by older integrations/tests.
+_ai_generate_summary = _ai_generate_report
 
 
 def _ensure_membership(article, event, run, confidence, method, now):

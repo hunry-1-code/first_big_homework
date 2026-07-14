@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+import re
 from typing import Any
 
 from app.crawler.base import CrawlRequest, RawDocument
@@ -48,13 +49,14 @@ class ZhihuSearchCrawler:
 
     def _map_item(self, item: dict[str, Any], source_type: str) -> RawDocument:
         url = item.get("url") or item.get("Url") or item.get("link") or ""
+        answer_match = re.search(r"/answer/(\d+)", url)
+        explicit_id = item.get("id") or item.get("content_id") or item.get("ContentID")
+        source_id = explicit_id if explicit_id and not str(explicit_id).startswith("-") else (answer_match.group(1) if answer_match else explicit_id)
         return RawDocument(
             platform=self.platform,
             source_url=url,
             source_article_id=str(
-                item.get("id")
-                or item.get("content_id")
-                or item.get("ContentID")
+                source_id
                 or url
             ),
             title=item.get("title") or item.get("Title") or item.get("question_title") or "",

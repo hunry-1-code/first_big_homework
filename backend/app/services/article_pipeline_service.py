@@ -235,6 +235,9 @@ def _persist_raw_document(
         url_hash=data["url_hash"],
         title=data.get("title") or "",
     )
+    social_platforms = {"weibo", "zhihu", "douyin", "bilibili", "xiaohongshu"}
+    article.source_layer = "public" if data["platform"] in social_platforms else "institutional"
+    article.source_role = "social_post" if article.source_layer == "public" else "news_report"
     previous_snapshot = None
     if existing and existing.latest_snapshot_id:
         previous_snapshot = db.session.get(ArticleSnapshot, existing.latest_snapshot_id)

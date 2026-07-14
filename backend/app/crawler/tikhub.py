@@ -60,15 +60,15 @@ class TikHubCrawler:
         if method == "GET":
             params={"keyword": request.keyword or "", "page": request.extra.get("page", 1)}
             if self.platform == "xiaohongshu":
-                params.update(
-                    sort_type=request.extra.get("sort_type", "general"),
-                    note_type=request.extra.get("note_type", "不限"),
-                    time_filter=request.extra.get("time_filter", "不限"),
-                    search_id=request.extra.get("search_id", ""),
-                    search_session_id=request.extra.get("search_session_id", ""),
-                    source=request.extra.get("source", "explore_feed"),
-                    ai_mode=request.extra.get("ai_mode", 0),
-                )
+                params.update({
+                    "sort_type": request.extra.get("sort_type", "general"),
+                    "note_type": request.extra.get("note_type", "\u4e0d\u9650"),
+                    "time_filter": request.extra.get("time_filter", "\u4e0d\u9650"),
+                    "search_id": request.extra.get("search_id", ""),
+                    "search_session_id": request.extra.get("search_session_id", ""),
+                    "source": request.extra.get("source", "explore_feed"),
+                    "ai_mode": request.extra.get("ai_mode", 0),
+                })
             payload = self.client.get_json(
                 f"{self.base_url}{path}",
                 headers=headers,
@@ -91,8 +91,8 @@ class TikHubCrawler:
             )
         raise_for_api_error(payload, self.platform)
         items = self._items(payload)
-        documents = [self._map_item(item) for item in items[: request.limit]]
-        return [document for document in documents if document is not None]
+        documents = [document for item in items if (document := self._map_item(item)) is not None]
+        return documents[: request.limit]
 
     def _items(self, payload: dict[str, Any]) -> list[dict[str, Any]]:
         if self.platform == "weibo":
@@ -120,10 +120,21 @@ class TikHubCrawler:
                 payload,
                 [("data", "data", "items"), ("data", "items"), ("data", "data", "notes")],
             )
-        return _first_list(
+        items = _first_list(
             payload,
             [("data", "data"), ("data", "data", "data"), ("data", "aweme_list")],
         )
+        videos = []
+        fallback_videos = []
+        for item in items:
+            if isinstance(item.get("aweme_info"), dict):
+                videos.append(item["aweme_info"])
+            dynamic = item.get("dynamic_patch") or {}
+            fallback_videos.extend(x for x in (dynamic.get("aweme_list") or []) if isinstance(x, dict))
+            if item.get("aweme_id"):
+                videos.append(item)
+        useful = [item for item in videos if item.get("aweme_id") and _strip_html(item.get("desc") or "")]
+        return useful or videos or fallback_videos
 
     def _map_item(self, item: dict[str, Any]) -> RawDocument | None:
         if self.platform == "weibo":
@@ -147,12 +158,12 @@ class TikHubCrawler:
                 raw_json=item,
             )
         if self.platform == "xiaohongshu":
-            card = item.get("note_card") or item
+            card = item.get("note_card") or item.get("note") or item
             user = card.get("user") or item.get("user") or {}
-            item_id = str(item.get("id") or card.get("note_id") or card.get("id") or "")
+            item_id = str(item.get("id") or card.get("note_id") or card.get("id") or card.get("note_id_str") or "")
             interact = card.get("interact_info") or {}
-            title = _strip_html(card.get("display_title") or card.get("title") or "")
-            content = _strip_html(card.get("desc") or title)
+            title = _strip_html(card.get("display_title") or card.get("title") or card.get("name") or "")
+            content = _strip_html(card.get("desc") or card.get("description") or title)
             if not item_id and not content:
                 return None
             return RawDocument(
