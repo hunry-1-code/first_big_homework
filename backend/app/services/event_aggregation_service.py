@@ -158,6 +158,63 @@ def _content_identity(article: Article) -> str:
     return f"article:{article.id}:v{article.content_version or 1}"
 
 
+def _jaccard(set_a: set, set_b: set) -> float:
+    if not set_a or not set_b:
+        return 0.0
+    return len(set_a & set_b) / len(set_a | set_b)
+
+
+def _merge_small_clusters_by_keywords(cluster_rows: dict, result, actions: dict) -> None:
+    """第二遍聚类：共享搜索关键词的单篇簇合并为「相关讨论」事件。"""
+    small_indices = [i for i, c in enumerate(result.clusters) if len(c.documents) == 1]
+    if len(small_indices) < 2:
+        return
+
+    # 找最大的簇作为主簇
+    large_indices = [i for i, c in enumerate(result.clusters) if len(c.documents) >= 3]
+    if not large_indices:
+        return
+
+    # 找一个大簇作为主事件（用于合并）
+    main_idx = max(large_indices, key=lambda i: len(result.clusters[i].documents))
+    main_c = result.clusters[main_idx]
+    main_row = cluster_rows.get(main_idx)
+
+    merged_count = 0
+    for si in small_indices:
+        small_c = result.clusters[si]
+        small_kws = {str(k).casefold() for k in (small_c.keywords or [])}
+        large_kws = {str(k).casefold() for k in (main_c.keywords or [])}
+        if small_kws & large_kws:
+            doc = small_c.documents[0]
+            main_c.documents.append(doc)
+            # 把旧簇的assignment迁移到主簇
+            old_assignments = AggregationAssignment.query.filter_by(
+                aggregation_cluster_id=cluster_rows[si].id
+            ).all() if si in cluster_rows else []
+            main_db_row = cluster_rows.get(main_idx)
+            for a in old_assignments:
+                a.aggregation_cluster_id = main_db_row.id if main_db_row else a.aggregation_cluster_id
+            merged_count += 1
+            dead_row = cluster_rows.get(si)
+            if dead_row:
+                db.session.flush()  # 先持久化assignment变更
+                dead_row.resolved_event_id = None  # 解除event关联
+                db.session.delete(dead_row)
+            result.clusters[si] = None
+
+    if merged_count > 0:
+        main_c.recompute()
+        if main_row:
+            main_row.member_count = len(main_c.documents)
+            main_row.keywords = sorted(main_c.keywords)
+        result.clusters = [c for c in result.clusters if c is not None]
+        for i, c in enumerate(result.clusters):
+            c.cluster_index = i
+        actions["attach"] = actions.get("attach", 0) + merged_count
+        db.session.flush()
+
+
 def _config_from_app() -> AggregationConfig:
     return AggregationConfig(
         attach_threshold=current_app.config.get("EVENT_AGGREGATION_ATTACH_THRESHOLD", 0.72),
@@ -884,6 +941,9 @@ def run_event_aggregation(
                         is_representative=False,
                     )
                 )
+            # 第二遍合并：关键词/实体 Jaccard 合并单篇簇
+            _merge_small_clusters_by_keywords(cluster_rows, result, actions)
+            db.session.flush()  # 同步 member_count 到 DB
             run.statistics = {
                 "input_count": len(rows),
                 "representative_count": len(representatives),
