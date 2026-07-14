@@ -110,7 +110,9 @@ def _postprocess_published_event(event_id: int, publish_run_id: int, user_id: in
 
         event_keyword_payload = _event_keywords(event)
         ai_report = None
-        if event.metadata_status != "success":
+        # 摘要为空或仍是模板时强制重新生成
+        summary_is_template = not event.summary or event.summary.startswith("事件「")
+        if event.metadata_status != "success" or summary_is_template:
             ai_report = _ai_generate_report(
                 event.title or '未命名事件',
                 Article.query.filter_by(event_id=event.id).limit(10).all(),
@@ -583,9 +585,15 @@ def _ai_generate_report(
         )
         if fenced: result = fenced.group(1)
         data = _json.loads(result)
-        if isinstance(data, dict) and data.get("overview"):
+        if isinstance(data, dict):
+            overview = str(data.get("overview", "")).strip()
+            # 如果 overview 为空但有 cause，用 cause 作为概述
+            if not overview and data.get("cause"):
+                overview = f"起因：{data['cause']}。涉及{platform_count}个平台共{len(articles)}篇报道。"
+            if not overview:
+                overview = f"「{title}」相关事件，已聚合{len(articles)}篇报道。"
             return {
-                "overview": str(data.get("overview", ""))[:300],
+                "overview": str(overview)[:300],
                 "time_code": str(data.get("time_code", ""))[:50],
                 "location": str(data.get("location", ""))[:100],
                 "key_figures": str(data.get("key_figures", ""))[:200],
