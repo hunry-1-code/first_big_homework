@@ -19,6 +19,7 @@
       </div>
     </template>
     
+    <div v-if="event.topic_category" class="mb-2"><el-tag size="small" effect="plain">{{ event.topic_category }}</el-tag></div>
     <p class="text-sm text-slate-500 dark:text-slate-400 line-clamp-3 mb-4 min-h-[60px] leading-relaxed">
       {{ event.summary || "暂无事件摘要描述..." }}
     </p>
@@ -107,6 +108,7 @@ defineProps<{
     sentiment_positive: number;
     sentiment_negative: number;
     sentiment_neutral: number;
+    topic_category?: string;
     platforms?: string[];
     top_keywords?: Array<{
       word: string;

@@ -39,16 +39,26 @@
         <span class="font-bold text-slate-800 dark:text-slate-100">🔥 今日热点</span>
         <span class="text-xs text-slate-400">实时热榜 Top10</span>
       </div>
+      <div v-if="dailyHotCategories.length" class="flex flex-wrap gap-2 mb-3">
+        <button
+          v-for="item in dailyHotCategories"
+          :key="item.name"
+          class="text-xs px-2.5 py-1 rounded-full border transition-colors"
+          :class="activeHotCategory === item.name ? 'bg-slate-900 text-white border-slate-900 dark:bg-white dark:text-slate-900' : 'border-slate-200 text-slate-500 hover:border-slate-400 dark:border-slate-700'"
+          @click="activeHotCategory = activeHotCategory === item.name ? '' : item.name"
+        >{{ item.name }} {{ item.count }}</button>
+      </div>
       <div class="flex flex-wrap gap-2">
         <span
-          v-for="(item, idx) in dailyHot"
-          :key="idx"
+          v-for="item in visibleDailyHot"
+          :key="item.id"
           class="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full cursor-pointer transition-colors"
-          :class="idx < 3 ? 'bg-orange-50 text-orange-600 dark:bg-orange-950/30 dark:text-orange-400 font-medium' : 'bg-slate-50 text-slate-500 dark:bg-slate-800 dark:text-slate-400'"
-          @click="filterByKeyword(item.title)"
+          :class="item.rank <= 3 ? 'bg-orange-50 text-orange-600 dark:bg-orange-950/30 dark:text-orange-400 font-medium' : 'bg-slate-50 text-slate-500 dark:bg-slate-800 dark:text-slate-400'"
+          @click="openDailyHot(item)"
         >
-          <span class="font-bold">{{ idx + 1 }}</span>
+          <span class="font-bold">{{ item.rank }}</span>
           {{ item.title?.slice(0, 18) }}{{ (item.title || '').length > 18 ? '...' : '' }}
+          <span v-if="item.category" class="opacity-70">· {{ item.category }}</span>
         </span>
         <span v-if="dailyHotLoading" class="text-xs text-slate-400">加载中...</span>
       </div>
@@ -96,12 +106,15 @@ import { onMounted, ref, computed } from "vue";
 import { useEventsStore } from "@/store/modules/events";
 import { getTodayHotspots } from "@/api/dailyHot";
 import EventCard from "@/components/EventCard.vue";
+import { useRouter } from "vue-router";
+import type { DailyHotItem } from "@/api/types/opinion";
 
 defineOptions({
   name: "OpinionBoard"
 });
 
 const eventsStore = useEventsStore();
+const router = useRouter();
 
 const keyword = ref("");
 const sortBy = ref<"time" | "heat">("heat");
@@ -109,10 +122,12 @@ const activeDate = ref(""); // 空 = 全部
 const allEvents = ref<any[]>([]); // 缓存全部事件用于日期提取
 const realTotal = ref(0); // 后端真实总数，不受客户端筛选影响
 
-const isAdmin = computed(() => userStore.roles.includes("admin"));
-
-const dailyHot = ref<any[]>([]);
+const dailyHot = ref<DailyHotItem[]>([]);
+const dailyHotCategoryCounts = ref<Record<string, number>>({});
+const activeHotCategory = ref("");
 const dailyHotLoading = ref(false);
+const dailyHotCategories = computed(() => Object.entries(dailyHotCategoryCounts.value).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count));
+const visibleDailyHot = computed(() => activeHotCategory.value ? dailyHot.value.filter(item => item.category === activeHotCategory.value) : dailyHot.value);
 
 // 从事件提取日期列表
 const dateList = computed(() => {
@@ -144,9 +159,15 @@ async function loadDailyHot() {
   dailyHotLoading.value = true;
   try {
     const res = await getTodayHotspots(10);
-    dailyHot.value = res.data?.items || res.data?.hotspots || [];
+    dailyHot.value = res.data?.items || [];
+    dailyHotCategoryCounts.value = res.data?.category_counts || {};
   } catch { dailyHot.value = []; }
   finally { dailyHotLoading.value = false; }
+}
+
+function openDailyHot(item: DailyHotItem) {
+  if (item.event_id) router.push(`/events/${item.event_id}`);
+  else filterByKeyword(item.title);
 }
 
 async function filterByDate(date: string) {

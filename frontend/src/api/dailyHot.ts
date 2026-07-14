@@ -1,5 +1,6 @@
 import { apiClient } from "./client";
+import type { DailyHotResponse } from "./types/opinion";
 
 export function getTodayHotspots(limit: number = 10) {
-  return apiClient.get("/hotspots/today", { params: { limit } });
+  return apiClient.get<DailyHotResponse>("/hotspots/today", { params: { limit } });
 }

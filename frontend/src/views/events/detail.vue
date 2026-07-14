@@ -14,6 +14,7 @@ import RefreshRightIcon from "~icons/ep/refresh-right";
 import { buildRiskRadarMetrics } from "./riskRadar";
 import { buildPropagationNotice } from "./propagationPresentation";
 import { buildLifecycleNote } from "./lifecyclePresentation";
+import type { PublicOpinionSnapshot } from "@/api/types/opinion";
 
 defineOptions({
   name: "EventDetail"
@@ -28,6 +29,9 @@ const propagationNotice = computed(() =>
   buildPropagationNotice(propagationData.value)
 );
 const lifecycleNote = computed(() => buildLifecycleNote(eventData.value));
+const publicOpinion = computed<PublicOpinionSnapshot | null>(() => eventData.value?.public_opinion || null);
+const opinionModeLabel = computed(() => publicOpinion.value?.analysis_mode === "narrative_gap" ? "机构叙事与公众意见对照" : publicOpinion.value?.analysis_mode === "public_opinion_only" ? "仅公众意见分析" : "数据不足");
+const rate = (value: number | null | undefined) => value == null ? "--" : `${Math.round(value * 100)}%`;
 
 const { isDark } = useDark();
 const currentZoom = ref(1.0);
@@ -1145,6 +1149,28 @@ function getProgressColor(heat: number) {
       </el-row>
 
       <!-- ===== 趋势图（报道量折线 + 情感堆叠面积图） ===== -->
+      <el-card v-if="publicOpinion" shadow="never" class="!border-slate-200/60 dark:!border-slate-800/60 rounded-xl mb-6 opinion-panel">
+        <template #header>
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div><div class="font-bold text-slate-800 dark:text-slate-100">公众意见与叙事张力</div><div class="text-xs text-slate-400 mt-1">评论独立分析，不计入事件聚类与报道数量</div></div>
+            <el-tag :type="publicOpinion.narrative_gap_available ? 'warning' : 'info'" effect="plain">{{ opinionModeLabel }}</el-tag>
+          </div>
+        </template>
+        <div v-if="publicOpinion.coverage_warning" class="mb-4 px-3 py-2 rounded-lg bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300 text-xs">当前未采集到机构侧数据，因此不计算叙事张力；这不代表机构没有公开回应。</div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+          <div class="opinion-metric"><span>评论样本</span><strong>{{ publicOpinion.comment_count }}</strong></div>
+          <div class="opinion-metric"><span>公众负面率</span><strong class="text-rose-500">{{ rate(publicOpinion.negative_rate) }}</strong></div>
+          <div class="opinion-metric"><span>机构回应率</span><strong class="text-sky-500">{{ rate(publicOpinion.institutional_response_rate) }}</strong></div>
+          <div class="opinion-metric"><span>张力评分</span><strong class="text-amber-500">{{ publicOpinion.narrative_gap_score ?? '--' }}</strong></div>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div class="opinion-column"><h4>机构侧关键词</h4><div class="flex flex-wrap gap-1.5"><el-tag v-for="item in publicOpinion.official_keywords" :key="item.word" size="small" type="primary" effect="plain">{{ item.word }} · {{ item.count }}</el-tag><span v-if="!publicOpinion.official_keywords.length" class="text-xs text-slate-400">暂无机构侧关键词</span></div></div>
+          <div class="opinion-column"><h4>公众高频表达</h4><div class="flex flex-wrap gap-1.5"><el-tag v-for="item in publicOpinion.public_keywords" :key="item.word" size="small" type="danger" effect="plain">{{ item.word }} · {{ item.count }}</el-tag><span v-if="!publicOpinion.public_keywords.length" class="text-xs text-slate-400">暂无有效评论关键词</span></div></div>
+          <div class="opinion-column"><h4>公众诉求</h4><div class="space-y-2"><div v-for="item in publicOpinion.public_demands" :key="item.demand" class="flex justify-between text-xs text-slate-600 dark:text-slate-300"><span>{{ item.demand }}</span><b>{{ item.count }}</b></div><span v-if="!publicOpinion.public_demands.length" class="text-xs text-slate-400">暂未识别出明确诉求</span></div></div>
+        </div>
+        <div v-if="publicOpinion.gap_interpretation" class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 text-sm text-slate-600 dark:text-slate-300">核心判断：{{ publicOpinion.gap_interpretation }}；公众意见分歧度 {{ rate(publicOpinion.opinion_divergence) }}。</div>
+      </el-card>
+
       <el-card shadow="never" class="!border-slate-200/60 dark:!border-slate-800/60 rounded-xl mb-6">
         <template #header>
           <div class="font-bold text-slate-800 dark:text-slate-100">
@@ -1449,5 +1475,22 @@ function getProgressColor(heat: number) {
       }
     }
   }
+}
+.opinion-panel {
+  background-image: radial-gradient(circle at 90% 0%, rgb(245 158 11 / 8%), transparent 34%);
+}
+.opinion-metric {
+  padding: 12px 14px;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 10px;
+  background: rgb(248 250 252 / 55%);
+  span { display: block; color: #94a3b8; font-size: 12px; margin-bottom: 4px; }
+  strong { font-size: 20px; }
+}
+.opinion-column {
+  padding: 14px;
+  border-radius: 10px;
+  border: 1px solid var(--el-border-color-lighter);
+  h4 { margin-bottom: 10px; font-size: 13px; font-weight: 700; color: var(--el-text-color-primary); }
 }
 </style>
