@@ -343,10 +343,122 @@ def cluster_documents(
     return ClusterResult(clusters=clusters, assignments=assignments)
 
 
+def cluster_documents_hdbscan(
+    documents: Iterable[AggregationDocument],
+    config: AggregationConfig,
+) -> ClusterResult:
+    """HDBSCAN 密度聚类：自动识别噪声点，不需预设簇数。
+
+    与贪心聚类的区别：
+    - 贪心: 按时间排序逐篇决定 attach/create/ambiguous，阈值敏感
+    - HDBSCAN: 密度估计 + 层次聚类，自动识别噪声，阈值不敏感
+
+    降级策略：HDBSCAN 不可用或结果过差时回退到贪心聚类。
+    """
+    docs = list(documents)
+    if len(docs) < 3:
+        return cluster_documents(docs, config)
+
+    try:
+        import numpy as np
+        from hdbscan import HDBSCAN
+        from sklearn.preprocessing import StandardScaler
+
+        # 提取 BGE + TF-IDF 向量拼接
+        vectors = []
+        for d in docs:
+            vec = []
+            bge = [float(v) for v in (d.bge_vector or [])]
+            tfidf = [float(v) for v in (d.tfidf_vector or [])]
+            if not bge and not tfidf:
+                vec = [0.0] * 512  # fallback
+            else:
+                # BGE + TF-IDF 拼接，BGE 权重更高
+                if bge:
+                    vec.extend(bge)
+                if tfidf:
+                    pad_len = max(0, len(bge) - len(tfidf)) if bge else 0
+                    vec.extend(tfidf + [0.0] * pad_len)
+            vectors.append(vec)
+
+        X = np.array(vectors, dtype=np.float64)
+        # 标准化
+        X = StandardScaler().fit_transform(X)
+
+        # HDBSCAN 参数
+        min_size = max(2, config.minimum_evidence_count)
+        min_samples = max(1, min_size // 2)
+
+        clusterer = HDBSCAN(
+            min_cluster_size=min_size,
+            min_samples=min_samples,
+            metric="euclidean",
+            cluster_selection_method="eom",  # Excess of Mass: better noise handling
+            allow_single_cluster=True,
+        )
+        labels = clusterer.fit_predict(X)
+
+        # 构建聚类结果
+        unique_labels = set(labels)
+        n_clusters = len(unique_labels - {-1})
+        n_noise = int(sum(1 for l in labels if l == -1))
+
+        # 如果 HDBSCAN 把所有点都归为噪声，回退贪心
+        if n_clusters == 0:
+            return cluster_documents(docs, config)
+
+        clusters: list[EventCluster] = []
+        assignments: list[ClusterAssignment] = []
+
+        for label in sorted(unique_labels):
+            if label == -1:
+                continue  # 噪声点后续处理
+            cluster_docs = [docs[i] for i in range(len(docs)) if labels[i] == label]
+            cluster = EventCluster(cluster_index=len(clusters), documents=cluster_docs)
+            cluster.recompute()
+            clusters.append(cluster)
+
+        # 分配文章
+        for i, d in enumerate(docs):
+            label = labels[i]
+            if label == -1:
+                # 噪声点：尝试软分配到最近的簇
+                best_cluster, best_score = _best_match(d, clusters, config)
+                if best_cluster is not None and best_score is not None and best_score.final_score >= config.create_threshold - 0.05:
+                    best_cluster.documents.append(d)
+                    best_cluster.recompute()
+                    assignments.append(ClusterAssignment(
+                        article_id=d.article_id, cluster_index=best_cluster.cluster_index,
+                        action="soft_attach", similarity=best_score.final_score,
+                        reasons=["HDBSCAN_NOISE_SOFT_ATTACH"],
+                    ))
+                else:
+                    assignments.append(ClusterAssignment(
+                        article_id=d.article_id, cluster_index=None,
+                        action="deferred", similarity=0.0,
+                        reasons=["HDBSCAN_NOISE"],
+                    ))
+            else:
+                cluster = clusters[label if label >= 0 else 0]
+                assignments.append(ClusterAssignment(
+                    article_id=d.article_id, cluster_index=cluster.cluster_index,
+                    action="attach", similarity=1.0,
+                    reasons=["HDBSCAN_CLUSTER"],
+                ))
+
+        _recompute_and_renumber(clusters, assignments)
+        warnings = [f"HDBSCAN: {n_clusters} clusters, {n_noise} noise points"]
+        return ClusterResult(clusters=clusters, assignments=assignments, warnings=warnings)
+
+    except ImportError:
+        return cluster_documents(docs, config)
+
+
 __all__ = [
     "AggregationDocument",
     "ClusterAssignment",
     "ClusterResult",
     "EventCluster",
     "cluster_documents",
+    "cluster_documents_hdbscan",
 ]

@@ -20,6 +20,7 @@ class AggregationConfig:
     search_cache_hours: int = 24
     related_event_limit: int = 5
     algorithm_version: str = "event-aggregation-v1"
+    use_hdbscan: bool = False  # 启用 HDBSCAN 密度聚类替代贪心聚类
 
     def __post_init__(self) -> None:
         if not 0 <= self.create_threshold < self.attach_threshold <= 1:

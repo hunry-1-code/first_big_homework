@@ -298,6 +298,9 @@ class Config:
     EVENT_AGGREGATION_ALGORITHM_VERSION = os.getenv(
         "EVENT_AGGREGATION_ALGORITHM_VERSION", "event-aggregation-v1"
     )
+    EVENT_AGGREGATION_USE_HDBSCAN = (
+        os.getenv("EVENT_AGGREGATION_USE_HDBSCAN", "false").lower() == "true"
+    )
     EVENT_SEARCH_CACHE_HOURS = max(
         1, int(os.getenv("EVENT_SEARCH_CACHE_HOURS", "2"))
     )

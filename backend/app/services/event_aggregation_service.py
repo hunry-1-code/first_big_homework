@@ -243,6 +243,7 @@ def _config_from_app() -> AggregationConfig:
         algorithm_version=current_app.config.get(
             "EVENT_AGGREGATION_ALGORITHM_VERSION", "event-aggregation-v1"
         ),
+        use_hdbscan=current_app.config.get("EVENT_AGGREGATION_USE_HDBSCAN", False),
     )
 
 
@@ -758,7 +759,11 @@ def run_event_aggregation(
     db.session.commit()
     try:
         analysis, rows, representatives, articles, documents = _load_frozen_documents(run)
-        result = cluster_documents(documents, config)
+        if getattr(config, "use_hdbscan", False):
+            from app.analysis.event_clusterer import cluster_documents_hdbscan
+            result = cluster_documents_hdbscan(documents, config)
+        else:
+            result = cluster_documents(documents, config)
         assert_task_lease(task_id)
         lock = _GLOBAL_WRITE_LOCK if run.scope == "global" else RLock()
         with lock:
