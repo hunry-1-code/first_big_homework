@@ -27,17 +27,29 @@ class NewsCrawler:
         )
 
     def crawl(self, request: CrawlRequest) -> list[RawDocument]:
+        import requests as req
+        import time as _time
         keyword = request.keyword or ""
         limit = min(20, max(1, request.limit))
+        session = req.Session()
+        session.headers.update({
+            "User-Agent": self._ua,
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "zh-CN,zh;q=0.9",
+        })
 
-        # ① 搜索百度新闻
-        search_url = f"https://www.baidu.com/s?tn=news&rtt=1&bsst=1&cl=2&wd={quote(keyword)}"
+        # ① 先访问百度首页获取 BAIDUID Cookie（反爬必须）
         try:
-            html = self.client.get(search_url, headers={
-                "User-Agent": self._ua,
-                "Accept": "text/html,application/xhtml+xml",
-                "Accept-Language": "zh-CN,zh;q=0.9",
-            }, timeout=15)
+            session.get("https://www.baidu.com/", timeout=10)
+            _time.sleep(1.5)  # 模拟人类浏览间隔
+        except Exception:
+            pass
+
+        # ② 搜索百度新闻
+        search_url = f"https://www.baidu.com/s?wd={quote(keyword)}&tn=news&rtt=1"
+        try:
+            resp = session.get(search_url, timeout=15, allow_redirects=True)
+            html = resp.text
         except Exception:
             return []
 
@@ -60,19 +72,24 @@ class NewsCrawler:
     def _extract_urls(self, html: str, keyword: str) -> list[str]:
         """从百度新闻搜索结果中提取文章 URL。"""
         urls = []
-        # 百度新闻结果中的真实 URL 通常在 data-url 或 href 属性中
         seen = set()
+        # 百度新闻页面中的真实链接：匹配 href 中的非百度域名 URL
         for pattern in [
-            r'data-url="(https?://[^"]+)"',
-            r'href="(https?://(?!www\.baidu\.com)[^"]+)"',
-            r'mu="(https?://[^"]+)"',
+            r'href="(https?://(?!www\.baidu\.com|.*\.baidu\.com|.*\.bdimg\.com|.*\.bcebos\.com)[^"]+)"',
+            r'href="(https?://(?!.*baidu)[^"]+)"',
         ]:
             for match in re.finditer(pattern, html):
                 url = match.group(1)
-                # 过滤百度内链和无关 URL
+                # 过滤静态资源和无关链接
+                if any(skip in url.lower() for skip in (
+                    ".css", ".js", ".png", ".jpg", ".jpeg", ".gif", ".svg",
+                    ".woff", ".ttf", ".ico", "javascript:", "mailto:",
+                )):
+                    continue
+                # 过滤搜索引擎和广告链接
                 if any(skip in url for skip in (
-                    "baidu.com/s?", "baidu.com/link", "jump.bdimg.com",
-                    ".css", ".js", ".png", ".jpg", ".gif", ".svg"
+                    "bing.com", "google.com", "sogou.com", "so.com",
+                    "doubleclick", "advertisement",
                 )):
                     continue
                 if url not in seen:

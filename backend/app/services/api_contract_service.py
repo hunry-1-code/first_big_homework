@@ -11,6 +11,7 @@ PLATFORMS = {
     "douyin": "抖音",
     "baidu_hot": "百度热搜",
     "baidu": "百度搜索",
+    "baidu_news": "主流媒体",
     "rss_36kr": "36氪",
 }
 

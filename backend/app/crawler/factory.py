@@ -6,6 +6,7 @@ from app.crawler.base import CrawlerRegistry
 from app.crawler.bilibili import BilibiliCrawler
 from app.crawler.http import HttpClient
 from app.crawler.qianfan import QianfanSearchCrawler, QianfanTrendingCrawler
+from app.crawler.news import NewsCrawler
 from app.crawler.rss import RssCrawler
 from app.crawler.sample import SampleCrawler
 from app.crawler.tikhub import TikHubCrawler
@@ -34,6 +35,8 @@ def build_crawler_registry(config) -> CrawlerRegistry:
     timeout = int(_setting(config, "CRAWL_REQUEST_TIMEOUT", 30))
     max_response_bytes = int(_setting(config, "CRAWL_MAX_RESPONSE_BYTES", 5 * 1024 * 1024))
     registry.register(SampleCrawler())
+    # 百度新闻搜索（免费，无 API Key，公开网页抓取）
+    registry.register(NewsCrawler(_client("www.baidu.com", timeout, "baidu_news", max_response_bytes)))
     registry.register(BilibiliCrawler(_client("bilibili.com", timeout, "bilibili", max_response_bytes)))
     registry.register(WeiboHotCrawler(_client("weibo.com", timeout, "weibo_hot", max_response_bytes)))
 
