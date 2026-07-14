@@ -375,6 +375,8 @@ def _event_item(event: Event, snapshot: EventHeatSnapshot | None = None, platfor
         "independent_report_count": int(event.independent_report_count or 0),
         "platform_count": int(event.platform_count or 0),
         "platforms": platforms or [],
+        "search_keyword": event.search_keyword,
+        "source_task_id": event.source_task_id,
         "time_confidence": event.time_confidence,
         "first_publish_time": event.first_publish_time.isoformat()
         if event.first_publish_time
@@ -402,6 +404,7 @@ def list_events(args) -> dict:
                 Event.title.like(pattern),
                 Event.topic_name.like(pattern),
                 Event.summary.like(pattern),
+                Event.search_keyword.like(pattern),
             )
         )
     hot_value = str(args.get("hot") or "").strip().casefold()

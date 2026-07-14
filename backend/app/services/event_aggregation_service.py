@@ -414,14 +414,21 @@ def _formal_candidate(cluster, config, versions):
 
 def _cluster_title(cluster) -> str:
     raw = max(cluster.documents, key=lambda item: (len(item.title), -item.article_id)).title or "未命名事件"
-    # 尝试 AI 生成标题（单篇也走 AI，因为微博 text_raw 是全文）
     titles = list(dict.fromkeys(d.title for d in cluster.documents if d.title and len(d.title) > 5))
-    # Event metadata is generated in one structured LLM call later. Keep title
-    # selection deterministic here to avoid duplicate model calls per event.
+    # 优先 LLM 生成简洁标题
+    if len(titles) >= 2:
+        ai_title = _ai_generate_title(titles)
+        if ai_title:
+            return ai_title
+    # 单篇文章也用 LLM
+    if len(titles) == 1:
+        ai_title = _ai_generate_title(titles)
+        if ai_title:
+            return ai_title
     # 回退：去 hashtag + 截断到 60 字
     import re as _re
-    cleaned = _re.sub(r'#\S+?#', '', raw)  # 去微博 hashtag
-    cleaned = _re.sub(r'【.+?】', '', cleaned)  # 去微博话题标记
+    cleaned = _re.sub(r'#\S+?#', '', raw)
+    cleaned = _re.sub(r'【.+?】', '', cleaned)
     cleaned = cleaned.strip()
     if len(cleaned) > 60:
         for sep in ("。", "！", "？", "；", "，", " ", "\n"):
@@ -1054,6 +1061,10 @@ def publish_cluster(
         raise ValueError("只有成功聚合运行中的事件簇可以发布")
     if source_run.scope not in {"search_shared", "manual"}:
         raise ValueError("只有搜索或手动事件簇需要发布")
+    # 最小簇大小过滤：成员过少的簇不足以成为独立事件
+    min_members = current_app.config.get("EVENT_AGGREGATION_MIN_CLUSTER_SIZE", 2)
+    if source.member_count is not None and source.member_count < min_members:
+        raise ValueError(f"事件簇成员数({source.member_count})不足({min_members})，不发布")
     if source.resolved_event_id is not None:
         published = AggregationCluster.query.filter_by(resolved_event_id=source.resolved_event_id).filter(AggregationCluster.id != source.id).order_by(AggregationCluster.id.desc()).first()
         return {
@@ -1090,11 +1101,23 @@ def publish_cluster(
     articles = [item for item in articles if item is not None]
     if not articles:
         raise ValueError("事件簇没有可发布文章")
+    # 溯源：从分析链路获取搜索关键词和任务ID
+    _search_kw = None
+    _source_tid = source_run.source_task_id
+    if source_run.analysis_run_id:
+        from app.models.analysis_run import AnalysisRun as AR
+        _ar = db.session.get(AR, source_run.analysis_run_id)
+        if _ar:
+            _search_kw = _ar.keyword
+            if not _source_tid:
+                _source_tid = _ar.source_task_id
     event = Event(
         title=source.title,
         topic_category=source.topic_category,
         topic_name=source.topic_name,
         source="daily_hot" if publish_run.mode == "hot" else "search",
+        search_keyword=_search_kw,
+        source_task_id=_source_tid,
         ttl_days=7 if publish_run.mode == "hot" else None,
         first_publish_time=source.first_publish_time,
         last_activity_time=source.last_activity_time,

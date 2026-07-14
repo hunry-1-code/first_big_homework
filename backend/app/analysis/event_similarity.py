@@ -73,6 +73,18 @@ class SimilarityResult:
     warnings: list[str] = field(default_factory=list)
 
 
+def keyword_overlap_score(
+    doc_keywords: Iterable[str] | None,
+    cluster_keywords: Iterable[str] | None,
+) -> float | None:
+    """关键词 Jaccard 重叠度，用于短内容语义不足时的信号增强。"""
+    dk = {str(k).strip().casefold() for k in (doc_keywords or []) if str(k).strip()}
+    ck = {str(k).strip().casefold() for k in (cluster_keywords or []) if str(k).strip()}
+    if not dk or not ck:
+        return None
+    return len(dk & ck) / len(dk | ck)
+
+
 def score_event_match(
     *,
     config: AggregationConfig,
@@ -80,6 +92,7 @@ def score_event_match(
     tfidf_similarity: float | None = None,
     entity_similarity: float | None = None,
     time_compatibility: float | None = None,
+    keyword_overlap: float | None = None,
     article_entities: dict[str, Iterable[str]] | None = None,
     candidate_entities: dict[str, Iterable[str]] | None = None,
 ) -> SimilarityResult:
@@ -88,12 +101,16 @@ def score_event_match(
         "tfidf": tfidf_similarity,
         "entity": entity_similarity,
         "time": time_compatibility,
+        "keyword": keyword_overlap,
     }
+    # 关键词重叠权重：短内容语义弱时提供信号补充
+    KW_WEIGHT = 0.05
     base_weights = {
-        "bge": config.bge_weight,
+        "bge": config.bge_weight - KW_WEIGHT,
         "tfidf": config.tfidf_weight,
         "entity": config.entity_weight,
         "time": config.time_weight,
+        "keyword": KW_WEIGHT,
     }
     available = {
         key: _clamp(value)

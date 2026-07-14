@@ -683,7 +683,7 @@ def get_event_sentiment(event_id: int) -> dict | None:
         .first()
     )
     if snapshot is None:
-        return {
+        base = {
             "event_id": event.id,
             "positive": float(event.sentiment_positive or 0),
             "negative": float(event.sentiment_negative or 0),
@@ -699,7 +699,33 @@ def get_event_sentiment(event_id: int) -> dict | None:
             "platform_distribution": [],
             "warnings": ["SENTIMENT_SNAPSHOT_UNAVAILABLE"],
         }
-    return _serialize_snapshot(snapshot)
+    else:
+        base = _serialize_snapshot(snapshot)
+
+    # 合并评论情感：文章情感 × 0.6 + 评论情感 × 0.4
+    try:
+        from app.services.public_opinion_service import get_public_opinion_snapshot
+        opinion = get_public_opinion_snapshot(event_id)
+        cmt_dist = opinion.get("sentiment_distribution", {})
+        cmt_total = sum(cmt_dist.values())
+        if cmt_total > 0:
+            art_total = sum(base.get("raw_counts", {}).values()) or 1
+            art = base["weighted_ratios"]
+            cmt = {k: v / cmt_total for k, v in cmt_dist.items()}
+            # 加权合并
+            merged = {
+                "positive": round(art.get("positive", 0) * 0.6 + cmt.get("positive", 0) * 0.4, 4),
+                "negative": round(art.get("negative", 0) * 0.6 + cmt.get("negative", 0) * 0.4, 4),
+                "neutral": round(art.get("neutral", 0) * 0.6 + cmt.get("neutral", 0) * 0.4, 4),
+            }
+            base["weighted_ratios"] = merged
+            base["comment_sentiment"] = cmt
+            base["comment_count"] = cmt_total
+            base["warnings"] = [w for w in (base.get("warnings") or []) if w != "SENTIMENT_SNAPSHOT_UNAVAILABLE"]
+    except Exception:
+        pass
+
+    return base
 
 
 def get_cluster_sentiment(cluster_id: int) -> dict | None:

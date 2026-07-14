@@ -92,6 +92,10 @@ def build_crawler_registry(config) -> CrawlerRegistry:
             "www.36kr.com": "rss_36kr",
             "thepaper.cn": "rss_thepaper",
             "www.thepaper.cn": "rss_thepaper",
+            "infoq.cn": "rss_infoq",
+            "www.infoq.cn": "rss_infoq",
+            "sspai.com": "rss_sspai",
+            "www.sspai.com": "rss_sspai",
         }
         _rss_counters = {}
         for feed_url in [u.strip() for u in str(feed_urls).split(",") if u.strip()]:

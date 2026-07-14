@@ -13,7 +13,7 @@
           <span class="font-bold text-slate-800 dark:text-slate-100">🔥 每日热点定时调度</span>
           <div class="flex items-center gap-2">
             <el-switch v-model="dhEnabled" :loading="dhLoading" active-text="启用" inactive-text="停用"
-              @change="(v:boolean) => { dhEnabled = !v; toggleDH(v) }" />
+              @change="toggleDH" />
             <el-popconfirm title="确认立即执行一次每日热点采集？会调用爬虫API。" @confirm="triggerDH">
               <template #reference>
                 <el-button size="small" type="primary" :loading="dhRunning">手动触发</el-button>
@@ -128,9 +128,16 @@ async function loadDHStatus() {
 }
 async function toggleDH(v: boolean) {
   dhLoading.value = true;
-  try { await http.request('post', '/api/admin/daily-hot/toggle', { data: { enabled: v } }); dhEnabled.value = v; }
-  catch { dhEnabled.value = !v; message('操作失败', { type: 'error' }); }
-  finally { dhLoading.value = false; }
+  try {
+    await http.request('post', '/api/admin/daily-hot/toggle', { data: { enabled: v } });
+    dhEnabled.value = v;
+    message(v ? '每日热点调度已启用' : '每日热点调度已停用', { type: 'success' });
+  } catch {
+    dhEnabled.value = !v;
+    message('操作失败', { type: 'error' });
+  } finally {
+    dhLoading.value = false;
+  }
 }
 async function setDHInterval(v: number) {
   try { await http.request('post', '/api/admin/daily-hot/interval', { data: { minutes: v } }); }

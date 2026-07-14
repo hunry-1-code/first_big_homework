@@ -10,6 +10,7 @@ from app.analysis.event_candidate_retriever import rank_candidates
 from app.analysis.event_similarity import (
     cosine_similarity,
     entity_similarity,
+    keyword_overlap_score,
     score_event_match,
 )
 
@@ -126,6 +127,7 @@ def _score(document: AggregationDocument, cluster: EventCluster, config):
         tfidf_similarity=cosine_similarity(document.tfidf_vector, cluster.tfidf_center),
         entity_similarity=entity_similarity(document.entities, cluster.entities),
         time_compatibility=_time_compatibility(document, cluster, config),
+        keyword_overlap=keyword_overlap_score(document.keywords, cluster.keywords),
         article_entities=document.entities,
         candidate_entities=cluster.entities,
     )

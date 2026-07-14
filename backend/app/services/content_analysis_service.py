@@ -98,6 +98,14 @@ def _feature_status(article: Article, features: DocumentFeatures | None) -> tupl
         return "skipped_advertisement", False
     if features is None or not (features.tfidf_tokens or []):
         return "skipped_empty_tokens", False
+    # 低质量内容过滤：内容过短无法提取有效语义
+    content = (article.clean_content or article.raw_content or "").strip()
+    title = (article.title or "").strip()
+    if len(content) < 50:
+        return "skipped_low_quality", False
+    # 内容与标题几乎相同 → 无正文，纯转发/标题党
+    if len(content) < 120 and content[:40] == title[:40]:
+        return "skipped_low_quality", False
     return "pending", True
 
 
@@ -205,13 +213,14 @@ def create_analysis_run(
         if skipped:
             run.warnings = (run.warnings or []) + [f"按 crawl_task_id 隔离，过滤 {skipped} 篇非本任务文章"]
         requested_ids = filtered_ids
-    # 回退：无 task_id 时用关键词匹配
-    elif mode == "search" and keyword:
-        keyword_parts = [kw.strip() for kw in (keyword or "").split() if len(kw.strip()) >= 2]
-        # A contiguous Chinese search phrase is a retrieval intent, not an exact
-        # title phrase. The upstream crawler has already established relevance.
-        if len(keyword_parts) == 1 and keyword_parts[0] == keyword and not any(ch.isspace() for ch in keyword):
-            keyword_parts = []
+
+    # 关键词相关性过滤：标题包含搜索关键词的才进入聚类（所有搜索模式都执行）
+    if mode == "search" and keyword:
+        kw = keyword.strip()
+        # 拆分关键词用于匹配（如"台风巴威" → ["台风","巴威"]）
+        kw_parts = [p for p in kw.split() if len(p) >= 1] if any(ch.isspace() for ch in kw) else []
+        if not kw_parts and len(kw) >= 2:
+            kw_parts = [kw]  # 连续中文短语作为整体匹配
         filtered_ids = []
         skipped = 0
         for article_id in requested_ids:
@@ -219,21 +228,37 @@ def create_analysis_run(
             if article is None:
                 continue
             title = (article.title or "")
-            if not keyword_parts or keyword in title or any(part in title for part in keyword_parts if part):
+            # 标题包含关键词或其任一部分即视为相关
+            if any(p in title for p in kw_parts):
                 filtered_ids.append(article_id)
             else:
                 skipped += 1
         if skipped:
-            run.warnings = (run.warnings or []) + [f"关键词过滤 {skipped} 篇不相关文章"]
+            run.warnings = (run.warnings or []) + [f"关键词「{kw}」过滤 {skipped} 篇标题不相关文章"]
         requested_ids = filtered_ids
 
     representative_count = 0
+    # 先查已有记录，避免重复插入
+    existing_rows = {
+        row.article_id: row
+        for row in AnalysisRunArticle.query.filter_by(analysis_run_id=run.id).all()
+    }
     for article_id in requested_ids:
         article = articles_by_id[article_id]
         status, representative = _feature_status(
             article, features_by_article.get(article_id)
         )
         representative_count += int(representative)
+        if article_id in existing_rows:
+            # 更新已有记录
+            row = existing_rows[article_id]
+            row.article_snapshot_id = article.latest_snapshot_id
+            row.content_version = article.content_version or 1
+            row.content_identity = _content_identity(article)
+            row.is_representative = representative
+            row.nlp_weight = float(article.nlp_weight or 0)
+            row.feature_status = status
+            continue
         db.session.add(
             AnalysisRunArticle(
                 analysis_run_id=run.id,

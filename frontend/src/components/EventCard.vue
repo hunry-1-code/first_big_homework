@@ -19,7 +19,12 @@
       </div>
     </template>
     
-    <div v-if="event.topic_category" class="mb-2"><el-tag size="small" effect="plain">{{ event.topic_category }}</el-tag></div>
+    <div class="flex items-center gap-1.5 mb-2 flex-wrap">
+      <el-tag v-if="event.topic_category" size="small" effect="plain">{{ event.topic_category }}</el-tag>
+      <el-tag v-if="event.search_keyword" size="small" type="info" effect="light" class="!text-emerald-600 !bg-emerald-50 !border-emerald-200">
+        🔍 {{ event.search_keyword }}
+      </el-tag>
+    </div>
     <p class="text-sm text-slate-500 dark:text-slate-400 line-clamp-3 mb-4 min-h-[60px] leading-relaxed">
       {{ event.summary || "暂无事件摘要描述..." }}
     </p>
@@ -109,6 +114,7 @@ defineProps<{
     sentiment_negative: number;
     sentiment_neutral: number;
     topic_category?: string;
+    search_keyword?: string | null;
     platforms?: string[];
     top_keywords?: Array<{
       word: string;

@@ -15,8 +15,8 @@ _STATE_KEY = "daily_hot_scheduler_state"
 def _state():
     if _STATE_KEY not in current_app.extensions:
         current_app.extensions[_STATE_KEY] = {
-            "enabled": False,
-            "interval_minutes": 60,
+            "enabled": current_app.config.get("DAILY_HOT_SCHEDULER_ENABLED", False),
+            "interval_minutes": current_app.config.get("DAILY_HOT_REFRESH_INTERVAL_SECONDS", 900) // 60,
         }
     return current_app.extensions[_STATE_KEY]
 

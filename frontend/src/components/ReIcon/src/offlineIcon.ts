@@ -19,6 +19,7 @@ import AntBilibiliFilled from "~icons/ant-design/bilibili-filled?raw";
 import AntBaiduOutlined from "~icons/ant-design/baidu-outlined?raw";
 // https://icon-sets.iconify.design/simple-icons/?keyword=simple-icons
 import SiXiaohongshu from "~icons/simple-icons/xiaohongshu?raw";
+import SiTiktok from "~icons/simple-icons/tiktok?raw";
 
 // https://icon-sets.iconify.design/ri/?keyword=ri
 import RiMindMap from "~icons/ri/mind-map?raw";
@@ -48,6 +49,7 @@ import RiInformationLine from "~icons/ri/information-line?raw";
 import RiTerminalWindowLine from "~icons/ri/terminal-window-line?raw";
 import RiCheckboxCircleLine from "~icons/ri/checkbox-circle-line?raw";
 import RiBarChartHorizontalLine from "~icons/ri/bar-chart-horizontal-line?raw";
+import RiRssFill from "~icons/ri/rss-fill?raw";
 
 const icons = [
   // Platform logos (ant-design + simple-icons)
@@ -56,6 +58,7 @@ const icons = [
   ["ant-design:bilibili-filled", AntBilibiliFilled],
   ["ant-design:baidu-outlined", AntBaiduOutlined],
   ["simple-icons:xiaohongshu", SiXiaohongshu],
+  ["simple-icons:tiktok", SiTiktok],
   // Element Plus Icon: https://github.com/element-plus/element-plus-icons
   ["ep/menu", EpMenu],
   ["ep/edit", EpEdit],
@@ -92,7 +95,8 @@ const icons = [
   ["ri/information-line", RiInformationLine],
   ["ri/terminal-window-line", RiTerminalWindowLine],
   ["ri/checkbox-circle-line", RiCheckboxCircleLine],
-  ["ri/bar-chart-horizontal-line", RiBarChartHorizontalLine]
+  ["ri/bar-chart-horizontal-line", RiBarChartHorizontalLine],
+  ["ri/rss-fill", RiRssFill]
 ];
 
 // 本地菜单图标，后端在路由的 icon 中返回对应的图标字符串并且前端在此处使用 addIcon 添加即可渲染菜单图标

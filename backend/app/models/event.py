@@ -51,6 +51,8 @@ class Event(db.Model):
     metadata_evidence = db.Column(db.JSON)
     metadata_updated_at = db.Column(db.DateTime)
     source = db.Column(db.String(20), nullable=False, default="search")  # search / daily_hot / manual
+    search_keyword = db.Column(db.String(255), nullable=True, index=True)  # 来源搜索关键词
+    source_task_id = db.Column(db.Integer, db.ForeignKey("task.id"), nullable=True, index=True)  # 来源爬取任务
     ttl_days = db.Column(db.Integer, nullable=True)  # 热点事件 7 天过期，搜索事件 null=永久
     center_vector = db.Column(db.JSON)
     created_at = db.Column(db.DateTime, server_default=db.func.now())

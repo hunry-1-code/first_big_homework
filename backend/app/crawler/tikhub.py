@@ -92,6 +92,11 @@ class TikHubCrawler:
         raise_for_api_error(payload, self.platform)
         items = self._items(payload)
         documents = [document for item in items if (document := self._map_item(item)) is not None]
+        # 后过滤：部分平台 API 返回模糊匹配结果，标题不含关键词的排除
+        keyword = (request.keyword or "").strip()
+        if keyword:
+            kw_parts = [keyword] if not any(ch.isspace() for ch in keyword) else keyword.split()
+            documents = [d for d in documents if any(p in (d.title or "") for p in kw_parts)]
         return documents[: request.limit]
 
     def _items(self, payload: dict[str, Any]) -> list[dict[str, Any]]:

@@ -74,6 +74,103 @@ def _enrich_article_comments(article, document, registry) -> tuple[int, str | No
         return 0, str(exc)
 
 
+def run_search_analysis_pipeline(task_id: int, article_ids: list[int], keyword: str | None, platforms: list[str] | None, user_id: int, original_task_id: int | None = None) -> dict:
+    """在已采集的文章上运行分析管线（内容分析→聚合→情感→发布），不重新爬取。"""
+    from app.services.content_analysis_service import (
+        create_analysis_run,
+        run_content_analysis,
+    )
+    from app.services.event_aggregation_service import (
+        create_aggregation_run,
+        run_event_aggregation,
+        publish_cluster,
+    )
+    from app.services.sentiment_analysis_service import (
+        create_sentiment_run,
+        run_sentiment_analysis,
+    )
+    from app.models import AggregationCluster
+
+    update_task(task_id, status="running", progress=25, message="开始在已有数据上重新分析...")
+    record_stage(task_id, "crawl", "done", f"{len(article_ids)}篇(复用)")
+    record_stage(task_id, "preprocess", "done", f"{len(article_ids)}篇(复用)")
+
+    update_task(task_id, progress=52, message="正在执行内容分析（TF-IDF + BGE）...")
+    record_stage(task_id, "content_analysis", "running", "TF-IDF关键词 + BGE向量提取中...")
+    # 使用原始任务 ID 作为 source_task_id，确保 crawl_task_id 隔离正确匹配
+    analysis_run, analysis_reused = create_analysis_run(
+        list(dict.fromkeys(article_ids)),
+        user_id=user_id,
+        mode="search",
+        keyword=keyword,
+        platforms=platforms,
+        source_task_id=original_task_id or task_id,
+    )
+    if not analysis_reused or analysis_run.status != "success":
+        run_content_analysis(analysis_run.id, task_id=task_id)
+    record_stage(task_id, "content_analysis", "done", f"{analysis_run.representative_count}篇代表")
+
+    update_task(task_id, progress=66, message="正在执行事件聚合...")
+    record_stage(task_id, "aggregation", "running", "多维聚类（BGE+TF-IDF+实体+时间）中...")
+    aggregation_run, aggregation_reused = create_aggregation_run(
+        analysis_run.id,
+        user_id=user_id,
+        source_task_id=task_id,
+    )
+    if not aggregation_reused or aggregation_run.status != "success":
+        run_event_aggregation(aggregation_run.id, task_id=task_id)
+    record_stage(task_id, "aggregation", "done", f"{aggregation_run.statistics.get('cluster_count','?')}个簇")
+
+    update_task(task_id, progress=80, message="正在执行情感分析（LLM）...")
+    record_stage(task_id, "sentiment", "running", "DeepSeek LLM + SnowNLP 情感分析中...")
+    sentiment_run, sentiment_reused = create_sentiment_run(
+        aggregation_run.id,
+        source_task_id=task_id,
+        user_id=user_id,
+    )
+    if not sentiment_reused or sentiment_run.status != "success":
+        run_sentiment_analysis(sentiment_run.id, task_id=task_id)
+    record_stage(task_id, "sentiment", "done", f"{sentiment_run.statistics.get('result_count','?')}篇")
+
+    update_task(task_id, progress=93, message="正在发布事件...")
+    record_stage(task_id, "publish", "running", "事件发布到舆情看板中...")
+    publish_count = 0
+    auto_publish = current_app.config.get("AUTO_PUBLISH_EVENTS", False)
+    if auto_publish:
+        for cluster in AggregationCluster.query.filter_by(
+            aggregation_run_id=aggregation_run.id
+        ).order_by(AggregationCluster.member_count.desc()).all():
+            try:
+                publish_cluster(cluster.id, user_id=user_id)
+                publish_count += 1
+            except Exception:
+                pass
+    record_stage(task_id, "publish", "done", f"{publish_count}个事件")
+
+    result = dict(
+        analysis_run_id=analysis_run.id,
+        aggregation_run_id=aggregation_run.id,
+        sentiment_run_id=sentiment_run.id,
+        event_count=publish_count,
+        search_cache_expires_at=(
+            aggregation_run.cache_expires_at.isoformat()
+            if aggregation_run.cache_expires_at
+            else None
+        ),
+    )
+    record_stage(task_id, "done", "done", f"事件{publish_count}个")
+    from app.services.task_service import build_summary
+    s = build_summary(task_id)
+    if s:
+        from app.models import Task
+        from app.extensions import db
+        t = db.session.get(Task, task_id)
+        if t:
+            t.summary = s
+            db.session.commit()
+    return result
+
+
 def crawl_job(task_id: int, registry: CrawlerRegistry | None = None) -> dict:
     task = get_task(task_id)
     if task is None:
@@ -91,44 +188,77 @@ def crawl_job(task_id: int, registry: CrawlerRegistry | None = None) -> dict:
         maximum_target_count=current_app.config.get("CRAWL_MAX_TARGET_COUNT", 200),
         preferred_platform_limit=current_app.config.get("CRAWL_PLATFORM_PREFERRED_LIMIT", 50),
     )
-    batch = service.collect(
-        keyword=payload.get("keyword"),
-        platforms=platforms,
-        target_count=payload.get("target_count"),
-        mode=mode,
-    )
-    update_task(task_id, progress=25, message=f"采集完成，获得 {len(batch.documents)} 条原始数据。")
-    record_stage(task_id, "crawl", "done", f"{len(batch.documents)}篇")
-
+    target = payload.get("target_count") or current_app.config.get("CRAWL_DEFAULT_TARGET_COUNT", 50)
+    persisted_article_ids = []
+    persisted_hot_documents = []
     processed = 0
     failed = 0
-    persisted_hot_documents = []
-    persisted_article_ids = []
     comment_count = 0
     comment_errors = []
-    for index, document in enumerate(batch.documents, start=1):
-        try:
-            article, _output = persist_raw_document(document, task_id)
-            processed += 1
-            persisted_article_ids.append(article.id)
-            added, comment_error = _enrich_article_comments(article, document, registry)
-            comment_count += added
-            if comment_error:
-                comment_errors.append({"platform": document.platform, "article_id": article.id, "message": comment_error})
-            if mode == "hot" and document.source_type == "hotlist":
-                persisted_hot_documents.append((article, document))
-        except Exception as exc:
-            failed += 1
-            batch.errors.append(
-                CrawlIssue(
-                    document.platform,
-                    "PERSIST_TRANSACTION_FAILED",
-                    str(exc),
-                    True,
-                )
-            )
-        progress = 25 + int(index / max(1, len(batch.documents)) * 25)  # 预处理: 25-50%
-        update_task(task_id, progress=progress, message=f"已处理 {index}/{len(batch.documents)} 条数据。")
+    all_errors = []
+    all_platform_counts: dict[str, int] = {}
+    total_collected = 0
+
+    # 补采循环：最多两轮，确保合格文章数达标
+    for round_idx in range(2):
+        round_target = int(target * 1.3) if round_idx == 0 else int((target - processed) * 1.5)
+        if round_target < 5:
+            break  # 缺口太小不补
+
+        update_task(task_id, progress=5 + round_idx * 10,
+                    message=f"第{round_idx+1}轮采集，目标 {round_target} 篇...")
+        batch = service.collect(
+            keyword=payload.get("keyword"),
+            platforms=platforms,
+            target_count=round_target,
+            mode=mode,
+        )
+        total_collected += len(batch.documents)
+        record_stage(task_id, "crawl", "done" if round_idx == 0 else "done",
+                     f"{len(batch.documents)}篇" if round_idx == 0 else f"+{len(batch.documents)}篇(补)")
+
+        update_task(task_id, progress=15 + round_idx * 15,
+                    message=f"第{round_idx+1}轮预处理（清洗、去重、质量评估）...")
+        record_stage(task_id, "preprocess", "running", f"第{round_idx+1}轮文本清洗中...")
+        round_processed = 0
+        for index, document in enumerate(batch.documents, start=1):
+            try:
+                article, _output = persist_raw_document(document, task_id)
+                # 质量检查：nlp_weight >= 0.5 且内容 >= 50 字才算合格
+                nlp_w = float(article.nlp_weight or 0)
+                content_len = len((article.clean_content or article.raw_content or "").strip())
+                is_valid = nlp_w >= 0.5 and content_len >= 50
+                if is_valid:
+                    processed += 1
+                    round_processed += 1
+                persisted_article_ids.append(article.id)
+                added, comment_error = _enrich_article_comments(article, document, registry)
+                comment_count += added
+                if comment_error:
+                    comment_errors.append({"platform": document.platform, "article_id": article.id, "message": comment_error})
+                if mode == "hot" and document.source_type == "hotlist":
+                    persisted_hot_documents.append((article, document))
+            except Exception as exc:
+                failed += 1
+                batch.errors.append(CrawlIssue(document.platform, "PERSIST_TRANSACTION_FAILED", str(exc), True))
+            pct = 15 + round_idx * 15 + int(index / max(1, len(batch.documents)) * 15)
+            update_task(task_id, progress=pct, message=f"第{round_idx+1}轮: {index}/{len(batch.documents)}，合格 {processed} 篇。")
+
+        all_errors.extend([{"platform": e.platform, "code": e.code, "message": e.message, "retryable": e.retryable} for e in batch.errors])
+        for p, c in (batch.platform_counts or {}).items():
+            all_platform_counts[p] = all_platform_counts.get(p, 0) + c
+
+        if processed >= target:
+            break  # 达标，不补
+        if round_idx == 0 and processed < target:
+            update_task(task_id, progress=30, message=f"合格文章 {processed}/{target}，启动补充采集...")
+            record_stage(task_id, "preprocess", "running", f"合格{processed}篇不足{target}，补充采集中...")
+
+    errors = all_errors
+    batch.platform_counts = all_platform_counts
+    # 兼容后续代码：batch.documents 已用完，但后续只用到 batch.errors 和 batch.platform_counts
+    update_task(task_id, progress=30, message=f"采集完成：共 {total_collected} 篇原始数据，{processed} 篇合格。")
+    record_stage(task_id, "preprocess", "done", f"{processed}篇合格/{total_collected}篇原始")
 
     errors = [
         {
@@ -140,10 +270,10 @@ def crawl_job(task_id: int, registry: CrawlerRegistry | None = None) -> dict:
         for issue in batch.errors
     ]
     summary = {
-        "collected": len(batch.documents),
+        "collected": total_collected,
         "processed": processed,
         "failed": failed,
-        "platform_counts": batch.platform_counts,
+        "platform_counts": all_platform_counts,
         "errors": errors,
         "comments_collected": comment_count,
         "comment_errors": comment_errors,
@@ -311,78 +441,16 @@ def crawl_job(task_id: int, registry: CrawlerRegistry | None = None) -> dict:
             summary["aggregation_run_id"] = aggregation_run.id
             summary["sentiment_run_id"] = sentiment_run.id
     elif mode == "search" and persisted_article_ids:
-        from app.services.content_analysis_service import (
-            create_analysis_run,
-            run_content_analysis,
-        )
-        from app.services.event_aggregation_service import (
-            create_aggregation_run,
-            run_event_aggregation,
-        )
-        from app.services.sentiment_analysis_service import (
-            create_sentiment_run,
-            run_sentiment_analysis,
-        )
-
-        update_task(task_id, progress=52, message="正在执行内容分析（TF-IDF + BGE）...")
         record_stage(task_id, "preprocess", "done", f"{processed}篇")
         effective_platforms = platforms or list(batch.platform_counts.keys())
-        analysis_run, analysis_reused = create_analysis_run(
-            list(dict.fromkeys(persisted_article_ids)),
-            user_id=task.get("created_by"),
-            mode="search",
+        analysis_result = run_search_analysis_pipeline(
+            task_id,
+            persisted_article_ids,
             keyword=payload.get("keyword"),
             platforms=effective_platforms,
-            source_task_id=task_id,
-        )
-        if not analysis_reused or analysis_run.status != "success":
-            run_content_analysis(analysis_run.id, task_id=task_id)
-        record_stage(task_id, "content_analysis", "done", f"{analysis_run.representative_count}篇代表")
-        update_task(task_id, progress=66, message="正在执行事件聚合...")
-        aggregation_run, aggregation_reused = create_aggregation_run(
-            analysis_run.id,
-            user_id=task.get("created_by"),
-            source_task_id=task_id,
-        )
-        if not aggregation_reused or aggregation_run.status != "success":
-            run_event_aggregation(aggregation_run.id, task_id=task_id)
-        record_stage(task_id, "aggregation", "done", f"{aggregation_run.statistics.get('cluster_count','?')}个簇")
-        update_task(task_id, progress=80, message="正在执行情感分析（LLM）...")
-        sentiment_run, sentiment_reused = create_sentiment_run(
-            aggregation_run.id,
-            source_task_id=task_id,
             user_id=task.get("created_by"),
         )
-        if not sentiment_reused or sentiment_run.status != "success":
-            run_sentiment_analysis(sentiment_run.id, task_id=task_id)
-        record_stage(task_id, "sentiment", "done", f"{sentiment_run.statistics.get('result_count','?')}篇")
-        update_task(task_id, progress=93, message="正在发布事件...")
-        # 自动发布事件簇 → 用户可直接在看板看到结果
-        from app.services.event_aggregation_service import publish_cluster
-        from app.models import AggregationCluster
-        publish_count = 0
-        auto_publish = current_app.config.get("AUTO_PUBLISH_EVENTS", False)
-        if auto_publish:
-            for cluster in AggregationCluster.query.filter_by(
-                aggregation_run_id=aggregation_run.id
-            ).order_by(AggregationCluster.member_count.desc()).all():
-                try:
-                    publish_cluster(cluster.id, user_id=task.get("created_by"))
-                    publish_count += 1
-                except Exception:
-                    pass
-        record_stage(task_id, "publish", "done", f"{publish_count}个事件")
-        summary.update(
-            analysis_run_id=analysis_run.id,
-            aggregation_run_id=aggregation_run.id,
-            sentiment_run_id=sentiment_run.id,
-            event_count=publish_count,
-            search_cache_expires_at=(
-                aggregation_run.cache_expires_at.isoformat()
-                if aggregation_run.cache_expires_at
-                else None
-            ),
-        )
+        summary.update(analysis_result)
     if processed == 0 and errors:
         update_task(task_id, status="failed", progress=100, message="采集任务失败。", result=summary)
     else:

@@ -14,6 +14,8 @@ export const PLATFORMS: PlatformInfo[] = [
   { name: "知乎",     short: "知", color: "#0066ff", bg: "#e8f0fe", api: "开放平台", icon: "ant-design:zhihu-circle-filled" },
   { name: "B站",      short: "B",  color: "#fb7299", bg: "#fff0f5", api: "bilibili-api", icon: "ant-design:bilibili-filled" },
   { name: "小红书",   short: "红", color: "#ff4757", bg: "#ffeef0", api: "TikHub API", icon: "simple-icons:xiaohongshu" },
+  { name: "抖音",     short: "抖", color: "#111111", bg: "#f1f5f9", api: "TikHub API", icon: "simple-icons:tiktok" },
+  { name: "36氪",     short: "氪", color: "#3182ce", bg: "#ebf8ff", api: "RSS 订阅",  icon: "ri:rss-fill" },
   { name: "百度热搜", short: "百", color: "#3385ff", bg: "#e8f0fe", api: "千帆 API", icon: "ant-design:baidu-outlined" },
   { name: "百度搜索", short: "百", color: "#2e77e5", bg: "#e8f0fe", api: "千帆 API", icon: "ant-design:baidu-outlined" },
 ];
@@ -34,8 +36,11 @@ const EN_TO_CN: Record<string, string> = {
   baidu: "百度搜索",
   baidu_news: "百度搜索",
   baidu_hot: "百度热搜",
-  rss: "百度搜索",
-  douyin: "微博热搜"
+  rss: "RSS订阅",
+  rss_36kr: "36氪",
+  rss_sspai: "少数派",
+  rss_infoq: "InfoQ",
+  douyin: "抖音"
 };
 
 /** 将后端英文平台代码转为前端中文名 */
@@ -116,8 +121,17 @@ export const SEARCH_PLATFORMS: SearchPlatform[] = [
     id: "douyin",
     always: false,
     needKey: "TikHub API Key",
-    icon: "ant-design:douyin-filled",
+    icon: "simple-icons:tiktok",
     color: "#111111",
     bg: "#f1f5f9"
+  },
+  // ===== RSS 资讯订阅源（无需关键词，提供最新资讯） =====
+  {
+    name: "36氪",
+    id: "rss_36kr",
+    always: true,
+    icon: "ri:rss-fill",
+    color: "#3182ce",
+    bg: "#ebf8ff"
   }
 ];

@@ -31,7 +31,7 @@ def trigger():
     if isinstance(payload.get("target_count", 100), bool):
         return fail("target_count 必须是整数", 400)
     try:
-        target_count = int(payload.get("target_count", 100))
+        target_count = int(payload.get("target_count", 50))
     except (TypeError, ValueError):
         return fail("target_count 必须是整数", 400)
     if target_count < 1 or target_count > 200:
@@ -73,8 +73,9 @@ def keyword_search():
         return fail("platforms 必须是字符串数组", 400)
     if isinstance(payload.get("target_count", 100), bool):
         return fail("target_count 必须是整数", 400)
+    force_refresh = bool(payload.get("force", False))
     try:
-        target_count = int(payload.get("target_count", 100))
+        target_count = int(payload.get("target_count", 50))
     except (TypeError, ValueError):
         return fail("target_count 必须是整数", 400)
     if target_count < 1 or target_count > 200:
@@ -86,19 +87,47 @@ def keyword_search():
         "mode": "search",
     }
     fingerprint = query_fingerprint("search", keyword, platforms)
-    cache = find_search_cache(fingerprint)
-    if cache["cached"]:
-        return ok(
-            {
-                "task_id": None,
-                "reused": True,
-                "cached": True,
-                "stale": False,
-                "aggregation_run_id": cache["run"]["aggregation_run_id"],
-                "cache_expires_at": cache["run"]["cache_expires_at"],
-            },
-            message="已复用 24 小时内的共享搜索事件结果。",
-        )
+
+    # force 刷新：跳过所有缓存，直接开始新采集
+    if not force_refresh:
+        cache = find_search_cache(fingerprint)
+        # 缓存未过期（默认 2h 内）：直接返回已有结果，不重复采集
+        if cache["cached"]:
+            return ok(
+                {
+                    "task_id": None,
+                    "reused": True,
+                    "cached": True,
+                    "stale": False,
+                    "aggregation_run_id": cache["run"]["aggregation_run_id"],
+                    "cache_expires_at": cache["run"]["cache_expires_at"],
+                },
+                message="近期已有相同关键词的分析结果（{} 内有效），无需重复采集。如需最新数据请勾选强制刷新。".format(
+                    f'{current_app.config.get("EVENT_SEARCH_CACHE_HOURS", 2)}小时'
+                ),
+            )
+        # 缓存已过期 → 静默启动后台刷新，但优先返回旧结果给用户
+        if cache["stale"] and cache["run"] is not None:
+            task, reused = create_or_reuse_recent_task(
+                "crawl",
+                g.current_user["id"],
+                task_payload,
+                current_app.config.get("CRAWL_DUPLICATE_WINDOW_SECONDS", 60),
+            )
+            if not reused:
+                submit_background_job(current_app._get_current_object(), crawl_job, task["id"])
+            return ok(
+                {
+                    "task_id": task["id"] if not reused else None,
+                    "reused": True,
+                    "cached": False,
+                    "stale": True,
+                    "aggregation_run_id": cache["run"]["aggregation_run_id"],
+                    "cache_expires_at": cache["run"]["cache_expires_at"],
+                },
+                message="已有过期缓存结果，后台已启动增量采集，新数据将补充到已有事件中。",
+            )
+
     task, reused = create_or_reuse_recent_task(
         "crawl",
         g.current_user["id"],
@@ -145,12 +174,23 @@ def available_platforms():
     registry = build_crawler_registry(current_app.config)
     # 排除：热榜类、演示类、不可用的
     unavailable = {"sample", "rss"}  # 排除演示和RSS
+    # 已知配额耗尽/不可用的平台（动态变化，临时排除）
+    rate_limited = current_app.config.get("CRAWL_RATE_LIMITED_PLATFORMS", [])
     searchable = [
         name for name in registry.platforms()
-        if name not in unavailable and not name.endswith("_hot")
-        and not name.startswith("rss_")  # RSS作为独立源，不在搜索平台里显示
+        if name not in unavailable and name not in rate_limited
+        and not name.endswith("_hot")
+        and not name.startswith("rss_")
     ]
-    return ok({"platforms": sorted(searchable)})
+    # RSS 订阅源作为独立信源（不需要关键词搜索，提供最新资讯）
+    rss_platforms = [
+        name for name in registry.platforms()
+        if name.startswith("rss_")
+    ]
+    return ok({
+        "platforms": sorted(searchable),
+        "rss": sorted(rss_platforms),
+    })
 
 
 @crawler_bp.get("/status")

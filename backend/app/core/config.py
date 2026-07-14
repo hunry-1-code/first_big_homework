@@ -72,6 +72,9 @@ class Config:
         1, int(os.getenv("QIANFAN_REQUEST_TIMEOUT", "30"))
     )
 
+    AUTO_PUBLISH_EVENTS = (
+        os.getenv("AUTO_PUBLISH_EVENTS", "false").lower() == "true"
+    )
     CRAWL_DEFAULT_TARGET_COUNT = min(
         200, max(1, int(os.getenv("CRAWL_DEFAULT_TARGET_COUNT", "100")))
     )
@@ -105,6 +108,11 @@ class Config:
     CRAWL_DUPLICATE_WINDOW_SECONDS = max(
         1, int(os.getenv("CRAWL_DUPLICATE_WINDOW_SECONDS", "60"))
     )
+    CRAWL_RATE_LIMITED_PLATFORMS = [
+        p.strip()
+        for p in os.getenv("CRAWL_RATE_LIMITED_PLATFORMS", "").split(",")
+        if p.strip()
+    ]
 
     TFIDF_MAX_FEATURES = max(100, int(os.getenv("TFIDF_MAX_FEATURES", "5000")))
     TFIDF_NGRAM_MAX = min(3, max(1, int(os.getenv("TFIDF_NGRAM_MAX", "2"))))
@@ -218,6 +226,9 @@ class Config:
     )
     HEAT_FORMULA_VERSION = os.getenv("HEAT_FORMULA_VERSION", "v1")
 
+    DAILY_HOT_SCHEDULER_ENABLED = (
+        os.getenv("DAILY_HOT_SCHEDULER_ENABLED", "false").lower() == "true"
+    )
     DAILY_HOT_SOURCES = [
         source.strip().casefold()
         for source in os.getenv(
@@ -279,12 +290,15 @@ class Config:
         1, int(os.getenv("EVENT_AGGREGATION_CANDIDATE_LIMIT", "20"))
     )
     EVENT_AGGREGATION_MIN_EVIDENCE = max(
-        1, int(os.getenv("EVENT_AGGREGATION_MIN_EVIDENCE", "1"))
+        1, int(os.getenv("EVENT_AGGREGATION_MIN_EVIDENCE", "3"))
+    )
+    EVENT_AGGREGATION_MIN_CLUSTER_SIZE = max(
+        1, int(os.getenv("EVENT_AGGREGATION_MIN_CLUSTER_SIZE", "2"))
     )
     EVENT_AGGREGATION_ALGORITHM_VERSION = os.getenv(
         "EVENT_AGGREGATION_ALGORITHM_VERSION", "event-aggregation-v1"
     )
     EVENT_SEARCH_CACHE_HOURS = max(
-        1, int(os.getenv("EVENT_SEARCH_CACHE_HOURS", "24"))
+        1, int(os.getenv("EVENT_SEARCH_CACHE_HOURS", "2"))
     )
     EVENT_RELATED_LIMIT = max(1, int(os.getenv("EVENT_RELATED_LIMIT", "5")))

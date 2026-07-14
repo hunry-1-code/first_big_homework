@@ -11,3 +11,7 @@ export function getMyTasks() {
 export function getAllTasks() {
   return apiClient.get("/tasks");
 }
+
+export function retryAnalysis(taskId: number) {
+  return apiClient.post(`/tasks/${taskId}/retry-analysis`);
+}

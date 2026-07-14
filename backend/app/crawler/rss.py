@@ -25,8 +25,14 @@ class RssCrawler:
         root = ET.fromstring(self.client.get_text(self.feed_url))
         nodes = [node for node in root.iter() if node.tag.rsplit("}", 1)[-1] in {"item", "entry"}]
         documents = []
-        for node in nodes[: request.limit]:
+        for node in nodes[: request.limit * 3]:  # 多取一些，过滤后还有足够的
             title = _text(node, ("title",)) or ""
+            # RSS 不支持关键词搜索，后过滤：标题不含关键词则跳过
+            keyword = (request.keyword or "").strip()
+            if keyword:
+                kw_parts = [keyword] if not any(ch.isspace() for ch in keyword) else keyword.split()
+                if not any(p in title for p in kw_parts):
+                    continue
             content = _text(node, ("content", "description", "summary")) or ""
             item_id = _text(node, ("guid", "id"))
             link = _text(node, ("link",))

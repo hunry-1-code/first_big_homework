@@ -10,10 +10,10 @@ from app.preprocessing.result import StageResult
 QUALITY_VERSION = "v1"
 LENGTH_RULES = {
     "news": (80, 200),
-    "social": (10, 30),
-    "hotlist": (5, 10),
-    "comment": (5, 15),
-    "rss": (40, 120),
+    "social": (50, 120),    # 社交媒体至少50有效字才有分析价值
+    "hotlist": (30, 80),
+    "comment": (15, 50),
+    "rss": (80, 200),       # RSS 新闻标准对齐 news
     "sample": (5, 30),
 }
 ADVERTISEMENT_PATTERNS = {
@@ -55,6 +55,13 @@ def evaluate_quality(
     low_noise = max(0.0, min(1.0, 1.0 - removed_length / original_length))
     low_repetition = _repetition_score(text or "")
     completeness = sum(bool(metadata.get(key)) for key in ("title", "author", "publish_time")) / 3
+    # \u6807\u9898-\u5185\u5bb9\u4e00\u81f4\u6027\uff1a\u6807\u9898\u5b57\u8bcd\u5728\u5185\u5bb9\u4e2d\u7684\u91cd\u53e0\u5ea6
+    title = str(metadata.get("title") or "")
+    title_words = set(re.findall(r"[\u4e00-\u9fff]{2,}", title))
+    content_words = set(re.findall(r"[\u4e00-\u9fff]{2,}", text or ""))
+    title_content_overlap = len(title_words & content_words) / max(1, len(title_words)) if title_words else 1.0
+    # \u9ad8\u91cd\u53e0 + \u77ed\u5185\u5bb9 = \u6807\u9898\u642c\u8fd0\uff0c\u65e0\u5b9e\u8d28\u6b63\u6587
+    content_originality = 0.3 if (title_content_overlap > 0.8 and effective_length < 200) else 1.0
     confidence = {
         "trafilatura": 1.0,
         "plain_text": 0.95,
@@ -65,13 +72,15 @@ def evaluate_quality(
     if extraction_degraded:
         confidence = min(confidence, 0.4)
 
+    # \u8c03\u6574\u6743\u91cd\uff1alength \u63d0\u5230 0.30\uff0cconfidence \u964d\u5230 0.05\uff0c\u52a0 content_originality
     score = round(
-        0.20 * length_score
+        0.30 * length_score
         + 0.20 * valid_score
-        + 0.20 * low_noise
-        + 0.15 * low_repetition
-        + 0.15 * completeness
-        + 0.10 * confidence,
+        + 0.15 * low_noise
+        + 0.10 * low_repetition
+        + 0.10 * completeness
+        + 0.05 * confidence
+        + 0.10 * content_originality,
         4,
     )
     if score >= 0.75:
@@ -101,6 +110,7 @@ def evaluate_quality(
         name for name, pattern in ADVERTISEMENT_PATTERNS.items() if pattern.search(text or "")
     ]
     advertisement_score = min(1.0, len(advertisement_reasons) * 0.4)
+    passes_filter = bool(effective_length >= minimum and level not in ("very_low",) and not (title_content_overlap > 0.8 and effective_length < 200))
     data = {
         "quality_score": score,
         "quality_level": level,
@@ -111,5 +121,6 @@ def evaluate_quality(
         "advertisement_reasons": advertisement_reasons,
         "spam_weight": 0.5 if advertisement_score >= 0.4 else 1.0,
         "quality_version": QUALITY_VERSION,
+        "passes_filter": passes_filter,
     }
     return StageResult.success(data, QUALITY_VERSION)

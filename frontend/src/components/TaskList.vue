@@ -7,7 +7,7 @@
       :class="task.status === 'running' ? 'border-blue-300 dark:border-blue-700' : task.status === 'failed' ? 'border-red-200 dark:border-red-900' : 'border-slate-200 dark:border-slate-800'"
     >
       <!-- 进程头部 -->
-      <div class="flex items-center gap-4 p-4 cursor-pointer" @click="task._expanded = !task._expanded">
+      <div class="flex items-center gap-4 p-4 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50" @click="$emit('select', task.id); task._expanded = !task._expanded">
         <span class="text-xs font-mono text-slate-400 w-12">#{{ task.id }}</span>
         <el-tag :type="getTypeTag(task.task_type)" size="small" class="shrink-0">
           {{ formatType(task.task_type) }}
@@ -27,6 +27,18 @@
         <span class="text-[11px] text-slate-400 shrink-0 w-16 text-right">
           {{ timeAgo(task.created_at) }}
         </span>
+        <el-button
+          v-if="task.status === 'failed' && task.payload?.keyword"
+          type="warning"
+          size="small"
+          plain
+          class="shrink-0"
+          :loading="retryingTaskId === task.id"
+          :disabled="retryingTaskId !== null"
+          @click.stop="$emit('retry', task.id)"
+        >
+          🔄 重新分析
+        </el-button>
       </div>
 
       <!-- 展开：流水线阶段 -->
@@ -52,13 +64,14 @@
 <script setup lang="ts">
 import { formatTaskStatus, getTaskStatusTag, taskKeyword } from "./taskPresentation";
 
-defineProps<{ tasks: any[] }>();
+defineProps<{ tasks: any[]; retryingTaskId?: number | null }>();
+defineEmits<{ retry: [taskId: number]; select: [taskId: number] }>();
 
 function formatType(t: string) {
-  const m: Record<string,string> = { crawl:'网络爬虫', daily_hot:'每日热点', daily_hot_enrichment:'热点补全', import:'数据导入', analysis:'智能分析', hotspot:'热点分析', aggregation:'事件聚合', sentiment:'情感分析' };
+  const m: Record<string,string> = { crawl:'网络爬虫', daily_hot:'每日热点', daily_hot_enrichment:'热点补全', import:'数据导入', analysis:'智能分析', hotspot:'热点分析', aggregation:'事件聚合', sentiment:'情感分析', retry_analysis:'重新分析' };
   return m[t] || t;
 }
-function getTypeTag(t: string): any { return t === 'crawl' ? 'primary' : t === 'daily_hot' ? 'warning' : 'info'; }
+function getTypeTag(t: string): any { return t === 'crawl' ? 'primary' : t === 'daily_hot' ? 'warning' : t === 'retry_analysis' ? 'success' : 'info'; }
 function getStatusTag(s: string): any { return s === 'pending' ? 'info' : s === 'running' ? 'warning' : (s === 'success' || s === 'completed') ? 'success' : s === 'failed' ? 'danger' : 'info'; }
 function formatStatus(s: string) { return s === 'pending' ? '等待' : s === 'running' ? '运行中' : (s === 'success' || s === 'completed') ? '完成' : s === 'failed' ? '失败' : s; }
 function stageName(s: string) {
