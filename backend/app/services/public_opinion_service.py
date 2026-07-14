@@ -41,32 +41,40 @@ def _correct_sentiment(text: str, original_label: str | None) -> str:
 def get_public_opinion_snapshot(event_id: int) -> dict:
     article_ids = [row[0] for row in Article.query.with_entities(Article.id).filter_by(event_id=event_id).all()]
     comments = Comment.query.filter(Comment.article_id.in_(article_ids)).all() if article_ids else []
-    # 加权情感统计（带去重）
+    # 加权情感统计（频次增强 + 用户去重）
     counts = Counter()
     counts_raw = Counter()
     corrected_count = 0
-    seen_texts: dict[str, float] = {}  # 内容哈希 → 最大权重（去重取最高权）
+    content_freq: dict[str, int] = Counter()  # 相同内容出现次数
+    user_content: dict[str, set] = {}  # 每个用户对每条内容的去重
+
+    # 第一遍：统计频次
+    for item in comments:
+        text = (item.content or "").strip().casefold()
+        if text and len(text) >= 2:
+            content_freq[text] += 1
+
     for item in comments:
         text = item.content or ""
         label = item.sentiment_label
-        # 短评论情感校正
         corrected = _correct_sentiment(text, label)
         if corrected != label:
             corrected_count += 1
-        # 质量加权
         weight = _comment_weight(item)
-        # 去重：相同内容只保留最高权重的 sentiment
+
+        # 用户去重：同一用户发相同内容只计一次
         dedup_key = text.strip().casefold()
-        if dedup_key and len(dedup_key) >= 2:
-            prev_weight = seen_texts.get(dedup_key, -1)
-            if weight <= prev_weight:
-                continue  # 重复且权重不更高，跳过
-            if prev_weight > 0:
-                # 撤回旧记录的权重
-                old_label = _correct_sentiment(dedup_key, None)
-                counts[old_label] = max(0, counts[old_label] - prev_weight)
-            seen_texts[dedup_key] = weight
-        counts[corrected] += weight
+        author = (item.author or "").strip()
+        if dedup_key and author:
+            user_key = f"{author}:{dedup_key}"
+            if user_key in user_content.get(dedup_key, set()):
+                continue
+            user_content.setdefault(dedup_key, set()).add(user_key)
+
+        # 频次增强：多人同感是重要信号，最多放大 2.5 倍
+        freq = content_freq.get(dedup_key, 1) if dedup_key else 1
+        freq_boost = min(2.5, 1.0 + (freq - 1) * 0.15)  # 1次=1x, 11次=2.5x
+        counts[corrected] += weight * freq_boost
         counts_raw[label or "neutral"] += 1
     institutional_articles = Article.query.filter_by(event_id=event_id, source_layer="institutional").all()
     institutional = len(institutional_articles)
