@@ -54,6 +54,8 @@ def retry_analysis(task_id: int):
     need_supplement = len(qualified_ids) < target
     supplement_msg = f"合格 {len(qualified_ids)}/{target}，先补采再分析" if need_supplement else f"合格 {len(qualified_ids)} 篇，直接分析"
 
+    from app.services.task_service import update_task, record_stage
+
     user_id = g.current_user["id"]
 
     # 重置原任务状态
