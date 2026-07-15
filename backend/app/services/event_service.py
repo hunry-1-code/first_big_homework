@@ -641,9 +641,10 @@ def get_event_detail(event_id: int) -> dict | None:
 
 
 def get_propagation_data(event_id: int) -> dict | None:
-    """获取事件传播路径数据（从缓存读取，不实时计算）。
+    """获取事件溯源与关键传播路径数据。
 
-    传播分析在事件发布时已完成并缓存到 event.metadata_evidence。
+    优先读缓存（发布时后台计算），缓存未命中则实时计算关键词聚焦图。
+    按设计规范返回：1 源头节点 + 5 关键词节点 + 最多 5 条有向边。
     """
     event = Event.query.get(event_id)
     if event is None:
@@ -652,17 +653,16 @@ def get_propagation_data(event_id: int) -> dict | None:
     if cached:
         return cached
 
-    # 缓存未命中：返回基础传播图（不含豆包溯源，避免超时）
+    # 缓存未命中：实时构建关键词聚焦传播图
     articles = Article.query.filter_by(event_id=event.id)\
         .order_by(Article.publish_time.asc()).all()
-    from app.propagation import build_propagation_graph
-    from app.services.api_contract_service import api_platform_name
-    result = build_propagation_graph(articles, platform_mapper=api_platform_name)
-    # build_propagation_graph 返回 {graph: {nodes,links}, summary, ...}
-    # 直接返回 result（不要再包一层 graph）
-    result["status"] = "pending"
-    result["summary"] = result.get("summary", {})
-    result["summary"]["coverage_notice"] = "传播溯源将在后台计算完成后更新"
+    from app.services.propagation_analysis_service import analyze_propagation
+    top_keywords = (_event_keywords(event).get("keywords") or [])[:5]
+    result = analyze_propagation(
+        event.title, articles, {},
+        top_keywords=top_keywords,
+    )
+    result["status"] = "pending" if result.get("origin_analysis", {}).get("status") != "success" else "completed"
     return result
 
 
