@@ -203,12 +203,13 @@ def run_search_analysis_pipeline(task_id: int, article_ids: list[int], keyword: 
     return result
 
 
-def crawl_job(task_id: int, registry: CrawlerRegistry | None = None) -> dict:
+def crawl_job(task_id: int, registry: CrawlerRegistry | None = None, is_retry: bool = False) -> dict:
     task = get_task(task_id)
     if task is None:
         raise KeyError(f"task not found: {task_id}")
     payload = task.get("payload") or {}
-    update_task(task_id, status="running", progress=5, message="正在准备采集平台")
+    prefix = "[补采] " if is_retry else ""
+    update_task(task_id, status="running", progress=5, message=f"{prefix}正在准备采集平台")
     registry = registry or build_crawler_registry(current_app.config)
     platforms = payload.get("platforms") or None
     mode = payload.get("mode", "search")
@@ -264,7 +265,7 @@ def crawl_job(task_id: int, registry: CrawlerRegistry | None = None) -> dict:
         more = f' +{len(round_platforms)-5}' if len(round_platforms) > 5 else ''
         quota_msg = f'配额: {p_names}{more}' if use_dynamic_quotas else '全平台均分'
         update_task(task_id, progress=5 + round_idx * 10,
-                    message=f'第{round_idx+1}轮采集，目标 {round_target} 篇 ({quota_msg})')
+                    message=f'{prefix}第{round_idx+1}轮采集，目标 {round_target} 篇 ({quota_msg})')
 
         if use_dynamic_quotas and platform_quotas:
             # 动态配额：逐平台按各自配额采集
@@ -292,8 +293,9 @@ def crawl_job(task_id: int, registry: CrawlerRegistry | None = None) -> dict:
             round1_counts = dict(batch.platform_counts or {})
         total_collected += len(batch.documents)
         n_docs = len(batch.documents)
-        record_stage(task_id, "crawl", "done" if round_idx == 0 else "done",
-                     f"{n_docs}篇" if round_idx == 0 else f"+{n_docs}篇(补)")
+        label = "补采" if is_retry else "采集"
+        record_stage(task_id, "crawl", "done",
+                     f"{label} {n_docs}篇" if round_idx == 0 else f"{label} +{n_docs}篇")
 
         update_task(task_id, progress=15 + round_idx * 15,
                     message=f"第{round_idx+1}轮预处理（清洗、去重、质量评估）...")

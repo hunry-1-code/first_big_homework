@@ -58,11 +58,11 @@ def retry_analysis(task_id: int):
 
     user_id = g.current_user["id"]
 
-    # 重置原任务状态
-    update_task(task_id, status="running", progress=0, message=supplement_msg)
+    # 重置原任务状态，标注为重新分析
+    update_task(task_id, status="running", progress=0, message=f"[重新分析] {supplement_msg}")
     t = db.session.get(Task, task_id)
     if t:
-        t.stages = []
+        t.stages = [{"stage": "retry", "status": "running", "message": supplement_msg}]
         db.session.commit()
 
     def retry_job(tid: int):
@@ -77,7 +77,7 @@ def retry_analysis(task_id: int):
             if t and t.payload:
                 t.payload["target_count"] = shortfall
                 db.session.commit()
-            crawl_job(tid)
+            crawl_job(tid, is_retry=True)
             # 恢复原始 target
             if t and t.payload:
                 t.payload["target_count"] = orig_target
