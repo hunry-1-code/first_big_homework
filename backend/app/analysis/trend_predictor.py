@@ -104,25 +104,31 @@ def analyze_lifecycle(
         and current <= peak * 0.55
     )
 
-    # ── 阶段判断 ──
-    # 消退期：持续衰减 或 已过峰值且当前 < 峰值×0.55
-    if sustained_decline or (peak_idx < point_count - 2 and peak_ratio < 0.55 and momentum < -0.05):
+    # ── 多因素阶段判断 ──
+    # 活动指数：当前综合信号相对于峰值的位置
+    activity_index = current / max(0.01, peak)
+    # 近期密度：最近 7 天日均 vs 全部日均
+    recent_window = min(7, point_count)
+    recent_density = sum(combined[-recent_window:]) / recent_window if recent_window > 0 else 0
+    all_density = total_volume / point_count if point_count > 0 else 0
+    density_ratio = recent_density / max(0.01, all_density)
+
+    # 消退期：历史跨度大 + 绝对活跃度低（不用相对值，长尾事件 d_ratio 会虚高）
+    if point_count > 90 and activity_index < 0.3 and recent_density < 0.6:
+        stage = "消退期"
+        confidence = 0.80
+        next_hint = "消退期"
+    # 消退期：持续衰减 或 已过峰值且当前 < 峰值×55%
+    elif sustained_decline or (peak_idx < point_count - 2 and peak_ratio < 0.55 and momentum < -0.05):
         stage = "消退期"
         confidence = 0.82
         next_hint = "潜伏期" if peak_ratio < 0.25 else "消退期"
-    # 潜伏期：综合信号低且稳定
-    # 长尾修正：时间跨度 >30 天 且 总量 >10 篇 → 至少是成长期（不是潜伏）
-    elif peak < 0.25 and abs(norm_slope) < 0.06:
-        days_span = point_count  # 数据点即天数
-        if days_span > 30 and total_volume >= 10:
-            stage = "成长期"
-            confidence = 0.55
-            next_hint = "成长期"
-        else:
-            stage = "潜伏期"
-            confidence = 0.72
-            next_hint = "成长期" if momentum > 0.03 else "潜伏期"
-    # 高潮期：稳定在高位
+    # 潜伏期：信号极低，跨度短，总量少
+    elif peak < 0.25 and abs(norm_slope) < 0.06 and point_count < 30:
+        stage = "潜伏期"
+        confidence = 0.72
+        next_hint = "成长期" if momentum > 0.03 else "潜伏期"
+    # 高潮期：稳定在高位 + 近期活跃
     elif recent_peak_ratio >= 0.80 and variation < 0.20 and abs(norm_slope) < 0.08:
         stage = "高潮期"
         confidence = 0.78
@@ -137,6 +143,11 @@ def analyze_lifecycle(
         stage = "成长期"
         confidence = 0.55
         next_hint = "成长期"
+    # 跨度长但绝对密度极低 → 消退期
+    elif point_count > 30 and recent_density < 0.3:
+        stage = "消退期"
+        confidence = 0.60
+        next_hint = "消退期"
     # 其他情况：低活跃 → 潜伏期
     else:
         stage = "潜伏期"
