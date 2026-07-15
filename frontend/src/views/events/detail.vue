@@ -1139,13 +1139,17 @@ function getProgressColor(heat: number) {
         <el-button type="primary" @click="router.push(`/qa?event_id=${route.params.id}`)">
           <span class="flex items-center gap-1">💬 智能提问</span>
         </el-button>
-        <el-select v-model="exportFormat" size="default" style="width:90px">
-          <el-option value="html" label="HTML" />
-          <el-option value="pdf" label="PDF" />
-        </el-select>
-        <el-button type="primary" plain @click="handleExport">
-          <span class="flex items-center gap-1">📄 导出报告</span>
-        </el-button>
+        <el-dropdown @command="(fmt: string) => { exportFormat = fmt; handleExport(); }">
+          <el-button type="primary" plain>
+            📄 导出报告 ▾
+          </el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="html">📄 HTML 网页</el-dropdown-item>
+              <el-dropdown-item command="pdf">📑 PDF 文档</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
       </div>
     </div>
 
