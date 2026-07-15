@@ -202,15 +202,6 @@ def start_recovery_scheduler(app, scheduler=None):
         from app.tasks.scheduler import create_scheduler
 
         scheduler = create_scheduler()
-    scheduler.add_job(
-        lambda: recover_background_jobs(app),
-        "interval",
-        seconds=app.config.get("TASK_RECOVERY_SCAN_SECONDS", 60),
-        id="task-recovery-scan",
-        max_instances=1,
-        coalesce=True,
-        replace_existing=True,
-    )
     # daily_hot 定时调度（默认关闭，需 DAILY_HOT_SCHEDULER_ENABLED=true 开启）
     if app.config.get("DAILY_HOT_SCHEDULER_ENABLED", False):
         from app.tasks.scheduler import register_daily_hot_refresh
