@@ -25,12 +25,16 @@ _ADVERTISING_PATTERNS = (
 _URL_PATTERN = re.compile(r"(?:https?://|www\.)[^\s]+", re.IGNORECASE)
 TITLE_CONTENT_CONSISTENCY_MIN = 0.30
 RISK_FEATURE_WEIGHTS = {
-    "source_traceability": 0.20,
-    "cross_platform_corroboration": 0.20,
+    # 舆情平台特点：社媒作者用昵称、单平台首发都是常态，降权
+    "source_traceability": 0.10,
+    "cross_platform_corroboration": 0.10,
     "title_content_consistency": 0.15,
     "interaction_anomaly": 0.15,
-    "sensationalism": 0.15,
+    # 煽动/夸张/广告是虚假信息的真正信号，提权
+    "sensationalism": 0.20,
     "advertising_or_external_link": 0.15,
+    # 有官方媒体介入应大幅降低风险（负数 = 减分）
+    "official_response": -0.15,
 }
 
 

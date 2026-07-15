@@ -711,7 +711,8 @@ def get_event_sentiment(event_id: int) -> dict | None:
     else:
         base = _serialize_snapshot(snapshot)
 
-    # 合并评论情感：文章情感 × 0.6 + 评论情感 × 0.4
+    # 合并评论情感：文章情感 × 0.4 + 评论情感 × 0.6
+    # 舆情平台以公众评论为情感主体，媒体报道为辅助佐证
     try:
         from app.services.public_opinion_service import get_public_opinion_snapshot
         opinion = get_public_opinion_snapshot(event_id)
@@ -723,9 +724,9 @@ def get_event_sentiment(event_id: int) -> dict | None:
             cmt = {k: v / cmt_total for k, v in cmt_dist.items()}
             # 加权合并
             merged = {
-                "positive": round(art.get("positive", 0) * 0.6 + cmt.get("positive", 0) * 0.4, 4),
-                "negative": round(art.get("negative", 0) * 0.6 + cmt.get("negative", 0) * 0.4, 4),
-                "neutral": round(art.get("neutral", 0) * 0.6 + cmt.get("neutral", 0) * 0.4, 4),
+                "positive": round(art.get("positive", 0) * 0.4 + cmt.get("positive", 0) * 0.6, 4),
+                "negative": round(art.get("negative", 0) * 0.4 + cmt.get("negative", 0) * 0.6, 4),
+                "neutral": round(art.get("neutral", 0) * 0.4 + cmt.get("neutral", 0) * 0.6, 4),
             }
             base["weighted_ratios"] = merged
             base["comment_sentiment"] = cmt
