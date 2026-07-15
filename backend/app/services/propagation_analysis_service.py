@@ -365,15 +365,26 @@ def _explain_keyword_evolution(
     if not keywords or not event_title:
         return []
 
-    # 构造关键词摘要
+    # 构造关键词摘要：只用有数据的共现对，附文章标题样本
     kw_lines = []
     for kw in keywords:
         word = kw["word"]
-        # 找共现数据
         related = [r for r in cooccurrence if word in (r.get("terms") or [])]
-        total_arts = sum(r["article_count"] for r in related[:3]) if related else 0
-        total_plats = len(set(p for r in related[:5] for p in r.get("platforms", []))) if related else 0
-        kw_lines.append(f"- {word}(权重{kw['weight']:.2f}): 共现{total_arts}篇文章/{total_plats}个平台")
+        top = sorted(related, key=lambda r: -r["article_count"])[:3]
+        parts = []
+        sample = ""
+        for r in top:
+            other = [t for t in r["terms"] if t != word][0] if len(r.get("terms", [])) == 2 else "?"
+            parts.append(f'[{other}]{r["article_count"]}篇')
+            if not sample:
+                titles = r.get("example_titles", [])
+                if titles:
+                    sample = f'  例: {titles[0][:60]}'
+        if parts:
+            kw_detail = ' '.join(parts)
+            kw_lines.append(f'- {word}: {kw_detail}{sample}')
+        else:
+            kw_lines.append(f'- {word}{sample}')
 
     # 构造边摘要
     edge_lines = []
@@ -382,16 +393,16 @@ def _explain_keyword_evolution(
         src = id_to_name.get(link["source"], link["source"])
         tgt = id_to_name.get(link["target"], link["target"])
         etype = "豆包联网证据" if link.get("evidence_type") == "doubao_web_search" else "词频规则"
-        edge_lines.append(f"- {src} → {tgt} ({etype}, 置信度{link.get('confidence',0):.0%})")
+        edge_lines.append(f'- {src} -> {tgt} ({etype}, conf={link.get("confidence",0):.0%})')
 
     prompt = (
-        f"事件：{event_title}\n\n"
-        f"词云高频词：\n" + "\n".join(kw_lines) + "\n\n"
-        f"传播路径：\n" + "\n".join(edge_lines) + "\n\n"
-        "请用中文解释：\n"
-        "1. 每个关键词：结合事件背景和共现数据，说明该词在事件中的角色和重要原因（40-80字）\n"
-        "2. 每条传播路径：解释这两个关键词之间的事件演化关系，即前一个词如何引出/推动后一个词（20-40字）\n\n"
-        "返回JSON数组: [{\"type\":\"keyword|edge\",\"target\":\"词名或src→tgt\",\"reason\":\"解释\"}]"
+        f'事件主题: {event_title}\n\n'
+        f'词云Top5关键词及共现数据:\n' + "\n".join(kw_lines) + "\n\n"
+        f'关键词传播路径:\n' + "\n".join(edge_lines) + "\n\n"
+        '请用中文给出简洁权威的解释, 禁止使用"可能""统计偏差""数据遗漏"等不确定措辞:\n'
+        '1. 每个关键词: 一句话说明它在此事件中代表什么、为什么重要 (30-50字)\n'
+        '2. 每条传播路径: 一句话说明前词如何自然引出后词 (15-25字)\n\n'
+        '返回JSON数组: [{"type":"keyword|edge","target":"词名或src->tgt","reason":"解释"}]'
     )
 
     try:
