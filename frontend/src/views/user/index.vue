@@ -3,8 +3,9 @@
     <!-- 头部 -->
     <div class="flex justify-between items-center bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/60 p-6 rounded-2xl shadow-sm">
       <div class="flex items-center gap-4">
-        <div class="size-14 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center text-white text-xl font-bold shadow-md">
-          {{ userStore.username.substring(0, 2).toUpperCase() }}
+        <div class="size-14 rounded-full flex items-center justify-center text-white text-xl font-bold shadow-md"
+          :style="{ backgroundColor: avatarColor(userStore.username) }">
+          {{ avatarInitials(userStore.username, userStore.nickname) }}
         </div>
         <div>
           <h2 class="text-xl font-bold text-slate-800 dark:text-slate-100">{{ userStore.username }}</h2>
@@ -130,6 +131,7 @@ import { getMyTasks } from "@/api/tasks";
 import { getSearchHistory, deleteSearchHistory, repeatSearch, getUserConfig, saveUserConfig } from "@/api/user";
 import TaskList from "@/components/TaskList.vue";
 import { message } from "@/utils/message";
+import { avatarColor, avatarInitials } from "@/utils/avatar";
 
 defineOptions({ name: "OpinionUser" });
 
