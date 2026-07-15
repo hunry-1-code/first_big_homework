@@ -127,19 +127,29 @@
         </el-card>
       </el-col>
 
-      <!-- 平台状态 -->
-      <el-col :xs="24" :md="8" class="mb-6">
+      <!-- 平台目录 -->
+      <el-col :xs="24" class="mb-6">
         <el-card shadow="never" class="!border-slate-200/60 dark:!border-slate-800/60 rounded-xl">
-          <template #header><span class="font-bold text-slate-800 dark:text-slate-100">📡 可用爬虫</span></template>
-          <div class="space-y-1.5">
-            <div v-for="p in crawlerPlatforms" :key="p.code"
-              class="flex items-center justify-between text-xs">
-              <span class="text-slate-600 dark:text-slate-400">{{ p.name }}</span>
-              <span class="w-2 h-2 rounded-full"
-                :class="p.status === 'rate_limited' ? 'bg-orange-400' : 'bg-emerald-400'"
-                :title="p.status === 'rate_limited' ? '限流' : '正常'" />
+          <template #header>
+            <div class="flex justify-between items-center">
+              <span class="font-bold text-slate-800 dark:text-slate-100">📡 平台目录</span>
+              <el-button size="small" @click="loadPlatformSources" :loading="sourcesLoading">刷新</el-button>
             </div>
-            <div v-if="crawlerPlatforms.length === 0" class="text-xs text-slate-400 py-4 text-center">加载中...</div>
+          </template>
+          <div v-loading="sourcesLoading" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            <div v-for="p in platformSources" :key="p.code"
+              class="flex flex-col items-center gap-2 p-3 rounded-lg border transition-colors cursor-pointer"
+              :class="p.followed ? 'border-blue-300 bg-blue-50 dark:bg-blue-950/20' : 'border-slate-200 dark:border-slate-700 hover:border-slate-300'"
+              @click="p.followed ? unfollowSource(p.code) : followSource(p.code)">
+              <span class="text-lg">{{ p.platform?.slice(0,1) || '?' }}</span>
+              <span class="text-xs font-medium text-slate-700 dark:text-slate-300">{{ p.platform }}</span>
+              <span class="text-[10px]" :class="p.followed ? 'text-blue-500' : 'text-slate-400'">
+                {{ p.followed ? '已关注' : '点击关注' }}
+              </span>
+              <span v-if="p.crawler_supported" class="text-[10px] text-emerald-500">可采集</span>
+              <span v-if="p.comment_supported" class="text-[10px] text-purple-500">可评论</span>
+            </div>
+            <div v-if="platformSources.length === 0 && !sourcesLoading" class="col-span-full text-xs text-slate-400 py-4 text-center">加载中...</div>
           </div>
         </el-card>
       </el-col>
@@ -167,6 +177,8 @@ const keywordInput = ref("");
 const myKeywords = ref<string[]>([]);
 const myTasks = ref<any[]>([]);
 const crawlerPlatforms = ref<Array<{code: string; name: string; status: string}>>([]);
+const platformSources = ref<any[]>([]);
+const sourcesLoading = ref(false);
 const tasksLoading = ref(false);
 const saving = ref(false);
 const monitoring = ref(false);
@@ -249,7 +261,32 @@ function formatHistoryTime(ts: string) {
   return Math.floor(d / 86400) + "天前";
 }
 
-onMounted(() => { loadConfig(); loadSearchHistory(); loadMyTasks(); loadCrawlerPlatforms(); });
+async function loadPlatformSources() {
+  sourcesLoading.value = true;
+  try {
+    const r = await http.request<any>("get", "/api/user/sources");
+    platformSources.value = r.data?.presets || [];
+  } catch { platformSources.value = []; }
+  finally { sourcesLoading.value = false; }
+}
+
+async function followSource(code: string) {
+  try {
+    await http.request("post", `/api/user/sources/${code}/follow`);
+    loadPlatformSources();
+    message("已关注", { type: "success" });
+  } catch { message("操作失败", { type: "error" }); }
+}
+
+async function unfollowSource(code: string) {
+  try {
+    await http.request("delete", `/api/user/sources/${code}/follow`);
+    loadPlatformSources();
+    message("已取消关注", { type: "success" });
+  } catch { message("操作失败", { type: "error" }); }
+}
+
+onMounted(() => { loadConfig(); loadSearchHistory(); loadMyTasks(); loadCrawlerPlatforms(); loadPlatformSources(); });
 
 async function loadMyTasks() {
   tasksLoading.value = true;

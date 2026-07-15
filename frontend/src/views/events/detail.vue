@@ -1070,6 +1070,11 @@ function getProgressColor(heat: number) {
             >
               {{ lifecycleNote }}
             </span>
+            <span v-if="eventData?.prediction?.confidence" class="text-[10px] text-slate-400">
+              置信度 {{ (eventData.prediction.confidence * 100).toFixed(0) }}%
+              <template v-if="eventData.prediction.trend_direction"> · {{ eventData.prediction.trend_direction }}</template>
+              <template v-if="eventData.prediction.next_stage"> · 预测→{{ eventData.prediction.next_stage }}</template>
+            </span>
           </div>
         </div>
       </div>
