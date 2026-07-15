@@ -493,7 +493,7 @@ def list_events(args) -> dict:
         query = query.filter(Event.is_hot.is_(True))
     total = query.count()
     events = (
-        query.order_by(Event.is_hot.desc(), Event.hot_rank.asc(), Event.heat_index.desc(), Event.id.desc())
+        query.order_by(Event.created_at.desc())
         .offset((page - 1) * size)
         .limit(size)
         .all()
