@@ -1411,42 +1411,15 @@ function getProgressColor(heat: number) {
         </template>
       </el-card>
 
-      <!-- ===== 关键事件时间轴 + 报道影响力排行榜 ===== -->
-      <el-row :gutter="20" class="mb-6">
-        <el-col :xs="24" :lg="12" class="mb-4">
-          <el-card shadow="never" class="!border-slate-200/60 dark:!border-slate-800/60 rounded-xl">
-            <template #header>
-              <div class="font-bold text-slate-800 dark:text-slate-100">📋 关键传播节点时间轴</div>
-            </template>
-            <div class="px-2">
-              <div class="relative pl-6 border-l-2 border-blue-100 dark:border-blue-900/40 space-y-5">
-                <div v-for="(kp, idx) in displayKeyPoints" :key="idx" class="relative">
-                  <span class="absolute -left-[29px] top-0.5 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-slate-900 shadow-sm"
-                    :class="idx === 0 ? 'bg-blue-500' : idx === displayKeyPoints.length - 1 ? 'bg-orange-500' : 'bg-red-500'" />
-                  <div class="text-xs text-slate-400 dark:text-slate-500 mb-0.5">{{ kp.time || '' }}</div>
-                  <div class="text-sm font-semibold text-slate-700 dark:text-slate-200">{{ kp.name }}</div>
-                  <div class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                    {{ idx === 0 ? '当前采集数据中的最早报道节点。' : idx === displayKeyPoints.length - 1 ? '当前采集窗口中的最新报道节点。' : '报道量出现阶段性变化的关键时间点。' }}
-                  </div>
-                </div>
-                <div v-if="displayKeyPoints.length === 0" class="text-sm text-slate-400 dark:text-slate-500 py-4 text-center">
-                  暂无数据，等待后端分析引擎填充。
-                </div>
-              </div>
-            </div>
-          </el-card>
-        </el-col>
-        <el-col :xs="24" :lg="12" class="mb-4">
-          <el-card shadow="never" class="!border-slate-200/60 dark:!border-slate-800/60 rounded-xl">
-            <template #header>
-              <div class="font-bold text-slate-800 dark:text-slate-100">📊 报道传播影响力排行</div>
-            </template>
+      <!-- ===== 报道影响力排行榜（全宽） ===== -->
+      <el-card shadow="never" class="!border-slate-200/60 dark:!border-slate-800/60 rounded-xl mb-6">
+        <template #header>
+          <div class="font-bold text-slate-800 dark:text-slate-100">📊 报道传播影响力排行</div>
+        </template>
             <div ref="influenceRef" class="w-full h-[320px]">
               <div v-if="!eventData?.articles?.articles?.length" class="flex items-center justify-center h-full text-sm text-slate-400">暂无报道数据</div>
             </div>
           </el-card>
-        </el-col>
-      </el-row>
 
       <!-- ===== 关联报道列表 ===== -->
       <el-card shadow="never" class="!border-slate-200/60 dark:!border-slate-800/60 rounded-xl">
