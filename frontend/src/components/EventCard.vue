@@ -102,6 +102,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
 import { PLATFORMS, type PlatformInfo, getPlatform, resolvePlatformName } from "@/constants/platforms";
 import IconifyIconOffline from "@/components/ReIcon/src/iconifyIconOffline";
 
