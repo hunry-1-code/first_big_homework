@@ -228,9 +228,10 @@ async function loadHistory() {
   try {
     const response = await getQaHistory();
     // 接口返回历史记录列表映射到消息流
-    if (response.data && response.data.history) {
+    const records = response.data?.records || response.data?.history || [];
+    if (records.length > 0) {
       const historyList: ChatMessage[] = [];
-      response.data.history.forEach((item: any) => {
+      records.forEach((item: any) => {
         // 如果当前选择了某个事件，只过滤出该事件的历史提问；如果未选事件，展示所有历史
         if (!selectedEventId.value || item.event_id === selectedEventId.value) {
           historyList.push({
