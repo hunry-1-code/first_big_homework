@@ -359,6 +359,29 @@ def crawl_job(task_id: int, registry: CrawlerRegistry | None = None, is_retry: b
         record_stage(task_id, "crawl", "done",
                      f"{label} {n_docs}篇" if round_idx == 0 else f"{label} +{n_docs}篇")
 
+        # 零返回平台检测 + 简单重试（TikHub 并发限流等临时故障）
+        zero_plats = [p for p in round_platforms if batch.platform_counts.get(p, 0) == 0]
+        if zero_plats and round_idx == 0:
+            import time as _time
+            _time.sleep(3)
+            retry_batch = service.collect(
+                keyword=payload.get("keyword"),
+                platforms=zero_plats,
+                target_count=round_target,
+                mode=mode,
+            )
+            retry_docs = len(retry_batch.documents)
+            if retry_docs > 0:
+                batch.documents.extend(retry_batch.documents)
+                for p, c in (retry_batch.platform_counts or {}).items():
+                    batch.platform_counts[p] = c
+                    round1_counts[p] = c
+                total_collected += retry_docs
+                n_docs += retry_docs
+                record_stage(task_id, "crawl", "done", f"重试挽救 {retry_docs} 篇 ({','.join(zero_plats)})")
+            else:
+                record_stage(task_id, "crawl", "done", f"⚠ {','.join(zero_plats)} 无结果(API限流/超时)")
+
         update_task(task_id, progress=15 + round_idx * 15,
                     message=f"第{round_idx+1}轮预处理（清洗、去重、质量评估）...")
         record_stage(task_id, "preprocess", "running", f"第{round_idx+1}轮文本清洗中...")
