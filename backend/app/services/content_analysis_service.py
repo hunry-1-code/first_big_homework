@@ -399,7 +399,8 @@ def create_analysis_run(
         keyword_matched_ids = set(filtered_ids)
     else:
         keyword_matched_ids = None
-        keyword_matched_ids = set(filtered_ids)
+
+    if keyword_matched_ids is not None:
         requested_ids = [
             article_id
             for article_id in requested_ids
@@ -408,8 +409,6 @@ def create_analysis_run(
                 articles_by_id[article_id], features_by_article.get(article_id)
             )[1]
         ]
-    else:
-        keyword_matched_ids = None
 
     representative_count = 0
     # 先查已有记录，避免重复插入
