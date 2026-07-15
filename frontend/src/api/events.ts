@@ -18,3 +18,9 @@ export function exportEventReport(id: number, format: string = "html") {
 export function getEventPropagation(id: number) {
   return apiClient.get(`/events/${id}/propagation`);
 }
+export function getEventPrediction(id: number) {
+  return apiClient.get(`/events/${id}/prediction`);
+}
+export function getEventSentiment(id: number) {
+  return apiClient.get(`/events/${id}/sentiment`);
+}
