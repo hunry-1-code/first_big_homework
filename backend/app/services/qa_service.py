@@ -118,7 +118,8 @@ def _chat_history(user_id: int, limit: int = 6, event_id: int | None = None) -> 
 def answer_question(user_id: int, question: str, event_id=None, platform: str | None = None, use_history: bool = True, deep_thinking: bool = False) -> dict:
     """回答用户问题，支持事件上下文、多轮对话历史和深度思考模式。"""
     context = _event_context(event_id, platform) if event_id is not None else "用户未指定事件，请仅回答一般舆情分析问题。"
-    history = _chat_history(user_id, 6, event_id=event_id) if use_history else []
+    # 无事件时不用历史（避免跨事件泄露），有事件时按事件过滤
+    history = _chat_history(user_id, 6, event_id=event_id) if (use_history and event_id is not None) else []
 
     model = "deepseek-reasoner" if deep_thinking else current_app.config.get("LLM_MODEL_NAME", "")
     timeout = 120 if deep_thinking else current_app.config.get("LLM_REQUEST_TIMEOUT", 30)

@@ -129,7 +129,7 @@
       <!-- 输入栏 -->
       <div class="p-4 border-t border-slate-200/60 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/50 shrink-0">
         <div class="flex items-center gap-4 mb-2">
-          <el-switch v-model="useHistory" size="small" active-text="历史对话" inactive-text="仅当前" />
+          <el-switch v-if="selectedEventId" v-model="useHistory" size="small" active-text="历史对话" inactive-text="仅当前" />
           <el-switch v-model="deepThinking" size="small" active-text="🧠 深度思考" inactive-text="快速回答" />
         </div>
         <div class="flex gap-2">
