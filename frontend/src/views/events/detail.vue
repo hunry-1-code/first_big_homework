@@ -1452,17 +1452,17 @@ function getProgressColor(heat: number) {
           <div class="font-bold text-slate-800 dark:text-slate-100">事件溯源与关键传播路径</div>
         </template>
 
-        <div v-if="!propagationData" class="text-xs text-slate-400 py-4 text-center">传播数据加载中...</div>
-        <div v-else-if="!propagationData.graph?.nodes?.length" class="text-xs text-slate-400 py-4 text-center">暂无传播路径数据</div>
+        <div v-if="!propagationData" class="text-sm text-slate-400 py-4 text-center">传播数据加载中...</div>
+        <div v-else-if="!propagationData.graph?.nodes?.length" class="text-sm text-slate-400 py-4 text-center">暂无传播路径数据</div>
         <template v-else>
           <!-- 疑似源头卡片 -->
           <div v-if="propagationData.origin_analysis?.origin" class="mb-4 rounded-lg border border-blue-200 dark:border-blue-800/60 bg-blue-50 dark:bg-blue-950/30 px-3 py-2">
             <div class="flex items-center gap-2 mb-1">
-              <span class="font-bold text-blue-700 dark:text-blue-300 text-xs">🔍 疑似最早公开来源</span>
-              <span class="text-blue-500 text-[11px]">置信度 {{ Math.round((propagationData.origin_analysis.origin.confidence || 0) * 100) }}%</span>
+              <span class="font-bold text-blue-700 dark:text-blue-300 text-sm">🔍 疑似最早公开来源</span>
+              <span class="text-blue-500 text-sm">置信度 {{ Math.round((propagationData.origin_analysis.origin.confidence || 0) * 100) }}%</span>
             </div>
-            <div class="text-sm font-medium text-slate-800 dark:text-slate-200">{{ propagationData.origin_analysis.origin.title }}</div>
-            <div class="flex items-center gap-3 mt-1 text-[11px] text-slate-500">
+            <div class="text-base font-medium text-slate-800 dark:text-slate-200">{{ propagationData.origin_analysis.origin.title }}</div>
+            <div class="flex items-center gap-3 mt-1 text-sm text-slate-500">
               <span>{{ propagationData.origin_analysis.origin.source }}</span>
               <a v-if="propagationData.origin_analysis.origin.url" :href="propagationData.origin_analysis.origin.url" target="_blank" class="text-blue-500 hover:underline">查看原文 &rarr;</a>
             </div>
@@ -1470,11 +1470,11 @@ function getProgressColor(heat: number) {
 
           <!-- 关键词传播演化链 -->
           <div class="mb-3">
-            <div class="text-xs text-slate-400 mb-2">关键词传播演化链</div>
+            <div class="text-sm text-slate-400 mb-2">关键词传播演化链</div>
             <div class="flex items-center gap-1 flex-wrap">
               <template v-for="(node, idx) in propagationData.graph.nodes" :key="node.id">
                 <div class="flex flex-col items-center">
-                  <span class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium"
+                  <span class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-base font-medium"
                     :class="idx === 0 ? 'ring-2 ring-blue-400 dark:ring-blue-600 bg-blue-100 dark:bg-blue-900/40' : ''"
                     :style="idx > 0 ? { backgroundColor: getNodeBg(idx, propagationData.graph.nodes.length), color: getNodeColor(idx) } : { color: '#1e40af' }">
                     <span v-if="idx === 0" class="text-xs">📰</span>
@@ -1488,7 +1488,7 @@ function getProgressColor(heat: number) {
               </template>
             </div>
             <!-- 图例 -->
-            <div class="flex gap-4 text-[10px] text-slate-400 mt-2">
+            <div class="flex gap-4 text-xs text-slate-400 mt-2">
               <span class="flex items-center gap-1"><span class="w-3 h-0.5 bg-blue-500 rounded"></span>豆包联网证据</span>
               <span class="flex items-center gap-1"><span class="w-3 h-0.5 bg-slate-300 rounded"></span>规则推断</span>
               <span v-if="propagationData?.summary?.coverage_notice">{{ propagationData.summary.coverage_notice }}</span>
@@ -1496,15 +1496,15 @@ function getProgressColor(heat: number) {
 
             <!-- 关键词解读 + 演化推导 -->
             <div v-if="keywordExplains.length > 0" class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/60">
-              <div class="text-sm font-medium text-slate-600 dark:text-slate-400 mb-3">📖 关键词含义与演化推导</div>
+              <div class="text-base font-medium text-slate-600 dark:text-slate-400 mb-3">📖 关键词含义与演化推导</div>
               <div class="space-y-3">
                 <div v-for="(kw, i) in keywordExplains" :key="kw.target">
-                  <div class="flex gap-2">
-                    <span class="shrink-0 inline-flex items-center px-2 py-0.5 rounded text-sm font-medium"
+                  <div class="flex gap-2 text-base">
+                    <span class="shrink-0 inline-flex items-center px-2 py-0.5 rounded text-base font-medium"
                       :style="{ backgroundColor: getNodeBg(i, keywordExplains.length), color: getNodeColor(i) }">
                       {{ kw.target }}
                     </span>
-                    <span class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">{{ kw.reason }}</span>
+                    <span class="text-base text-slate-600 dark:text-slate-400 leading-relaxed">{{ kw.reason }}</span>
                   </div>
                   <div v-if="i < keywordExplains.length - 1" class="flex items-center gap-1 ml-2 mt-1 text-xs text-slate-400">
                     <span class="text-blue-500">↓</span>
