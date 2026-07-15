@@ -228,9 +228,10 @@ onMounted(async () => {
     eventData.value = eventResp.data;
     await nextTick();
     initCharts();
-    // 传播数据异步加载，失败不报错
+    // 传播数据异步加载，到达后重绘传播图
     getEventPropagation(Number(route.params.id)).then(r => {
       propagationData.value = r.data;
+      initPropagationChart();
     }).catch(() => {});
   } catch (err) {
     message("加载事件详情失败", { type: "error" });
