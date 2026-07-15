@@ -67,11 +67,21 @@ def retry_analysis(task_id: int):
 
     def retry_job(tid: int):
         from app.tasks.jobs import crawl_job, run_search_analysis_pipeline
-        # 合格数不足 → 先补采
+        # 合格数不足 → 先补采（只采差额，不走完整目标）
         if need_supplement:
             shortfall = target - len(qualified_ids)
-            update_task(tid, progress=5, message=f"合格不足，补充采集 {shortfall}+ 篇...")
-            crawl_job(tid)  # crawl_job 内部会自动按 target 补采
+            update_task(tid, progress=5, message=f"合格 {len(qualified_ids)}/{target}，补充采集差值 {shortfall} 篇...")
+            # 临时修改 payload target 为差额
+            t = db.session.get(Task, tid)
+            orig_target = (t.payload or {}).get("target_count", target)
+            if t and t.payload:
+                t.payload["target_count"] = shortfall
+                db.session.commit()
+            crawl_job(tid)
+            # 恢复原始 target
+            if t and t.payload:
+                t.payload["target_count"] = orig_target
+                db.session.commit()
         # 用更新后的 article_ids 跑分析
         from app.models.article import Article as Art
         final_articles = Art.query.filter_by(crawl_task_id=tid).all()
