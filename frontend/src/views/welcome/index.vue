@@ -124,7 +124,7 @@ const router = useRouter();
 const route = useRoute();
 
 const keyword = ref((route.query.keyword as string) || "");
-const sortBy = ref<"time" | "heat">("heat");
+const sortBy = ref<"time" | "heat">("time");
 const activeDate = ref((route.query.date as string) || "");
 const activeSearchKw = ref((route.query.sk as string) || ""); // 按来源搜索关键词筛选
 const allEvents = ref<any[]>([]); // 缓存全部事件用于日期提取
@@ -304,7 +304,11 @@ const groupedEvents = computed(() => {
     }
   }
   const result = Object.entries(groups)
-    .sort((a, b) => b[1].length - a[1].length)
+    .sort((a, b) => {
+      const aTime = Math.max(...a[1].map((e: any) => new Date(e.created_at || 0).getTime()));
+      const bTime = Math.max(...b[1].map((e: any) => new Date(e.created_at || 0).getTime()));
+      return bTime - aTime;
+    })
     .map(([keyword, events]) => ({ keyword, events }));
   if (ungrouped.length > 0) {
     result.push({ keyword: "", events: ungrouped });
