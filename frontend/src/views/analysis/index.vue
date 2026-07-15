@@ -43,9 +43,9 @@
         <div>
           <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">
             监测平台 <span class="text-red-500">*</span>
-            <span class="text-xs text-slate-400 font-normal ml-2">（不选则自动使用全部可用平台）</span>
+            <span class="text-xs text-slate-400 font-normal ml-2">（不选则自动使用全部可用平台，共 {{ availablePlatforms.length }} 个）</span>
           </label>
-          <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
             <div
               v-for="p in availablePlatforms"
               :key="p.id"
@@ -66,16 +66,7 @@
               </div>
               <IconifyIconOffline :icon="p.icon" class="text-2xl" :style="{ color: p.color }" />
               <span class="text-sm font-medium text-slate-700 dark:text-slate-200">{{ p.name }}</span>
-              <span
-                v-if="!p.always"
-                class="text-[10px] px-1.5 py-0.5 rounded text-slate-400 bg-slate-100 dark:bg-slate-800"
-                :title="'需要配置 ' + p.needKey"
-              >
-                {{ p.needKey }}
-              </span>
-              <span v-else class="text-[10px] px-1.5 py-0.5 rounded text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30">
-                直接可用
-              </span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30">可用</span>
             </div>
           </div>
         </div>
