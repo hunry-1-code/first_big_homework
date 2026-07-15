@@ -96,11 +96,18 @@ def export_report(event_id: int):
     if report is None:
         return fail("事件不存在", 404)
     html = _build_html_report(report)
-    return Response(
-        html,
-        mimetype="text/html; charset=utf-8",
-        headers={
-            "Content-Disposition": f"attachment; filename=event_report_{event_id}.html",
-        },
-    )
+
+    if export_format == "pdf":
+        try:
+            from weasyprint import HTML
+            pdf = HTML(string=html).write_pdf()
+            return Response(pdf, mimetype="application/pdf",
+                headers={"Content-Disposition": f"attachment; filename=event_report_{event_id}.pdf"})
+        except Exception as e:
+            from flask import current_app
+            current_app.logger.warning("PDF generation failed: %s", e)
+            return fail("PDF 生成失败，请尝试 HTML 格式", 500)
+
+    return Response(html, mimetype="text/html; charset=utf-8",
+        headers={"Content-Disposition": f"attachment; filename=event_report_{event_id}.html"})
 

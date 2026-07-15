@@ -1042,11 +1042,22 @@ onBeforeUnmount(() => {
 });
 
 // ==================== 导出报告 ====================
+const exportFormat = ref("html");
 async function handleExport() {
+  const url = `/api/events/${route.params.id}/report/export?format=${exportFormat.value}`;
+  const tokenData = JSON.parse(localStorage.getItem("userInfo") || "{}");
+  const token = tokenData?.token || "";
   try {
-    const res = await exportEventReport(Number(route.params.id), "html");
-    message(`报告导出成功！导出格式: ${res.data.format}。${res.data.message}`, { type: "success" });
-  } catch (err) {
+    const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    if (!resp.ok) { message("导出失败", { type: "error" }); return; }
+    const blob = await resp.blob();
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `event_report_${route.params.id}.${exportFormat.value}`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    message("报告已导出", { type: "success" });
+  } catch {
     message("报告导出失败", { type: "error" });
   }
 }
@@ -1128,6 +1139,10 @@ function getProgressColor(heat: number) {
         <el-button type="primary" @click="router.push(`/qa?event_id=${route.params.id}`)">
           <span class="flex items-center gap-1">💬 智能提问</span>
         </el-button>
+        <el-select v-model="exportFormat" size="default" style="width:90px">
+          <el-option value="html" label="HTML" />
+          <el-option value="pdf" label="PDF" />
+        </el-select>
         <el-button type="primary" plain @click="handleExport">
           <span class="flex items-center gap-1">📄 导出报告</span>
         </el-button>
