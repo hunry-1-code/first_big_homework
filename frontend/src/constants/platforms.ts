@@ -20,7 +20,7 @@ export const PLATFORMS: PlatformInfo[] = [
   { name: "澎湃新闻", short: "澎", color: "#1e40af", bg: "#e8f0fe", api: "新闻爬虫", icon: "ri:rss-fill" },
   { name: "InfoQ",    short: "Q",  color: "#38a169", bg: "#f0fff4", api: "新闻爬虫", icon: "ri:rss-fill" },
   { name: "少数派",   short: "派", color: "#d53f8c", bg: "#fff5f7", api: "新闻爬虫", icon: "ri:rss-fill" },
-  { name: "主流新闻", short: "新", color: "#1e3a5f", bg: "#e8f0fe", api: "新闻爬虫", icon: "ri:rss-fill" },
+  { name: "主流新闻", short: "聚", color: "#1e3a5f", bg: "#e8f0fe", api: "聚合人民网·36氪·澎湃·InfoQ·少数派", icon: "ri:rss-fill" },
   { name: "百度热搜", short: "百", color: "#3385ff", bg: "#e8f0fe", api: "千帆 API", icon: "ant-design:baidu-outlined" },
   { name: "百度搜索", short: "百", color: "#2e77e5", bg: "#e8f0fe", api: "千帆 API", icon: "ant-design:baidu-outlined" },
 ];
@@ -51,7 +51,7 @@ const EN_TO_CN: Record<string, string> = {
   news_thepaper: "澎湃新闻",
   news_infoq: "InfoQ",
   news_sspai: "少数派",
-  mainstream_news: "主流新闻"
+  mainstream_news: "主流新闻(聚合)"
 };
 
 /** 将后端英文平台代码转为前端中文名 */
@@ -141,6 +141,7 @@ export const SEARCH_PLATFORMS: SearchPlatform[] = [
     name: "主流新闻",
     id: "mainstream_news",
     always: true,
+    needKey: "聚合人民网·36氪·澎湃·InfoQ·少数派",
     icon: "ri:rss-fill",
     color: "#1e3a5f",
     bg: "#e8f0fe"

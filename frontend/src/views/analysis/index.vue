@@ -66,7 +66,8 @@
               </div>
               <IconifyIconOffline :icon="p.icon" class="text-2xl" :style="{ color: p.color }" />
               <span class="text-sm font-medium text-slate-700 dark:text-slate-200">{{ p.name }}</span>
-              <span class="text-[10px] px-1.5 py-0.5 rounded text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30">可用</span>
+              <span v-if="p.needKey" class="text-[10px] px-1.5 py-0.5 rounded text-slate-400 bg-slate-100 dark:bg-slate-800">{{ p.needKey }}</span>
+              <span v-else class="text-[10px] px-1.5 py-0.5 rounded text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30">可用</span>
             </div>
           </div>
         </div>
