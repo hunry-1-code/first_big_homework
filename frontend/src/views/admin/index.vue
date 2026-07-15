@@ -193,9 +193,10 @@ async function setDHInterval(v: number) {
 async function triggerDH() {
   dhRunning.value = true;
   try {
-    const r = await http.request<any>('post', '/api/admin/daily-hot/run');
-    message(`已触发 #${r.data?.task_id}`, { type: 'success' });
-    setTimeout(() => { loadData(); loadHotList(); }, 3000);
+    await getTodayHotspots(20); // 先试读缓存
+    const r = await http.request<any>('post', '/api/hotspots/today/refresh');
+    message('热点采集已触发', { type: 'success' });
+    setTimeout(() => { loadHotList(); }, 5000);
   } catch { message('触发失败', { type: 'error' }); }
   finally { dhRunning.value = false; }
 }
