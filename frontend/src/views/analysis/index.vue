@@ -187,6 +187,9 @@
         <div class="mt-3 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg text-sm text-slate-600 dark:text-slate-300">
           {{ taskMessage }}
         </div>
+        <div v-if="taskHeartbeat" class="mt-1 text-[11px] text-slate-400 dark:text-slate-500 text-right">
+          {{ taskHeartbeat }}
+        </div>
 
         <!-- 阶段时间线 -->
         <div v-if="timelineStages.length > 0" class="mt-4 pl-2">
@@ -335,6 +338,7 @@ const state = ref<"idle" | "running" | "completed" | "failed">("idle");
 const currentTaskId = ref<number | null>(null);
 const taskProgress = ref(0);
 const taskMessage = ref("");
+const taskHeartbeat = ref("");
 const taskResult = ref<any>(null);
 const pipelineStage = ref(0);
 const myTasks = ref<any[]>([]);
@@ -448,6 +452,12 @@ function startPolling(taskId: number) {
       taskProgress.value = task.progress || 0;
       taskMessage.value = task.summary || task.message || "";
       stageRecords.value = task.stages || [];
+      if (task.heartbeat_at && task.status === 'running') {
+        const gap = Math.round((Date.now() - new Date(task.heartbeat_at).getTime()) / 1000);
+        taskHeartbeat.value = gap < 60 ? `心跳 ${gap}s 前` : gap < 3600 ? `心跳 ${Math.round(gap/60)}min 前` : `心跳 ${Math.round(gap/3600)}h 前`;
+      } else {
+        taskHeartbeat.value = '';
+      }
       pipelineStage.value = inferPipelineStage(task.stages || [], task.progress || 0);
 
       if (task.status === "success") {
