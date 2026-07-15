@@ -30,9 +30,13 @@ class NewsCrawler:
         keyword = request.keyword or ""
         limit = min(20, max(1, request.limit))
 
-        urls = self._discover_qianfan(keyword, limit)
-        if not urls:
-            urls = self._discover_playwright(keyword)
+        # 1. 千帆搜索（直接返回完整文章，无需二次抓取）
+        docs = self._search_qianfan(keyword, limit)
+        if docs:
+            return [d for d in docs if len(d.raw_content or "") > 50]
+
+        # 2. Playwright 渲染百度页面 → 提取 URL → trafilatura 抓正文
+        urls = self._discover_playwright(keyword)
         if not urls:
             return []
 
@@ -46,8 +50,8 @@ class NewsCrawler:
                 continue
         return documents
 
-    def _discover_qianfan(self, keyword: str, limit: int) -> list[str]:
-        """千帆 Web Search 发现 URL。"""
+    def _search_qianfan(self, keyword: str, limit: int) -> list[RawDocument]:
+        """千帆 Web Search API 直接返回完整文档。"""
         try:
             from flask import current_app
             from app.crawler.qianfan import QianfanSearchCrawler
@@ -60,10 +64,9 @@ class NewsCrawler:
             top_k = current_app.config.get("QIANFAN_WEB_SEARCH_TOP_K", 50)
 
             crawler = QianfanSearchCrawler(self.client, key, base, path, top_k)
-            docs = crawler.crawl(CrawlRequest(
+            return crawler.crawl(CrawlRequest(
                 platform="baidu", keyword=keyword, limit=limit, mode="search"
             ))
-            return [d.source_url for d in docs if d.source_url] if docs else []
         except Exception:
             return []
 

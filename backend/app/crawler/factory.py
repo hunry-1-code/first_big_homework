@@ -40,7 +40,13 @@ def build_crawler_registry(config) -> CrawlerRegistry:
     max_response_bytes = int(_setting(config, "CRAWL_MAX_RESPONSE_BYTES", 5 * 1024 * 1024))
     registry.register(SampleCrawler())
     # 百度新闻搜索（免费，无 API Key，公开网页抓取）
-    registry.register(NewsCrawler(_client("www.baidu.com", timeout, "baidu_news", max_response_bytes)))
+    # baidu_news 需要同时访问百度(Playwright降级)和千帆API
+    baidu_news_client = HttpClient(
+        allowed_hosts={"www.baidu.com", "qianfan.baidubce.com"},
+        timeout=timeout, max_attempts=3,
+        max_response_bytes=max_response_bytes, platform="baidu_news",
+    )
+    registry.register(NewsCrawler(baidu_news_client))
     registry.register(BilibiliCrawler(_client("bilibili.com", timeout, "bilibili", max_response_bytes)))
     registry.register(WeiboHotCrawler(_client("weibo.com", timeout, "weibo_hot", max_response_bytes)))
 
