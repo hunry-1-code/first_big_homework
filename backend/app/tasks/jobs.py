@@ -432,10 +432,13 @@ def crawl_job(task_id: int, registry: CrawlerRegistry | None = None, is_retry: b
                 update_task(task_id, progress=pct,
                             message=f"第{round_idx+1}轮预处理 {index}/{total_docs}（已合格 {processed} 篇）")
             try:
-                # 补采去重：已存在的文章跳过（url_hash 或 platform+id 匹配）
+                # 补采去重：已存在的文章跳过（url_hash 与 DB 用同一套归一化逻辑）
                 if existing_ids:
                     import hashlib
-                    doc_hash = hashlib.sha256((document.source_url or "").encode()).hexdigest()
+                    from app.preprocessing.normalizer import normalize_url
+                    norm_url = normalize_url(document.source_url) or ""
+                    key = norm_url or f"{document.platform}:{document.source_article_id or ''}"
+                    doc_hash = hashlib.sha256(key.encode("utf-8")).hexdigest()
                     plat_id = f"{document.platform}:{document.source_article_id}" if document.source_article_id else ""
                     if doc_hash in existing_ids or (plat_id and plat_id in existing_ids):
                         continue
