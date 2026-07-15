@@ -146,7 +146,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, computed, nextTick } from "vue";
+import { onMounted, ref, computed, nextTick, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useEventsStore } from "@/store/modules/events";
 import { askQuestion, getQaHistory } from "@/api/qa";
@@ -216,6 +216,11 @@ onMounted(async () => {
 
   // 加载历史提问记录
   await loadHistory();
+});
+
+// 切换事件时重新加载该事件的历史对话
+watch(selectedEventId, () => {
+  loadHistory();
 });
 
 // 加载历史提问记录
