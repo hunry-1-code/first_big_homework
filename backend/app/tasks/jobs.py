@@ -158,6 +158,14 @@ def run_search_analysis_pipeline(task_id: int, article_ids: list[int], keyword: 
         if _all_arts:
             _ctx = _build_context(0, _all_arts)  # event_id=0 表示尚未发布
             _results = batch_assess_articles(_all_arts, _ctx)
+            # 将风险分写入文章表（前端通过 report.risk_data 读取）
+            for i, r in enumerate(_results):
+                if i < len(_all_arts):
+                    _all_arts[i].is_suspicious = bool(r.get('is_suspicious', False))
+                    _all_arts[i].suspicious_score = float(r.get('score', 0))
+                    _all_arts[i].suspicious_reason = str(r.get('reason', ''))[:500]
+                    _all_arts[i].suspicious_method = str(r.get('method', 'rule'))[:20]
+            db.session.commit()
             _risk_scores = [r.get("score", 0) for r in _results]
             _avg_risk = sum(_risk_scores) / len(_risk_scores) if _risk_scores else 0
             record_stage(task_id, "risk", "done",
