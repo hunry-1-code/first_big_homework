@@ -1105,60 +1105,106 @@ function getProgressColor(heat: number) {
         </el-col>
       </el-row>
 
-      <!-- ===== 趋势图（报道量折线 + 情感堆叠面积图） ===== -->
-      <el-card v-if="publicOpinion" shadow="never" class="!border-slate-200/60 dark:!border-slate-800/60 rounded-xl mb-6 opinion-panel">
+      <!-- ===== 公众意见与叙事张力 ===== -->
+      <el-card v-if="publicOpinion" shadow="never" class="!border-slate-200/60 dark:!border-slate-800/60 rounded-xl mb-6">
         <template #header>
           <div class="flex flex-wrap items-center justify-between gap-2">
-            <div><div class="font-bold text-slate-800 dark:text-slate-100">公众意见与叙事张力</div><div class="text-xs text-slate-400 mt-1">评论独立分析，不计入事件聚类与报道数量</div></div>
+            <div>
+              <div class="text-base font-bold text-slate-800 dark:text-slate-100">公众意见与叙事张力</div>
+              <div class="text-sm text-slate-400 mt-1">评论独立分析，不计入事件聚类与报道数量</div>
+            </div>
             <el-tag :type="publicOpinion.narrative_gap_available ? 'warning' : 'info'" effect="plain">{{ opinionModeLabel }}</el-tag>
           </div>
         </template>
-        <div v-if="publicOpinion.coverage_warning" class="mb-4 px-3 py-2 rounded-lg bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300 text-xs">当前未采集到机构侧数据，因此不计算叙事张力；这不代表机构没有公开回应。</div>
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
-          <div class="opinion-metric"><span>评论样本</span><strong>{{ publicOpinion.comment_count }}</strong></div>
-          <div class="opinion-metric"><span>公众负面率</span><strong class="text-rose-500">{{ rate(publicOpinion.negative_rate) }}</strong></div>
-          <div class="opinion-metric"><span>情感校正</span><strong class="text-purple-500">{{ publicOpinion.sentiment_corrected_count ?? 0 }}条</strong></div>
-          <div class="opinion-metric"><span>意见分歧度</span><strong class="text-amber-500">{{ rate(publicOpinion.opinion_divergence) }}</strong></div>
+
+        <!-- 机构数据缺失提示 -->
+        <div v-if="publicOpinion.coverage_warning" class="mb-5 px-4 py-3 rounded-lg bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300 text-sm">当前未采集到机构侧数据，不计算叙事张力；这不代表机构没有公开回应。</div>
+
+        <!-- 核心指标：2x2 大卡片 -->
+        <div class="grid grid-cols-2 gap-4 mb-6">
+          <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50">
+            <div class="text-sm text-slate-500 mb-1">评论样本</div>
+            <div class="text-3xl font-bold text-slate-700 dark:text-slate-200">{{ publicOpinion.comment_count }}</div>
+            <div class="text-xs text-slate-400 mt-1">条公众评论</div>
+          </div>
+          <div class="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/20">
+            <div class="text-sm text-rose-600 mb-1">公众负面率</div>
+            <div class="text-3xl font-bold text-rose-600">{{ rate(publicOpinion.negative_rate) }}</div>
+            <div class="text-xs text-rose-400 mt-1">情感校正 {{ publicOpinion.sentiment_corrected_count ?? 0 }} 条</div>
+          </div>
+          <div class="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/20">
+            <div class="text-sm text-amber-600 mb-1">意见分歧度</div>
+            <div class="text-3xl font-bold text-amber-600">{{ rate(publicOpinion.opinion_divergence) }}</div>
+            <div class="text-xs text-amber-400 mt-1">观点一致性指标</div>
+          </div>
+          <div class="p-4 rounded-xl bg-blue-50 dark:bg-blue-950/20">
+            <div class="text-sm text-blue-600 mb-1">加权情感分布</div>
+            <div class="text-sm font-medium space-x-3" v-if="publicOpinion.weighted_sentiment">
+              <span class="text-emerald-600">正面 {{ rate(publicOpinion.weighted_sentiment.positive) }}</span>
+              <span class="text-rose-600">负面 {{ rate(publicOpinion.weighted_sentiment.negative) }}</span>
+              <span class="text-slate-500">中性 {{ rate(publicOpinion.weighted_sentiment.neutral) }}</span>
+            </div>
+            <div class="text-xs text-blue-400 mt-1">长度+点赞质量加权</div>
+          </div>
         </div>
-        <!-- 加权情感 vs 原始计数 -->
-        <div v-if="publicOpinion.weighted_sentiment" class="mb-4 px-3 py-2 rounded-lg bg-blue-50 dark:bg-blue-950/20 text-xs">
-          <span class="text-slate-500">加权情感（长度+点赞）:</span>
-          <span class="text-emerald-600 font-medium ml-2">正面 {{ rate(publicOpinion.weighted_sentiment.positive) }}</span>
-          <span class="mx-1">|</span>
-          <span class="text-rose-600 font-medium">负面 {{ rate(publicOpinion.weighted_sentiment.negative) }}</span>
-          <span class="mx-1">|</span>
-          <span class="text-slate-500">中性 {{ rate(publicOpinion.weighted_sentiment.neutral) }}</span>
-        </div>
-        <!-- LLM 公众关注主题 -->
-        <div v-if="publicOpinion.opinion_themes && publicOpinion.opinion_themes.length" class="mb-4">
-          <h4 class="text-xs font-bold text-slate-500 mb-2">🤖 AI 识别公众关注主题</h4>
+
+        <!-- AI 公众关注主题 -->
+        <div v-if="publicOpinion.opinion_themes && publicOpinion.opinion_themes.length" class="mb-5">
+          <h4 class="text-sm font-bold text-slate-600 dark:text-slate-400 mb-3">AI 识别公众关注主题</h4>
           <div class="flex flex-wrap gap-2">
             <span v-for="(t, i) in publicOpinion.opinion_themes" :key="i"
-              class="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full"
-              :class="t.sentiment === 'negative' ? 'bg-red-50 text-red-600' : t.sentiment === 'positive' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'">
+              class="inline-flex items-center gap-2 text-sm px-3 py-1.5 rounded-full"
+              :class="t.sentiment === 'negative' ? 'bg-red-50 text-red-700 dark:bg-red-950/30' : t.sentiment === 'positive' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30' : 'bg-slate-100 text-slate-600 dark:bg-slate-800'">
               {{ t.theme }}
-              <span class="opacity-60 text-[10px]">{{ t.example?.slice(0,20) }}</span>
+              <span class="opacity-50 text-xs">{{ t.example?.slice(0, 30) }}</span>
             </span>
           </div>
         </div>
-        <!-- LLM 叙事差异 -->
-        <div v-if="publicOpinion.narrative_gap_analysis" class="mb-4 px-3 py-2 rounded-lg bg-purple-50 dark:bg-purple-950/20 text-xs">
-          <div class="font-medium text-purple-700 dark:text-purple-300 mb-1">🔍 媒体vs公众叙事差异</div>
-          <div class="text-slate-600 dark:text-slate-300 space-y-1">
-            <div><b>媒体强调：</b>{{ publicOpinion.narrative_gap_analysis.media_focus }}</div>
-            <div><b>公众关注：</b>{{ publicOpinion.narrative_gap_analysis.public_focus }}</div>
-            <div><b>核心差异：</b>{{ publicOpinion.narrative_gap_analysis.gap }}</div>
+
+        <!-- 媒体vs公众叙事差异 -->
+        <div v-if="publicOpinion.narrative_gap_analysis" class="mb-5 p-4 rounded-xl bg-purple-50 dark:bg-purple-950/20 text-sm">
+          <div class="font-bold text-purple-700 dark:text-purple-300 mb-2">媒体与公众叙事差异</div>
+          <div class="text-slate-600 dark:text-slate-300 space-y-2">
+            <div><span class="font-medium">媒体强调：</span>{{ publicOpinion.narrative_gap_analysis.media_focus }}</div>
+            <div><span class="font-medium">公众关注：</span>{{ publicOpinion.narrative_gap_analysis.public_focus }}</div>
+            <div><span class="font-medium">核心差异：</span>{{ publicOpinion.narrative_gap_analysis.gap }}</div>
             <el-tag size="small" :type="publicOpinion.narrative_gap_analysis.intensity === 'high' ? 'danger' : 'warning'">
               差异强度: {{ publicOpinion.narrative_gap_analysis.intensity }}
             </el-tag>
           </div>
         </div>
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div class="opinion-column"><h4>机构侧关键词</h4><div class="flex flex-wrap gap-1.5"><el-tag v-for="item in publicOpinion.official_keywords" :key="item.word" size="small" type="primary" effect="plain">{{ item.word }} · {{ item.count }}</el-tag><span v-if="!publicOpinion.official_keywords.length" class="text-xs text-slate-400">暂无机构侧关键词</span></div></div>
-          <div class="opinion-column"><h4>公众高频表达</h4><div class="flex flex-wrap gap-1.5"><el-tag v-for="item in publicOpinion.public_keywords" :key="item.word" size="small" type="danger" effect="plain">{{ item.word }} · {{ item.count }}</el-tag><span v-if="!publicOpinion.public_keywords.length" class="text-xs text-slate-400">暂无有效评论关键词</span></div></div>
-          <div class="opinion-column"><h4>公众诉求</h4><div class="space-y-2"><div v-for="item in publicOpinion.public_demands" :key="item.demand" class="flex justify-between text-xs text-slate-600 dark:text-slate-300"><span>{{ item.demand }}</span><b>{{ item.count }}</b></div><span v-if="!publicOpinion.public_demands.length" class="text-xs text-slate-400">暂未识别出明确诉求</span></div></div>
+
+        <!-- 三列：关键词 + 诉求 -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          <div>
+            <h4 class="text-sm font-bold text-slate-600 dark:text-slate-400 mb-2">机构侧关键词</h4>
+            <div class="flex flex-wrap gap-2">
+              <el-tag v-for="item in publicOpinion.official_keywords" :key="item.word" type="primary" effect="plain">{{ item.word }} {{ item.count }}</el-tag>
+              <span v-if="!publicOpinion.official_keywords.length" class="text-sm text-slate-400">暂无机构数据</span>
+            </div>
+          </div>
+          <div>
+            <h4 class="text-sm font-bold text-slate-600 dark:text-slate-400 mb-2">公众高频表达</h4>
+            <div class="flex flex-wrap gap-2">
+              <el-tag v-for="item in publicOpinion.public_keywords" :key="item.word" type="danger" effect="plain">{{ item.word }} {{ item.count }}</el-tag>
+              <span v-if="!publicOpinion.public_keywords.length" class="text-sm text-slate-400">暂无评论数据</span>
+            </div>
+          </div>
+          <div>
+            <h4 class="text-sm font-bold text-slate-600 dark:text-slate-400 mb-2">公众诉求</h4>
+            <div class="space-y-2">
+              <div v-for="item in publicOpinion.public_demands" :key="item.demand" class="flex justify-between text-sm text-slate-600 dark:text-slate-300">
+                <span>{{ item.demand }}</span><b>{{ item.count }}</b>
+              </div>
+              <span v-if="!publicOpinion.public_demands.length" class="text-sm text-slate-400">暂未识别出明确诉求</span>
+            </div>
+          </div>
         </div>
-        <div v-if="publicOpinion.gap_interpretation" class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 text-sm text-slate-600 dark:text-slate-300">核心判断：{{ publicOpinion.gap_interpretation }}；公众意见分歧度 {{ rate(publicOpinion.opinion_divergence) }}。</div>
+
+        <!-- 核心判断 -->
+        <div v-if="publicOpinion.gap_interpretation" class="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800 text-sm text-slate-600 dark:text-slate-300">
+          核心判断：{{ publicOpinion.gap_interpretation }}；公众意见分歧度 {{ rate(publicOpinion.opinion_divergence) }}
+        </div>
       </el-card>
 
       <el-card shadow="never" class="!border-slate-200/60 dark:!border-slate-800/60 rounded-xl mb-6">
