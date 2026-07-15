@@ -207,7 +207,10 @@ async function repeatHistorySearch(id: number) {
     const r = await repeatSearch(id);
     const payload = r.data?.search_payload;
     if (payload) {
-      router.push({ path: "/analysis", query: { keyword: payload.keyword } });
+      const q: Record<string, string> = { keyword: payload.keyword };
+      if (payload.target_count) q.target = String(payload.target_count);
+      if (payload.platforms?.length) q.platforms = payload.platforms.join(',');
+      router.push({ path: "/analysis", query: q });
     }
   } catch { message("复用搜索失败", { type: "error" }); }
 }

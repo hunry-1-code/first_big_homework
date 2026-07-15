@@ -643,8 +643,13 @@ async function viewTaskDetail(taskId: number) {
 
 onMounted(async () => {
   loadPlatforms();
+  // 从 URL 恢复平台和目标数（来自搜索历史复用）
+  if (route.query.target) targetCount.value = parseInt(route.query.target as string) || 50;
+  if (route.query.platforms) {
+    const platIds = (route.query.platforms as string).split(',');
+    selectedPlatforms.value = platIds.filter(id => availablePlatforms.value.some(p => p.id === id));
+  }
   await loadMyTasks();
-  // 自动恢复：如果有正在运行的任务，恢复轮询
   const running = myTasks.value.find((t: any) => t.status === 'running');
   if (running) {
     viewTaskDetail(running.id);
