@@ -234,32 +234,66 @@ def crawl_job(task_id: int, registry: CrawlerRegistry | None = None) -> dict:
 
     # 主流新闻聚合源固定只取一轮，避免对五站重复请求同一批内容。
     max_rounds = 1 if platforms and set(platforms) == {"mainstream_news"} else 2
-    productive_platforms = list(platforms) if platforms else None  # 第一轮全平台
+    round1_counts: dict[str, int] = {}  # 第1轮各平台产出量，用于第2轮动态配额
     for round_idx in range(max_rounds):
         round_target = int(target * 1.3) if round_idx == 0 else int((target - processed) * 1.5)
         if round_idx > 0 and round_target < 5:
             break
         round_target = max(1, round_target)
 
-        # 补采轮次：只向有产出的平台追加，死平台不再浪费配额
-        round_platforms = productive_platforms
-        if round_idx > 0 and productive_platforms:
-            round_platforms = productive_platforms
-
-        update_task(task_id, progress=5 + round_idx * 10,
-                    message=f"第{round_idx+1}轮采集，目标 {round_target} 篇（{'仅' + str(len(round_platforms)) + '个活跃平台' if round_idx > 0 else '全平台'}）...")
-        batch = service.collect(
-            keyword=payload.get("keyword"),
-            platforms=round_platforms,
-            target_count=round_target,
-            mode=mode,
-        )
-        # 记录本轮的活跃平台（有产出的）
+        # 第1轮：全平台均匀探索
+        # 第2轮：按各平台第1轮产出占比分配配额，死平台不参与
         if round_idx == 0:
-            productive_platforms = [p for p, c in (batch.platform_counts or {}).items() if c > 0]
+            round_platforms = list(platforms) if platforms else None
+            use_dynamic_quotas = False
+        else:
+            total_r1 = sum(round1_counts.values()) or 1
+            round_platforms = []
+            platform_quotas: dict[str, int] = {}
+            for p, cnt in sorted(round1_counts.items(), key=lambda x: -x[1]):
+                if cnt > 0:
+                    quota = max(2, int(round_target * cnt / total_r1))
+                    platform_quotas[p] = quota
+                    round_platforms.append(p)
+            use_dynamic_quotas = bool(platform_quotas)
+
+        if not round_platforms:
+            break
+
+        p_names = ','.join(f'{p}({platform_quotas.get(p,0)})' if use_dynamic_quotas else p for p in round_platforms[:5])
+        more = f' +{len(round_platforms)-5}' if len(round_platforms) > 5 else ''
+        quota_msg = f'配额: {p_names}{more}' if use_dynamic_quotas else '全平台均分'
+        update_task(task_id, progress=5 + round_idx * 10,
+                    message=f'第{round_idx+1}轮采集，目标 {round_target} 篇 ({quota_msg})')
+
+        if use_dynamic_quotas and platform_quotas:
+            # 动态配额：逐平台按各自配额采集
+            batch = CrawlBatch(keyword=payload.get("keyword"), target_count=round_target)
+            for plat, quota in platform_quotas.items():
+                try:
+                    crawler = registry.get(plat)
+                    documents = crawler.crawl(CrawlRequest(
+                        platform=plat, keyword=payload.get("keyword"),
+                        limit=quota, mode=mode,
+                    ))
+                    batch.documents.extend(documents)
+                    batch.platform_counts[plat] = len(documents)
+                except Exception:
+                    batch.platform_counts[plat] = 0
+        else:
+            batch = service.collect(
+                keyword=payload.get("keyword"),
+                platforms=round_platforms,
+                target_count=round_target,
+                mode=mode,
+            )
+        # 记录第1轮各平台产出
+        if round_idx == 0:
+            round1_counts = dict(batch.platform_counts or {})
         total_collected += len(batch.documents)
+        n_docs = len(batch.documents)
         record_stage(task_id, "crawl", "done" if round_idx == 0 else "done",
-                     f"{len(batch.documents)}篇" if round_idx == 0 else f"+{len(batch.documents)}篇(补)")
+                     f"{n_docs}篇" if round_idx == 0 else f"+{n_docs}篇(补)")
 
         update_task(task_id, progress=15 + round_idx * 15,
                     message=f"第{round_idx+1}轮预处理（清洗、去重、质量评估）...")
