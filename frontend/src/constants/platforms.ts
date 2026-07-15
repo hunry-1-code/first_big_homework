@@ -194,13 +194,4 @@ export const SEARCH_PLATFORMS: SearchPlatform[] = [
     color: "#3385ff",
     bg: "#e8f0fe"
   },
-  // ===== RSS 资讯订阅源（无需关键词，提供最新资讯） =====
-  {
-    name: "36氪",
-    id: "rss_36kr",
-    always: true,
-    icon: "ri:rss-fill",
-    color: "#3182ce",
-    bg: "#ebf8ff"
-  }
 ];

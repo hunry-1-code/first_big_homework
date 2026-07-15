@@ -320,7 +320,8 @@ async function loadPlatforms() {
   try {
     const res = await apiClient.get("/crawler/platforms");
     const ids: string[] = res.data?.platforms || [];
-    const rssIds: string[] = res.data?.rss || [];
+    // RSS源去重：如果已有同名news_源则跳过（如news_36kr已覆盖rss_36kr）
+    const rssIds: string[] = (res.data?.rss || []).filter((r: string) => !ids.includes(r.replace('rss_', 'news_')));
     const allIds = [...ids, ...rssIds];
     const matched = SEARCH_PLATFORMS.filter(p => allIds.includes(p.id));
     if (matched.length > 0) availablePlatforms.value = matched;
