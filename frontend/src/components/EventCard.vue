@@ -61,7 +61,7 @@
     <div class="flex items-center gap-1.5 mb-3 flex-wrap">
       <span class="text-[10px] text-slate-400 dark:text-slate-500 shrink-0">信源:</span>
       <span
-        v-for="p in getPlatformBadges(event.platforms)"
+        v-for="p in displayedPlatforms.shown"
         :key="p.name"
         class="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-px rounded font-medium"
         :style="{ color: p.color, background: p.bg }"
@@ -70,6 +70,7 @@
                 <IconifyIconOffline v-else :icon="p.icon" class="text-xs" />
         {{ p.name }}
       </span>
+      <span v-if="displayedPlatforms.overflow > 0" class="text-[10px] text-slate-400">+{{ displayedPlatforms.overflow }}</span>
     </div>
     <!-- 关键词标签 -->
     <div v-if="event.top_keywords && event.top_keywords.length > 0" class="flex items-center gap-1 flex-wrap mb-3">
@@ -145,9 +146,15 @@ function getPlatformBadges(platforms?: string[]): PlatformInfo[] {
   if (!platforms || platforms.length === 0) return [];
   return platforms
     .map(name => getPlatform(resolvePlatformName(name)))
-    .filter((p): p is PlatformInfo => p !== undefined)
-    .slice(0, 4);
+    .filter((p): p is PlatformInfo => p !== undefined);
 }
+
+// 显示的信源数量（ES6卡片折叠时只显示前5）
+const DISPLAY_LIMIT = 5;
+const displayedPlatforms = computed(() => {
+  const all = getPlatformBadges(props.event.platforms);
+  return { shown: all.slice(0, DISPLAY_LIMIT), overflow: Math.max(0, all.length - DISPLAY_LIMIT) };
+});
 </script>
 
 <style scoped>
