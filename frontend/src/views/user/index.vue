@@ -169,7 +169,6 @@ const userStore = useUserStore();
 const keywordInput = ref("");
 const myKeywords = ref<string[]>([]);
 const myTasks = ref<any[]>([]);
-const crawlerPlatforms = ref<Array<{code: string; name: string; status: string}>>([]);
 const platformSources = ref<any[]>([]);
 const sourcesLoading = ref(false);
 const tasksLoading = ref(false);
@@ -279,7 +278,7 @@ async function loadPlatformSources() {
   finally { sourcesLoading.value = false; }
 }
 
-onMounted(() => { loadConfig(); loadSearchHistory(); loadMyTasks(); loadCrawlerPlatforms(); loadPlatformSources(); });
+onMounted(() => { loadConfig(); loadSearchHistory(); loadMyTasks(); loadPlatformSources(); });
 
 async function loadMyTasks() {
   tasksLoading.value = true;
