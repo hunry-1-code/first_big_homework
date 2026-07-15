@@ -254,13 +254,21 @@ def run_search_analysis_pipeline(task_id: int, article_ids: list[int], keyword: 
     s = build_summary(task_id)
     if s:
         from app.models import Task
-        from app.extensions import db
         t = db.session.get(Task, task_id)
         if t:
             t.summary = s
             db.session.commit()
     update_task(task_id, status="success", progress=100,
                 message=f"分析完成，发布 {publish_count} 个事件")
+    # 补充前端展示所需的文章统计字段
+    result["collected"] = len(article_ids)
+    result["processed"] = analysis_run.representative_count if analysis_run else 0
+    from app.models.article import Article as _Art2
+    _arts = _Art2.query.filter(_Art2.id.in_(list(dict.fromkeys(article_ids)))).all()
+    _pcounts = {}
+    for _a in _arts:
+        _pcounts[_a.platform] = _pcounts.get(_a.platform, 0) + 1
+    result["platform_counts"] = _pcounts
     return result
 
 
