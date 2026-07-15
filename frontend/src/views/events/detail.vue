@@ -258,8 +258,16 @@ onMounted(async () => {
     // 传播数据异步加载（模板驱动，无需 echarts）
     getEventPropagation(Number(route.params.id)).then(r => {
       const d = r?.data || r;
-      propagationData.value = d;
-    }).catch(err => { console.warn('[prop] 加载失败:', err); });
+      if (d && d.graph && d.graph.nodes) {
+        propagationData.value = d;
+      } else {
+        console.warn('[prop] 返回数据无 graph.nodes, 原始 keys:', Object.keys(d||{}));
+        propagationData.value = d; // 仍然设置以触发「暂无数据」提示
+      }
+    }).catch(err => {
+      console.warn('[prop] 加载失败:', err);
+      propagationData.value = { _error: String(err) };
+    });
   } catch (err) {
     message("加载事件详情失败", { type: "error" });
   } finally {
@@ -1413,6 +1421,7 @@ function getProgressColor(heat: number) {
         </div>
 
         <div v-if="!propagationData" class="text-xs text-slate-400 py-4 text-center">传播数据加载中...</div>
+        <div v-else-if="propagationData._error" class="text-xs text-red-400 py-4 text-center">传播数据加载失败: {{ propagationData._error }}</div>
         <div v-else-if="!propagationData.graph?.nodes?.length" class="text-xs text-slate-400 py-4 text-center">暂无传播路径数据</div>
       </el-card>
 
