@@ -8,7 +8,7 @@ import { useUserStoreHook } from "@/store/modules/user";
 import { http } from "@/utils/http";
 import Lock from "~icons/ri/lock-fill";
 import User from "~icons/ri/user-3-fill";
-import Nickname from "~icons/ri/account-pin-circle-line";
+import Nickname from "~icons/ri/user-smile-line";
 
 const loading = ref(false);
 const ruleFormRef = ref<FormInstance>();
