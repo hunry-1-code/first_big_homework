@@ -4,7 +4,7 @@ import { useUserStoreHook } from "@/store/modules/user";
 
 export const apiClient = axios.create({
   baseURL: "/api",
-  timeout: 15000
+  timeout: 60000
 });
 
 apiClient.interceptors.request.use((config) => {
