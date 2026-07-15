@@ -280,12 +280,12 @@ def _llm_batch_semantic_match(
     """批量 LLM 语义匹配，返回匹配的 article_id 集合。
 
     candidates: [(article_id, title), ...]
-    最多检查 30 个候选，避免 LLM 调用过多。
+    所有候选都会检查，上限 80 个（远大于实际场景）。
     """
     if not candidates:
         return set()
     matched: set[int] = set()
-    batch = candidates[:30]
+    batch = candidates[:80]
     for article_id, title in batch:
         if _llm_semantic_match(keyword, title):
             matched.add(article_id)
@@ -378,6 +378,7 @@ def create_analysis_run(
         kw_parts = _search_keyword_terms(kw)
         filtered_ids = []
         skipped_ids: list[tuple[int, str]] = []
+        passed_ids: list[tuple[int, str]] = []
         for article_id in requested_ids:
             article = articles_by_id.get(article_id)
             if article is None:
@@ -385,26 +386,37 @@ def create_analysis_run(
             title = (article.title or "")
             if _title_matches_keyword(title, kw_parts):
                 filtered_ids.append(article_id)
+                passed_ids.append((article_id, title))
             else:
                 skipped_ids.append((article_id, title))
         keyword_skipped = len(skipped_ids)
 
-        # LLM 语义二次筛选：对关键词匹配失败的文章，用 LLM 判断语义相关性
+        # LLM 语义筛选：对失败的文章尝试挽救，对通过的文章做精准度复核
         llm_rescued = 0
-        if skipped_ids and current_app.config.get("LLM_SEMANTIC_FILTER_ENABLED", True):
-            llm_matched = _llm_batch_semantic_match(kw, skipped_ids)
-            for article_id, _ in skipped_ids:
-                if article_id in llm_matched:
-                    filtered_ids.append(article_id)
-                    llm_rescued += 1
-                else:
-                    pass  # 确实不相关
+        llm_rejected = 0
+        if current_app.config.get("LLM_SEMANTIC_FILTER_ENABLED", True):
+            # 挽救失败的文章
+            if skipped_ids:
+                llm_matched = _llm_batch_semantic_match(kw, skipped_ids)
+                for article_id, _ in skipped_ids:
+                    if article_id in llm_matched:
+                        filtered_ids.append(article_id)
+                        llm_rescued += 1
+            # 复核通过的文章（排除误判：标题含关键词但实际主题不相关）
+            if passed_ids:
+                llm_verified = _llm_batch_semantic_match(kw, passed_ids)
+                for article_id, _ in passed_ids:
+                    if article_id not in llm_verified:
+                        filtered_ids.remove(article_id)
+                        llm_rejected += 1
 
-        if keyword_skipped:
-            msg = f"关键词「{kw}」过滤 {keyword_skipped} 篇标题不相关文章"
+        if keyword_skipped or llm_rescued or llm_rejected:
+            parts = [f"关键词「{kw}」过滤 {keyword_skipped} 篇标题不相关文章"]
             if llm_rescued:
-                msg += f"，LLM 语义匹配挽救 {llm_rescued} 篇"
-            run.warnings = (run.warnings or []) + [msg]
+                parts.append(f"LLM 挽救 {llm_rescued} 篇")
+            if llm_rejected:
+                parts.append(f"LLM 复核排除 {llm_rejected} 篇(标题含关键词但实际主题不相关)")
+            run.warnings = (run.warnings or []) + ["；".join(parts)]
         keyword_matched_ids = set(filtered_ids)
         requested_ids = [
             article_id
