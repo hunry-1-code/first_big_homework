@@ -69,10 +69,10 @@ def _chat_history(user_id: int, limit: int = 6, event_id: int | None = None) -> 
     ]
 
 
-def answer_question(user_id: int, question: str, event_id=None, platform: str | None = None) -> dict:
+def answer_question(user_id: int, question: str, event_id=None, platform: str | None = None, use_history: bool = True) -> dict:
     """回答用户问题，支持事件上下文和多轮对话历史。"""
     context = _event_context(event_id, platform) if event_id is not None else "用户未指定事件，请仅回答一般舆情分析问题。"
-    history = _chat_history(user_id, 6, event_id=event_id)  # 按事件过滤，避免跨事件串上下文
+    history = _chat_history(user_id, 6, event_id=event_id) if use_history else []
 
     client = LLMClient(
         api_key=current_app.config.get("LLM_API_KEY", ""),

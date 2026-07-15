@@ -119,6 +119,9 @@
 
       <!-- 输入栏 -->
       <div class="p-4 border-t border-slate-200/60 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/50 shrink-0">
+        <div class="flex items-center gap-4 mb-2">
+          <el-switch v-model="useHistory" size="small" active-text="参考历史对话" inactive-text="仅当前事件" />
+        </div>
         <div class="flex gap-2">
           <el-input
             v-model="inputQuestion"
@@ -201,6 +204,7 @@ interface ChatMessage {
 }
 
 const messages = ref<ChatMessage[]>([]);
+const useHistory = ref(true);
 
 onMounted(async () => {
   // 加载事件下拉列表
@@ -237,12 +241,12 @@ async function loadHistory() {
           historyList.push({
             role: "user",
             content: item.question,
-            time: item.created_at
+            time: formatIsoTime(item.created_at)
           });
           historyList.push({
             role: "assistant",
             content: item.answer,
-            time: item.created_at
+            time: formatIsoTime(item.created_at)
           });
         }
       });
@@ -292,7 +296,8 @@ async function sendQuestion() {
       : q;
     const response = await askQuestion({
       question: contextualQuestion,
-      event_id: selectedEventId.value
+      event_id: selectedEventId.value,
+      use_history: useHistory.value
     });
 
     messages.value.push({
@@ -331,6 +336,12 @@ function handleKeyDown(e: KeyboardEvent) {
 // 格式化时间显示
 function formatTime(d: Date): string {
   return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+function formatIsoTime(iso: string): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso.slice(0, 16).replace("T", " ");
+  return d.toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
 }
 </script>
 
