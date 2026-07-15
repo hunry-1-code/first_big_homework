@@ -572,26 +572,16 @@ def get_event_detail(event_id: int) -> dict | None:
         trend_counts = []
         trend_heat = []
     lifecycle_points = get_lifecycle_change_points(trend_counts, trend_dates)
-    # 计算事件级风险摘要
-    ctx = _build_context(event.id, articles)
-    article_risks = batch_assess_articles(
-        articles,
-        ctx,
-        llm_min_score=40,  # 规则分≥40 触发 LLM 复核
-        llm_max_score=80,
-    )
-    suspicious_articles = [r for r in article_risks if r["is_suspicious"]]
-    avg_risk = sum(r["score"] for r in article_risks) / len(article_risks) if article_risks else 0
+    # 风险摘要：用文章已有字段聚合，不重新调 LLM（已在前置管线中计算并存入 DB）
+    suspicious_articles = [a for a in articles if getattr(a, "is_suspicious", False)]
+    risk_scores = [float(getattr(a, "suspicious_score", 0) or 0) for a in articles]
+    avg_risk = sum(risk_scores) / len(risk_scores) if risk_scores else 0
     risk_data = {
         "score": round(avg_risk, 1),
         "level": "高风险" if avg_risk >= 70 else "中风险" if avg_risk >= 40 else "低风险",
         "suspicious_count": len(suspicious_articles),
-        "total_count": len(article_risks),
-        "factors": list(set(
-            reason for r in article_risks
-            for reason in r["reason"].split("; ")
-            if reason and "未发现" not in reason
-        ))[:5],
+        "total_count": len(articles),
+        "factors": [],
     }
 
     # 风险数据：优先 LLM 报告，缺失时用规则回退
