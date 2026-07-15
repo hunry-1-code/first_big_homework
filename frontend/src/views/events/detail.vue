@@ -243,6 +243,10 @@ onMounted(async () => {
       await nextTick();
       initPropagationChart();
     }).catch(err => { console.warn('[prop] fetch failed:', err); });
+    // 延迟重试影响力图表：DOM 可能因 Element Plus 组件尚未完全渲染
+    setTimeout(() => {
+      if (!influenceChart) initInfluenceChart();
+    }, 500);
   } catch (err) {
     message("加载事件详情失败", { type: "error" });
   } finally {
