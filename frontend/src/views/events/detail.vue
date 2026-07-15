@@ -230,20 +230,14 @@ onMounted(async () => {
     initCharts();
     // 传播数据异步加载，到达后重绘传播图
     getEventPropagation(Number(route.params.id)).then(r => {
-      propagationData.value = r.data;
-    }).catch(() => {});
+      propagationData.value = r?.data || r;
+      console.log('[prop] data received, nodes:', propagationData.value?.graph?.nodes?.length);
+      nextTick(() => initPropagationChart());
+    }).catch(err => { console.warn('[prop] fetch failed:', err); });
   } catch (err) {
     message("加载事件详情失败", { type: "error" });
   } finally {
     loading.value = false;
-  }
-});
-
-// 传播数据到达后重绘图表
-watch(propagationData, async (val) => {
-  if (val) {
-    await nextTick();
-    initPropagationChart();
   }
 });
 
@@ -648,7 +642,8 @@ function initRadarChart() {
 
 // ==================== 5. 传播路径网络图 ====================
 function initPropagationChart() {
-  if (!propagationRef.value) return;
+  if (!propagationRef.value) { console.warn('[prop] ref not ready'); return; }
+  if (!propagationData.value?.graph?.nodes?.length) { console.warn('[prop] no data'); return; }
   if (propagationChart) propagationChart.dispose();
   propagationChart = echarts.init(propagationRef.value);
 
@@ -1378,8 +1373,8 @@ function getProgressColor(heat: number) {
             <span class="w-2.5 h-2.5 rounded-full bg-slate-400" /> 公众讨论
           </div>
         </div>
-        <div v-if="!propagationData || !propagationData.graph || !propagationData.graph.nodes?.length" class="text-xs text-slate-400 py-8 text-center">传播数据加载中...</div>
-        <div v-else class="w-full h-[480px] overflow-hidden flex items-center justify-center bg-slate-50/30 dark:bg-slate-950/30 rounded-lg">
+        <div class="w-full h-[480px] overflow-hidden flex items-center justify-center bg-slate-50/30 dark:bg-slate-950/30 rounded-lg">
+          <div v-if="!propagationData" class="text-xs text-slate-400">传播数据加载中...</div>
           <div ref="propagationRef" class="w-full h-full" />
         </div>
       </el-card>
