@@ -302,9 +302,10 @@ def analyze_propagation(
 
     focused = _focused_graph(keywords, trace)
 
-    # 用 DeepSeek 解释每个关键词为何高频 + 关键词间演化关系
+    # 用 DeepSeek 基于采集的文章内容解释关键词 + 演化关系
     keyword_explanations = _explain_keyword_evolution(
-        event_title, keywords, keyword_relations, focused["links"], focused["nodes"]
+        event_title, keywords, keyword_relations, focused["links"], focused["nodes"],
+        articles=articles,
     )
     if not keyword_explanations:
         keyword_explanations = [
@@ -356,35 +357,32 @@ def _explain_keyword_evolution(
     cooccurrence: list[dict],
     links: list[dict],
     nodes: list[dict],
+    articles: list | None = None,
 ) -> list[dict]:
     """用 DeepSeek 解释关键词高频原因和演化关系。
 
-    输入: 事件标题 + Top5关键词 + 共现数据 + 传播边
-    输出: 每个关键词的1句解释 + 每个边对的1句演化理由
+    基于已采集文章的实际内容提取证据，而非 LLM 常识。
     """
     if not keywords or not event_title:
         return []
 
-    # 构造关键词摘要：只用有数据的共现对，附文章标题样本
+    articles = articles or []
+
+    # 为每个关键词找包含它的文章标题（最多5篇），作为证据
     kw_lines = []
     for kw in keywords:
         word = kw["word"]
-        related = [r for r in cooccurrence if word in (r.get("terms") or [])]
-        top = sorted(related, key=lambda r: -r["article_count"])[:3]
-        parts = []
-        sample = ""
-        for r in top:
-            other = [t for t in r["terms"] if t != word][0] if len(r.get("terms", [])) == 2 else "?"
-            parts.append(f'[{other}]{r["article_count"]}篇')
-            if not sample:
-                titles = r.get("example_titles", [])
-                if titles:
-                    sample = f'  例: {titles[0][:60]}'
-        if parts:
-            kw_detail = ' '.join(parts)
-            kw_lines.append(f'- {word}: {kw_detail}{sample}')
-        else:
-            kw_lines.append(f'- {word}{sample}')
+        # 找标题或正文包含该词的文章
+        matched = []
+        for a in articles:
+            title = str(getattr(a, "title", "") or "")
+            content = str(getattr(a, "clean_content", "") or getattr(a, "raw_content", "") or "")[:200]
+            if word in title or word in content:
+                matched.append(title[:80])
+            if len(matched) >= 5:
+                break
+        evidence = " | ".join(matched[:5]) if matched else "(无匹配文章)"
+        kw_lines.append(f'- {word}:\n  相关报道: {evidence}')
 
     # 构造边摘要
     edge_lines = []
@@ -397,11 +395,11 @@ def _explain_keyword_evolution(
 
     prompt = (
         f'事件主题: {event_title}\n\n'
-        f'词云Top5关键词及共现数据:\n' + "\n".join(kw_lines) + "\n\n"
+        f'以下是Top5关键词及我们采集到的相关报道标题:\n' + "\n".join(kw_lines) + "\n\n"
         f'关键词传播路径:\n' + "\n".join(edge_lines) + "\n\n"
-        '请用中文给出简洁权威的解释, 禁止使用"可能""统计偏差""数据遗漏"等不确定措辞:\n'
-        '1. 每个关键词: 一句话说明它在此事件中代表什么、为什么重要 (30-50字)\n'
-        '2. 每条传播路径: 一句话说明前词如何自然引出后词 (15-25字)\n\n'
+        '请基于上述采集到的实际报道内容来解释, 不要用你自己的常识:\n'
+        '1. 每个关键词: 从报道标题中能看出这个词为什么频繁出现、代表了什么 (30-50字)\n'
+        '2. 每条传播路径: 从报道内容看, 前词如何引出后词 (15-25字)\n\n'
         '返回JSON数组: [{"type":"keyword|edge","target":"词名或src->tgt","reason":"解释"}]'
     )
 
