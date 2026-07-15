@@ -195,7 +195,7 @@ async function triggerDH() {
   try {
     const r = await http.request<any>('post', '/api/admin/daily-hot/run');
     message(`已触发 #${r.data?.task_id}`, { type: 'success' });
-    setTimeout(loadData, 3000);
+    setTimeout(() => { loadData(); loadHotList(); }, 3000);
   } catch { message('触发失败', { type: 'error' }); }
   finally { dhRunning.value = false; }
 }
