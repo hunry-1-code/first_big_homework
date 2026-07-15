@@ -211,23 +211,26 @@ function buildPropagationData() {
   };
 }
 
-// 构造模拟文章影响力数据
+// 报道传播影响力排行
 function buildInfluenceData() {
   const articles = eventData.value?.articles?.articles || [];
   if (articles.length === 0) return [];
   const withInteractions = articles.filter((a: any) =>
     (a.reposts_count ?? 0) + (a.comments_count ?? 0) + (a.likes_count ?? 0) > 0
   );
-  // 如果全无互动数据，返回空（不显示全0的假排行）
   if (withInteractions.length === 0) return [];
-  return withInteractions.map((a: any, i: number) => ({
-    name: a.title?.length > 20 ? a.title.slice(0, 20) + "..." : (a.title || `报道${i + 1}`),
-    fullName: a.title || "",
-    platform: a.platform || "未知",
-    reposts: a.reposts_count ?? 0,
-    comments: a.comments_count ?? 0,
-    likes: a.likes_count ?? 0
-  }));
+  // 按影响力降序排列: 转发×1.0 + 评论×0.8 + 点赞×0.3
+  return withInteractions
+    .map((a: any) => ({
+      name: a.title?.length > 20 ? a.title.slice(0, 20) + "..." : (a.title || '?'),
+      fullName: a.title || '',
+      platform: a.platform || '未知',
+      reposts: a.reposts_count ?? 0,
+      comments: a.comments_count ?? 0,
+      likes: a.likes_count ?? 0,
+      score: (a.reposts_count ?? 0) * 1.0 + (a.comments_count ?? 0) * 0.8 + (a.likes_count ?? 0) * 0.3
+    }))
+    .sort((a, b) => b.score - a.score);
 }
 
 onMounted(async () => {
@@ -681,85 +684,56 @@ function initInfluenceChart() {
 
   const top10 = data.slice(0, 10);
 
-  // 平台色映射
-  const platformColors: Record<string, [string,string]> = {
-    '抖音': ['#ff0050','#ff6b81'],
-    'B站': ['#fb7299','#fc9cb9'],
-    '微博': ['#ff8200','#ffb347'],
-    '微博搜索': ['#ff8200','#ffb347'],
-    '知乎': ['#0066ff','#4d94ff'],
-    '小红书': ['#ff2442','#ff6b81'],
-    '百度': ['#3388ff','#66aaff'],
-  };
-  const defaultColor: [string,string] = ['#6366f1','#818cf8'];
-  const rankMedals = ['🥇','🥈','🥉'];
+  const barColors = [
+    ['#f59e0b','#fbbf24'], ['#f97316','#fb923c'], ['#ef4444','#f87171'],
+    ['#8b5cf6','#a78bfa'], ['#3b82f6','#60a5fa'], ['#06b6d4','#22d3ee'],
+    ['#10b981','#34d399'], ['#84cc16','#a3e635'], ['#eab308','#facc15'],
+    ['#ec4899','#f472b6']
+  ];
 
   influenceChart.setOption({
     grid: { top: 10, right: 60, bottom: 20, left: 180 },
     tooltip: {
-      trigger: "axis",
-      axisPointer: { type: "shadow" },
-      backgroundColor: dark ? "rgba(17,24,39,0.95)" : "rgba(255,255,255,0.95)",
-      borderColor: dark ? "#374151" : "#e5e7eb",
-      textStyle: { color: dark ? "#e2e8f0" : "#1e293b" },
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      backgroundColor: dark ? 'rgba(17,24,39,0.95)' : 'rgba(255,255,255,0.95)',
+      borderColor: dark ? '#374151' : '#e5e7eb',
+      textStyle: { color: dark ? '#e2e8f0' : '#1e293b', fontSize: 12 },
       formatter: (params: any) => {
         const d = top10[params[0]?.dataIndex];
-        if (!d) return "";
-        return `<b>${d.fullName}</b><br/>
-          转发 ${d.reposts.toLocaleString()} | 评论 ${d.comments.toLocaleString()} | 点赞 ${d.likes.toLocaleString()}`;
+        if (!d) return '';
+        return `<b>${d.fullName}</b><br/>转发 ${d.reposts.toLocaleString()} | 评论 ${d.comments.toLocaleString()} | 点赞 ${d.likes.toLocaleString()}`;
       }
     },
     xAxis: {
-      type: "value",
-      name: "影响力指数",
+      type: 'value',
+      name: '影响力指数',
       nameTextStyle: { color: c.textColor, fontSize: 11 },
       axisLabel: { color: c.textColor, fontSize: 10 },
       splitLine: { lineStyle: { color: c.splitLineColor } }
     },
     yAxis: {
-      type: "category",
+      type: 'category',
       inverse: true,
-      data: top10.map((d: any, i: number) => {
-        const medal = i < 3 ? rankMedals[i] + ' ' : '';
-        const plat = d.platform.length > 4 ? d.platform.slice(0,4) : d.platform;
-        return `{rank|#${i+1}} {plat|${plat}} {name|${d.name}}`;
-      }),
-      axisLabel: {
-        color: c.textColor,
-        fontSize: 11,
-        rich: {
-          rank: { fontWeight: 'bold', width: 24, align: 'right', padding: [0,4,0,0] },
-          plat: { color: '#94a3b8', fontSize: 9, width: 36, padding: [0,2,0,0] },
-          name: { width: 110 }
-        }
-      },
+      data: top10.map((d: any, i: number) => `#${i+1}  [${d.platform}]  ${d.name}`),
+      axisLabel: { color: c.textColor, fontSize: 11 },
       axisLine: { lineStyle: { color: c.splitLineColor } }
     },
     series: [{
-      name: "影响力",
-      type: "bar",
-      barWidth: "60%",
-      data: top10.map((d: any) => {
-        const pc = platformColors[d.platform] || defaultColor;
-        return {
-          value: Math.round(d.reposts * 1.0 + d.comments * 0.8 + d.likes * 0.3),
-          itemStyle: {
-            color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
-              { offset: 0, color: pc[0] },
-              { offset: 1, color: pc[1] }
-            ]),
-            borderRadius: [0, 4, 4, 0]
-          }
-        };
-      }),
-      label: {
-        show: true,
-        position: "right",
-        color: c.textColor,
-        fontSize: 10,
-        fontWeight: "bold",
-        formatter: (p: any) => `${p.value.toLocaleString()}`
-      }
+      name: '影响力',
+      type: 'bar',
+      barWidth: '50%',
+      data: top10.map((d: any, i: number) => ({
+        value: Math.round(d.score),
+        itemStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+            { offset: 0, color: barColors[i][0] },
+            { offset: 1, color: barColors[i][1] }
+          ]),
+          borderRadius: [0, 4, 4, 0]
+        }
+      })),
+      label: { show: true, position: 'right', color: c.textColor, fontSize: 10, fontWeight: 'bold' }
     }]
   });
 }
