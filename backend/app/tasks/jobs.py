@@ -347,27 +347,29 @@ def crawl_job(task_id: int, registry: CrawlerRegistry | None = None, is_retry: b
         update_task(task_id, progress=5 + round_idx * 10,
                     message=f'{prefix}第{round_idx+1}轮采集，目标 {round_target} 篇 ({quota_msg})')
 
+        # 逐平台串行采集（避免TikHub等多平台并发限流）
+        import time as _time
+        batch = CrawlBatch(keyword=payload.get("keyword"), target_count=round_target)
         if use_dynamic_quotas and platform_quotas:
-            # 动态配额：逐平台按各自配额采集
-            batch = CrawlBatch(keyword=payload.get("keyword"), target_count=round_target)
-            for plat, quota in platform_quotas.items():
-                try:
-                    crawler = registry.get(plat)
-                    documents = crawler.crawl(CrawlRequest(
-                        platform=plat, keyword=payload.get("keyword"),
-                        limit=quota, mode=mode,
-                    ))
-                    batch.documents.extend(documents)
-                    batch.platform_counts[plat] = len(documents)
-                except Exception:
-                    batch.platform_counts[plat] = 0
+            plat_targets = list(platform_quotas.items())
         else:
-            batch = service.collect(
-                keyword=payload.get("keyword"),
-                platforms=round_platforms,
-                target_count=round_target,
-                mode=mode,
-            )
+            # 第1轮：均分目标到各平台
+            alloc = max(2, round_target // max(1, len(round_platforms)))
+            plat_targets = [(p, min(alloc, round_target)) for p in round_platforms]
+        for plat, quota in plat_targets:
+            try:
+                crawler = registry.get(plat)
+                documents = crawler.crawl(CrawlRequest(
+                    platform=plat, keyword=payload.get("keyword"),
+                    limit=quota, mode=mode,
+                ))
+                batch.documents.extend(documents)
+                batch.platform_counts[plat] = len(documents)
+            except Exception:
+                batch.platform_counts[plat] = 0
+            # TikHub平台间加短暂间隔
+            if plat in {'douyin', 'xiaohongshu', 'weibo'}:
+                _time.sleep(1)
         # 记录第1轮各平台产出
         if round_idx == 0:
             round1_counts = dict(batch.platform_counts or {})
@@ -380,7 +382,6 @@ def crawl_job(task_id: int, registry: CrawlerRegistry | None = None, is_retry: b
         # 零返回平台逐平台重试（不同平台不同延迟策略）
         zero_plats = [p for p in round_platforms if batch.platform_counts.get(p, 0) == 0]
         if zero_plats:
-            import time as _time
             rescued = {}
             still_zero = []
             # TikHub 平台需更长恢复时间
