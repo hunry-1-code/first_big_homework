@@ -127,53 +127,22 @@
         </el-card>
       </el-col>
 
-      <!-- 平台目录：展示系统支持的数据源及其能力 -->
-      <el-col :xs="24" class="mb-6">
+      <!-- 数据源概览：简要展示系统支持采集的平台数量和类型 -->
+      <el-col :xs="24" :md="8" class="mb-6">
         <el-card shadow="never" class="!border-slate-200/60 dark:!border-slate-800/60 rounded-xl">
-          <template #header>
-            <div class="flex justify-between items-center">
-              <div>
-                <span class="font-bold text-slate-800 dark:text-slate-100">📡 数据源平台</span>
-                <span class="text-xs text-slate-400 ml-2">系统支持采集和评论分析的平台，共 {{ platformSources.length }} 个</span>
-              </div>
-              <el-button size="small" @click="loadPlatformSources" :loading="sourcesLoading">刷新</el-button>
-            </div>
-          </template>
+          <template #header><span class="font-bold text-slate-800 dark:text-slate-100">📡 数据源概览</span></template>
           <div v-loading="sourcesLoading">
-            <div v-if="platformSources.length > 0" class="space-y-1">
-              <div v-for="p in platformSources" :key="p.code"
-                class="flex items-center gap-4 px-3 py-2.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                <!-- 图标 -->
-                <img :src="p._favicon" class="w-5 h-5 shrink-0 rounded" :alt="p._name"
-                  @error="($event.target as HTMLImageElement).style.display='none'" />
-                <IconifyIconOffline v-if="!p._favicon" :icon="p._icon" class="text-lg shrink-0" :style="{ color: p._color }" />
-                <!-- 名称 -->
-                <span class="text-sm font-medium text-slate-700 dark:text-slate-200 w-24 shrink-0">{{ p._name }}</span>
-                <!-- 类型 -->
-                <el-tag size="small" :type="p.type === 'social' ? 'danger' : p.type === 'news' ? 'success' : 'info'" effect="plain" class="shrink-0">
-                  {{ p.type === 'social' ? '社交' : p.type === 'news' ? '新闻' : p.type === 'search' ? '搜索' : p.type === 'news_group' ? '聚合' : p.type }}
-                </el-tag>
-                <!-- 能力 -->
-                <span class="flex items-center gap-1 shrink-0">
-                  <span v-if="p.crawler_supported" class="text-[10px] text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 px-1.5 py-0.5 rounded font-medium">采集</span>
-                  <span v-if="p.comment_supported" class="text-[10px] text-purple-600 bg-purple-50 dark:bg-purple-950/30 px-1.5 py-0.5 rounded font-medium">评论</span>
+            <div v-if="platformSources.length > 0" class="text-sm text-slate-500 space-y-2">
+              <div><b class="text-slate-700">{{ platformSources.length }}</b> 个数据平台可用</div>
+              <div class="flex flex-wrap gap-1.5">
+                <span v-for="type in sourceTypeStats" :key="type.name"
+                  class="text-xs px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800">
+                  {{ type.name }} {{ type.count }}
                 </span>
-                <!-- 官网链接 -->
-                <a :href="p.official_url" target="_blank" class="text-xs text-blue-500 hover:text-blue-600 shrink-0 hidden md:inline">官网</a>
-                <!-- 搜索链接 -->
-                <a :href="p.search_url?.replace('{keyword}','')" target="_blank" class="text-xs text-slate-400 hover:text-slate-600 shrink-0 hidden md:inline">搜索</a>
-                <!-- 关注按钮 -->
-                <el-button
-                  size="small"
-                  :type="p.followed ? 'primary' : 'default'"
-                  :plain="!p.followed"
-                  class="shrink-0 ml-auto"
-                  @click.stop="p.followed ? unfollowSource(p.code) : followSource(p.code)">
-                  {{ p.followed ? '已关注' : '+ 关注' }}
-                </el-button>
               </div>
+              <div class="text-xs text-slate-400">具体平台和采集能力见 <router-link to="/analysis" class="text-blue-500">事件分析页</router-link></div>
             </div>
-            <div v-else class="text-xs text-slate-400 py-8 text-center">加载中...</div>
+            <div v-else class="text-xs text-slate-400 py-4 text-center">加载中...</div>
           </div>
         </el-card>
       </el-col>
@@ -185,8 +154,7 @@
 import { onMounted, ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useUserStore } from "@/store/modules/user";
-import { resolvePlatformName, getPlatform, PLATFORMS } from "@/constants/platforms";
-import IconifyIconOffline from "@/components/ReIcon/src/iconifyIconOffline";
+import { resolvePlatformName } from "@/constants/platforms";
 import { getMyTasks } from "@/api/tasks";
 import { getSearchHistory, deleteSearchHistory, repeatSearch, getUserConfig, saveUserConfig } from "@/api/user";
 import { http } from "@/utils/http";
@@ -293,42 +261,22 @@ const FAVICON_DOMAINS: Record<string, string> = {
   news_infoq: "infoq.cn", news_sspai: "sspai.com",
 };
 
+const sourceTypeStats = computed(() => {
+  const map: Record<string, number> = {};
+  for (const p of platformSources.value) {
+    const t = p.type === 'social' ? '社交平台' : p.type === 'news' ? '新闻媒体' : p.type === 'search' ? '搜索引擎' : p.type === 'news_group' ? '聚合源' : p.type;
+    map[t] = (map[t] || 0) + 1;
+  }
+  return Object.entries(map).map(([name, count]) => ({ name, count }));
+});
+
 async function loadPlatformSources() {
   sourcesLoading.value = true;
   try {
     const r = await http.request<any>("get", "/api/user/sources");
-    const raw = r.data?.presets || [];
-    platformSources.value = raw.map((p: any) => {
-      const cn = resolvePlatformName(p.code);
-      const info = getPlatform(cn);
-      const domain = FAVICON_DOMAINS[p.code];
-      return {
-        ...p,
-        followed: p.followed ?? false,
-        _name: cn,
-        _icon: info?.icon || "ri:question-line",
-        _color: info?.color || "#94a3b8",
-        _favicon: domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=32` : null,
-      };
-    });
+    platformSources.value = r.data?.presets || [];
   } catch { platformSources.value = []; }
   finally { sourcesLoading.value = false; }
-}
-
-async function followSource(code: string) {
-  try {
-    await http.request("post", `/api/user/sources/${code}/follow`);
-    loadPlatformSources();
-    message("已关注", { type: "success" });
-  } catch { message("操作失败", { type: "error" }); }
-}
-
-async function unfollowSource(code: string) {
-  try {
-    await http.request("delete", `/api/user/sources/${code}/follow`);
-    loadPlatformSources();
-    message("已取消关注", { type: "success" });
-  } catch { message("操作失败", { type: "error" }); }
 }
 
 onMounted(() => { loadConfig(); loadSearchHistory(); loadMyTasks(); loadCrawlerPlatforms(); loadPlatformSources(); });
@@ -398,19 +346,6 @@ async function changePassword() {
   finally { changingPwd.value = false; }
 }
 
-async function loadCrawlerPlatforms() {
-  try {
-    const r = await http.request<any>("get", "/api/crawler/platforms");
-    const codes: string[] = r.data?.platforms || [];
-    const rssCodes: string[] = r.data?.rss || [];
-    const rateLimited: string[] = r.data?.rate_limited || [];
-    crawlerPlatforms.value = [...codes, ...rssCodes].map(code => ({
-      code,
-      name: resolvePlatformName(code),
-      status: rateLimited.includes(code) ? "rate_limited" : "active",
-    }));
-  } catch { crawlerPlatforms.value = []; }
-}
 </script>
 
 <style scoped>
