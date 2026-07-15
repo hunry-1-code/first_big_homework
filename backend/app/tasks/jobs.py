@@ -91,7 +91,7 @@ def _enrich_article_comments(
         return 0, "failed", str(exc)
 
 
-def run_search_analysis_pipeline(task_id: int, article_ids: list[int], keyword: str | None, platforms: list[str] | None, user_id: int, original_task_id: int | None = None) -> dict:
+def run_search_analysis_pipeline(task_id: int, article_ids: list[int], keyword: str | None, platforms: list[str] | None, user_id: int, original_task_id: int | None = None, *, finalize: bool = True) -> dict:
     """在已采集的文章上运行分析管线（内容分析→聚合→情感→发布），不重新爬取。"""
     from app.services.content_analysis_service import (
         create_analysis_run,
@@ -258,8 +258,9 @@ def run_search_analysis_pipeline(task_id: int, article_ids: list[int], keyword: 
         if t:
             t.summary = s
             db.session.commit()
-    update_task(task_id, status="success", progress=100,
-                message=f"分析完成，发布 {publish_count} 个事件")
+    if finalize:
+        update_task(task_id, status="success", progress=100,
+                    message=f"分析完成，发布 {publish_count} 个事件")
     # 补充前端展示所需的文章统计字段
     result["collected"] = len(article_ids)
     result["processed"] = analysis_run.representative_count if analysis_run else 0
@@ -683,6 +684,7 @@ def crawl_job(task_id: int, registry: CrawlerRegistry | None = None, is_retry: b
             keyword=payload.get("keyword"),
             platforms=effective_platforms,
             user_id=task.get("created_by"),
+            finalize=False,
         )
         summary.update(analysis_result)
     if processed == 0 and errors:
