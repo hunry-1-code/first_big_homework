@@ -218,8 +218,10 @@
             预览（将生成 {{ batchForm.count }} 个账户）
           </div>
           <div class="text-xs font-mono text-slate-600 dark:text-slate-300 max-h-[100px] overflow-y-auto space-y-0.5">
-            <div v-for="u in batchPreview" :key="u.username">
-              {{ u.username }} / {{ u.password || batchForm.password || pad(batchForm.startNo + batchPreview.indexOf(u), 6) }} / {{ batchForm.role === 'admin' ? '管理员' : '普通用户' }}
+            <div v-for="u in batchPreview" :key="u.username"
+              :class="u.conflict ? 'text-red-500 line-through' : ''">
+              {{ u.username }} / {{ u.password }} / {{ batchForm.role === 'admin' ? '管理员' : '普通用户' }}
+              <span v-if="u.conflict" class="text-red-400 text-[11px]"> ⚠ 已存在</span>
             </div>
           </div>
         </div>
@@ -247,8 +249,8 @@
       </div>
       <template #footer>
         <el-button @click="batchVisible = false">关闭</el-button>
-        <el-button type="primary" :loading="generating" @click="doBatchGenerate">
-          {{ generating ? '生成中...' : '开始生成' }}
+        <el-button type="primary" :loading="generating" :disabled="batchHasConflict" @click="doBatchGenerate">
+          {{ batchHasConflict ? '存在冲突用户名' : generating ? '生成中...' : '开始生成' }}
         </el-button>
       </template>
     </el-dialog>
@@ -302,14 +304,21 @@ const batchVisible = ref(false);
 const batchForm = reactive({ prefix: "user", count: 5, startNo: 1, role: "user", password: "" });
 const batchResults = ref<{ username: string; password: string; ok: boolean; error?: string }[]>([]);
 
+const existingUsernames = ref<Set<string>>(new Set());
 const batchPreview = computed(() => {
-  const list: { username: string; password: string }[] = [];
+  const list: { username: string; password: string; conflict: boolean }[] = [];
   for (let i = 0; i < batchForm.count; i++) {
     const no = batchForm.startNo + i;
-    list.push({ username: `${batchForm.prefix}${pad(no, 3)}`, password: batchForm.password || randomPwd() });
+    const uname = `${batchForm.prefix}${pad(no, 3)}`;
+    list.push({
+      username: uname,
+      password: batchForm.password || randomPwd(),
+      conflict: existingUsernames.value.has(uname)
+    });
   }
   return list;
 });
+const batchHasConflict = computed(() => batchPreview.value.some(u => u.conflict));
 
 function pad(n: number, len: number): string {
   return String(n).padStart(len, "0");
@@ -329,6 +338,10 @@ function openBatchDialog() {
   batchForm.role = "user";
   batchForm.password = "";
   batchResults.value = [];
+  try {
+    const res = await getUserList({ size: 1000 });
+    existingUsernames.value = new Set((res.data.users || []).map((u: any) => u.username));
+  } catch { existingUsernames.value = new Set(); }
   batchVisible.value = true;
 }
 
