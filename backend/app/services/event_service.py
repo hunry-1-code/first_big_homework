@@ -71,6 +71,8 @@ def _event_keywords(event: Event) -> dict:
 
     策略：取每篇文章 TF-IDF 最高的事件特异词，按频率和分数排序；
     查询词保留为 source=query，但展示权重低于最高事件特异词。
+
+    仅读取当前事件关联的分析运行的关键词，避免跨任务数据污染。
     """
     import math
     article_ids = [
@@ -79,9 +81,19 @@ def _event_keywords(event: Event) -> dict:
     ]
     if not article_ids:
         return {"keywords": []}
-    rows = AnalysisRunArticle.query.filter(
-        AnalysisRunArticle.article_id.in_(article_ids)
-    ).all()
+    # 找到当前事件的分析运行 ID（通过 source_task_id 关联）
+    from app.models.analysis_run import AnalysisRun as AR
+    current_ar = AR.query.filter_by(source_task_id=event.source_task_id)\
+        .order_by(AR.id.desc()).first()
+    if current_ar:
+        rows = AnalysisRunArticle.query.filter(
+            AnalysisRunArticle.analysis_run_id == current_ar.id,
+            AnalysisRunArticle.article_id.in_(article_ids),
+        ).all()
+    else:
+        rows = AnalysisRunArticle.query.filter(
+            AnalysisRunArticle.article_id.in_(article_ids)
+        ).all()
 
     # 识别查询词（出现在超过半数文章中的 source=query 词）
     query_candidates: dict[str, int] = {}
