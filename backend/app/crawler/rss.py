@@ -30,7 +30,11 @@ def _keyword_terms(keyword: str) -> list[str]:
 
 
 def _matches_keyword(text: str, keyword: str) -> bool:
+    """标题是否匹配搜索关键词。两层策略：精确子串 → jieba 分词松散匹配。"""
+    if not keyword or not keyword.strip():
+        return True
     folded = text.casefold()
+    # 第1层：完整子串匹配
     for term in _keyword_terms(keyword):
         folded_term = term.casefold()
         if folded_term.isascii() and folded_term.isalnum():
@@ -40,7 +44,35 @@ def _matches_keyword(text: str, keyword: str) -> bool:
                 return True
         elif folded_term in folded:
             return True
-    return False
+
+    # 第2层：jieba 分词松散匹配（核心词必中 + 其余词 >= 50%）
+    try:
+        import jieba
+        kw = keyword.strip()
+        # 取最长 term
+        kw_tokens = [t for t in jieba.lcut(kw) if len(t.strip()) >= 2]
+        if len(kw_tokens) <= 1:
+            return False
+        # 标题归一化 + 分词
+        text_norm = re.sub(r'[\s　「」【】《》\"\"\'\'、。，；：！？…—～～·]+', '', folded)
+        title_tokens = set(jieba.lcut(text_norm))
+        # 核心词（最长）必须在标题中
+        core = max(kw_tokens, key=len)
+        core_norm = re.sub(r'[\s　「」【】《》\"\"\'\'、。，；：！？…—～～·]+', '', core.casefold())
+        core_ok = core_norm in text_norm or any(core_norm in t for t in title_tokens)
+        if not core_ok:
+            return False
+        rest = [t for t in kw_tokens if t != core]
+        if not rest:
+            return True
+        matched = 0
+        for rt in rest:
+            rt_norm = re.sub(r'[\s　「」【】《》\"\"\'\'、。，；：！？…—～～·]+', '', rt.casefold())
+            if rt_norm in text_norm or any(rt_norm in t for t in title_tokens):
+                matched += 1
+        return matched / len(rest) >= 0.5
+    except Exception:
+        return False
 
 
 def _visible_text(value: str) -> str:
@@ -71,9 +103,10 @@ def extract_article_text(url: str) -> str | None:
             return None
         extracted = trafilatura.extract(
             response.content,
-            include_title=False,
-            include_author=False,
-            include_date=False,
+            include_tables=False,
+            include_images=False,
+            include_formatting=False,
+            include_links=False,
             output_format="txt",
         )
         return extracted.strip() if extracted else None
@@ -106,10 +139,14 @@ class RssCrawler:
                 headers={"User-Agent": USER_AGENT, "Accept": RSS_ACCEPT},
             )
         )
+        keyword = (request.keyword or "").strip()
         nodes = [node for node in root.iter() if node.tag.rsplit("}", 1)[-1] in {"item", "entry"}]
         documents = []
         for node in nodes[: max(request.limit * 5, 20)]:
             title = _text(node, ("title",)) or ""
+            # 关键词过滤：有搜索词时标题必须匹配
+            if keyword and not _matches_keyword(title, keyword):
+                continue
             content = _text(node, ("content", "description", "summary")) or ""
             item_id = _text(node, ("guid", "id", "contId"))
             link = _text(node, ("link",))

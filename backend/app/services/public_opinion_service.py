@@ -39,9 +39,27 @@ def _correct_sentiment(text: str, original_label: str | None) -> str:
         return "positive"
     return original_label or "neutral"
 
+def _is_spam(text: str) -> bool:
+    """检测刷屏类 spam 评论（如 [角色名][角色名]... 格式的机器人刷屏）。"""
+    if not text:
+        return False
+    brackets = text.count('[') + text.count(']')
+    if brackets < 6:
+        return False
+    # 去掉括号内容后的剩余字符
+    stripped = re.sub(r'\[[^\]]*\]', '', text).strip()
+    # 去掉括号后完全没有汉字 → spam；有 >= 3 个汉字 → 正常
+    meaningful = re.findall(r'[一-鿿]', stripped)
+    if len(meaningful) < 3 and brackets >= 6:
+        return True
+    return False
+
+
 def get_public_opinion_snapshot(event_id: int) -> dict:
     article_ids = [row[0] for row in Article.query.with_entities(Article.id).filter_by(event_id=event_id).all()]
     comments = Comment.query.filter(Comment.article_id.in_(article_ids)).all() if article_ids else []
+    # 过滤 spam 评论
+    comments = [c for c in comments if not _is_spam(c.content or '')]
     # 加权情感统计（频次增强 + 用户去重）
     counts = Counter()
     counts_raw = Counter()
@@ -82,7 +100,10 @@ def get_public_opinion_snapshot(event_id: int) -> dict:
     total = len(comments)
     word_counts = Counter()
     demand_counts = Counter()
-    stopwords = {"这个", "那个", "我们", "你们", "他们", "就是", "还是", "没有", "一个", "什么", "怎么"}
+    stopwords = {"这个", "那个", "我们", "你们", "他们", "就是", "还是", "没有", "一个", "什么", "怎么",
+                 "已经", "可以", "现在", "不是", "知道", "还是", "因为", "所以", "如果", "但是",
+                 "捂脸", "呲牙", "微笑", "比心", "大笑", "笑哭", "点赞", "加油", "流泪", "害羞",
+                 "不错", "支持", "关注", "牛逼", "厉害", "哈哈", "真的", "确实", "感觉", "觉得"}
     for item in comments:
         text = item.content or ""
         try:

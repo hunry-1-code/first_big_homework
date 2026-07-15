@@ -94,19 +94,34 @@ def _content_identity(article: Article) -> str:
 
 
 def _feature_status(article: Article, features: DocumentFeatures | None) -> tuple[str, bool]:
-    if article.clean_status != "success" or float(article.nlp_weight or 0) <= 0:
-        return "skipped_invalid", False
+    has_comments = (article.comments_count or 0) > 0
+
     if article.duplicate_of_id is not None or bool(article.is_duplicate):
         return "skipped_duplicate", False
     if bool(article.is_advertisement):
         return "skipped_advertisement", False
+
+    content = (article.clean_content or article.raw_content or "").strip()
+    title = (article.title or "").strip()
+    min_len = 30 if article.source_type == "social" else 50
+
+    # 评论感知：有评论的短文/提取失败文章不轻易丢弃
+    # 评论本身是高质量的用户反馈信号，标题确认了主题相关性
+    if has_comments and title:
+        # 标题长度足够（≥10字）→ 接受为 degraded 质量
+        # 跳过 clean_status / nlp_weight / content_length 检查
+        if len(title) >= 10:
+            return "pending", True
+        # 标题过短但有关键词匹配 → 仍接受
+        if len(title) >= 4:
+            return "pending", True
+
+    # 正文/提取质量检查
+    if article.clean_status != "success" or float(article.nlp_weight or 0) <= 0:
+        return "skipped_invalid", False
     if features is None or not (features.tfidf_tokens or []):
         return "skipped_empty_tokens", False
     # 低质量内容过滤：内容过短无法提取有效语义
-    content = (article.clean_content or article.raw_content or "").strip()
-    title = (article.title or "").strip()
-    # 社交平台放宽到 30 字（抖音/微博/小红书短内容常见）
-    min_len = 30 if article.source_type == "social" else 50
     if len(content) < min_len:
         return "skipped_low_quality", False
     # 内容与标题几乎相同 → 无正文，纯转发/标题党（社交平台不检查）
@@ -133,9 +148,7 @@ def query_fingerprint(mode, keyword, platforms) -> str:
 def _search_keyword_terms(keyword: str) -> list[str]:
     """提取用于标题匹配的关键词变体。
 
-    返回两个列表：
-    - full_terms: 完整关键词（英文边界匹配 or 去标点归一化匹配）
-    - required_parts: 所有必须同时出现的字片段（中文≥2字关键词拆分后AND匹配）
+    返回所有需要尝试匹配的 term 列表。
     """
     aliases = {
         "人工智能": ["人工智能", "AI", "AIGC", "大模型"],
@@ -148,15 +161,15 @@ def _search_keyword_terms(keyword: str) -> list[str]:
 def _title_matches_keyword(title: str, terms: list[str]) -> bool:
     """标题是否包含搜索关键词。
 
-    不拆词，不做分词。只做归一化子串匹配：
-    - 去标点空白后，关键词完整出现在标题中即命中
-    - 处理「台风巴威」→"台风巴威"、"功夫女足电影"→"功夫女足电影"
-    - 额外尝试去掉最后一个词（如"电影"是类别限定词），匹配核心实体
+    三层匹配策略（由严到宽）：
+    1. 归一化子串匹配 — 关键词完整出现在标题中
+    2. jieba 去尾匹配 — 去掉最后一个词后匹配核心实体（如"功夫女足电影"→"功夫女足"）
+    3. jieba 分词松散匹配 — 核心实体必须出现，其余词 >= 50% 匹配即通过
     """
     import re as _re
     folded = title.casefold()
     # 归一化：去掉所有标点、空白、书名号等
-    title_norm = _re.sub(r'[\s　「」【】《》""''、。，；：！？…—～～·]+', '', folded)
+    title_norm = _re.sub(r'[\s　「」【】《》\"\"\'\'、。，；：！？…—～～·]+', '', folded)
 
     for term in terms:
         folded_term = term.casefold()
@@ -167,32 +180,116 @@ def _title_matches_keyword(title: str, terms: list[str]) -> bool:
             continue
 
         # 归一化关键词
-        term_norm = _re.sub(r'[\s　「」【】《》""''、。，；：！？…—～～·]+', '', folded_term)
-        # 完整关键词在标题中
+        term_norm = _re.sub(r'[\s　「」【】《》\"\"\'\'、。，；：！？…—～～·]+', '', folded_term)
+        # === 第1层：完整关键词在标题中 ===
         if term_norm and term_norm in title_norm:
             return True
-        # 原始文本中匹配
         if folded_term in folded:
             return True
 
-    # 额外尝试：去掉最后一个空格/词后的部分（类别限定词）
-    # "功夫女足电影" → 先试完整匹配 → 再试 "功夫女足"
-    if len(terms) == 1 and not any(ch.isspace() for ch in terms[0]):
-        kw = terms[0]
-        # 尝试用 jieba 分词后去掉最后一个词
-        try:
-            import jieba
-            segs = jieba.lcut(kw)
-            if len(segs) >= 2:
-                # 去掉最后一个词再试（"功夫女足电影" → "功夫女足"）
-                core = ''.join(segs[:-1])
-                core_norm = _re.sub(r'[\s　「」【】《》""''、。，；：！？…—～～·]+', '', core.casefold())
-                if core_norm and len(core_norm) >= 2 and core_norm in title_norm:
+        # === 第2层：jieba 去尾匹配 ===
+        if len(terms) == 1 and not any(ch.isspace() for ch in terms[0]):
+            kw = terms[0]
+            try:
+                import jieba
+                segs = jieba.lcut(kw)
+                if len(segs) >= 2:
+                    core = ''.join(segs[:-1])
+                    core_norm = _re.sub(r'[\s　「」【】《》\"\"\'\'、。，；：！？…—～～·]+', '', core.casefold())
+                    if core_norm and len(core_norm) >= 2 and core_norm in title_norm:
+                        return True
+            except Exception:
+                pass
+
+            # === 第3层：jieba 分词松散匹配 ===
+            try:
+                import jieba
+                kw_tokens = [t for t in jieba.lcut(kw) if len(t.strip()) >= 2]
+                if len(kw_tokens) <= 1:
+                    continue
+                # 标题分词
+                title_tokens = set(jieba.lcut(title_norm))
+                # 核心实体（最长词）必须在标题中出现
+                core_token = max(kw_tokens, key=len)
+                core_norm = _re.sub(r'[\s　「」【】《》\"\"\'\'、。，；：！？…—～～·]+', '', core_token.casefold())
+                core_matched = core_norm in title_norm
+                if not core_matched:
+                    # 核心词不在标题中，尝试匹配标题中各 token
+                    core_matched = any(core_norm in tt for tt in title_tokens) or any(tt in core_norm for tt in title_tokens if len(tt) >= 2)
+                if not core_matched:
+                    continue
+                # 其余词的匹配率
+                rest = [t for t in kw_tokens if t != core_token]
+                if not rest:
+                    continue
+                rest_matched = 0
+                for rt in rest:
+                    rt_norm = _re.sub(r'[\s　「」【】《》\"\"\'\'、。，；：！？…—～～·]+', '', rt.casefold())
+                    if rt_norm in title_norm or any(rt_norm in tt for tt in title_tokens):
+                        rest_matched += 1
+                ratio = rest_matched / len(rest)
+                if ratio >= 0.5:
                     return True
-        except Exception:
-            pass
+            except Exception:
+                pass
 
     return False
+
+
+def _llm_client():
+    from flask import current_app
+    from app.llm.client import LLMClient
+    return LLMClient(
+        api_key=current_app.config.get("LLM_API_KEY", ""),
+        base_url=current_app.config.get("LLM_BASE_URL", ""),
+        model_name=current_app.config.get("LLM_MODEL_NAME", ""),
+        timeout=10,
+    )
+
+
+_LLM_SEMANTIC_PROMPT = (
+    "判断以下文章标题是否与搜索关键词描述同一事件或同一主题。\n"
+    "搜索关键词：{keyword}\n"
+    "文章标题：{title}\n"
+    "仅回答「是」或「否」，不要解释。"
+)
+
+
+def _llm_semantic_match(keyword: str, title: str) -> bool:
+    """用 LLM 判断文章标题与搜索关键词是否语义相关。
+
+    作为关键词子串/jieba 匹配的兜底，处理同义词和变体表述
+    （如「IPO」↔「上市」、「长鑫存储」↔「长鑫科技」）。
+    """
+    try:
+        client = _llm_client()
+        result = client.chat([
+            {"role": "user", "content": _LLM_SEMANTIC_PROMPT.format(
+                keyword=keyword, title=title
+            )}
+        ])
+        answer = result.get("content", "").strip()
+        return answer.startswith("是") or answer.casefold().startswith("yes")
+    except Exception:
+        return False
+
+
+def _llm_batch_semantic_match(
+    keyword: str, candidates: list[tuple[int, str]]
+) -> set[int]:
+    """批量 LLM 语义匹配，返回匹配的 article_id 集合。
+
+    candidates: [(article_id, title), ...]
+    最多检查 30 个候选，避免 LLM 调用过多。
+    """
+    if not candidates:
+        return set()
+    matched: set[int] = set()
+    batch = candidates[:30]
+    for article_id, title in batch:
+        if _llm_semantic_match(keyword, title):
+            matched.add(article_id)
+    return matched
 
 
 def create_analysis_run(
@@ -280,19 +377,34 @@ def create_analysis_run(
         kw = keyword.strip()
         kw_parts = _search_keyword_terms(kw)
         filtered_ids = []
-        skipped = 0
+        skipped_ids: list[tuple[int, str]] = []
         for article_id in requested_ids:
             article = articles_by_id.get(article_id)
             if article is None:
                 continue
             title = (article.title or "")
-            # 标题包含关键词或其任一部分即视为相关
             if _title_matches_keyword(title, kw_parts):
                 filtered_ids.append(article_id)
             else:
-                skipped += 1
-        if skipped:
-            run.warnings = (run.warnings or []) + [f"关键词「{kw}」过滤 {skipped} 篇标题不相关文章"]
+                skipped_ids.append((article_id, title))
+        keyword_skipped = len(skipped_ids)
+
+        # LLM 语义二次筛选：对关键词匹配失败的文章，用 LLM 判断语义相关性
+        llm_rescued = 0
+        if skipped_ids and current_app.config.get("LLM_SEMANTIC_FILTER_ENABLED", True):
+            llm_matched = _llm_batch_semantic_match(kw, skipped_ids)
+            for article_id, _ in skipped_ids:
+                if article_id in llm_matched:
+                    filtered_ids.append(article_id)
+                    llm_rescued += 1
+                else:
+                    pass  # 确实不相关
+
+        if keyword_skipped:
+            msg = f"关键词「{kw}」过滤 {keyword_skipped} 篇标题不相关文章"
+            if llm_rescued:
+                msg += f"，LLM 语义匹配挽救 {llm_rescued} 篇"
+            run.warnings = (run.warnings or []) + [msg]
         keyword_matched_ids = set(filtered_ids)
         requested_ids = [
             article_id

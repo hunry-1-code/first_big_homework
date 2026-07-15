@@ -8,7 +8,7 @@ from email.utils import parsedate_to_datetime
 
 from app.crawler.base import CrawlRequest, RawDocument
 from app.crawler.errors import CrawlerError
-from app.crawler.rss import USER_AGENT, extract_article_text
+from app.crawler.rss import USER_AGENT, _matches_keyword, extract_article_text
 
 
 SEARCH_URL = "http://search.people.cn/search-platform/front/search"
@@ -102,8 +102,12 @@ class PeopleNewsCrawler:
                 records = (payload.get("data") or {}).get("records") or []
                 for record in records[:limit]:
                     document = self._map_record(record)
-                    if document is not None:
-                        rows.append(document)
+                    if document is None:
+                        continue
+                    # 关键词二次过滤：API 模糊搜索过宽，标题必须匹配关键词
+                    if keyword and not _matches_keyword(document.title, keyword):
+                        continue
+                    rows.append(document)
             except Exception:
                 rows = []
         if rows:

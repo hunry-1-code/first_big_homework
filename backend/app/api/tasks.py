@@ -45,10 +45,12 @@ def retry_analysis(task_id: int):
     platforms = payload.get("platforms")
     target = payload.get("target_count") or 50
 
-    # 统计合格文章数
-    qualified_ids = [a.id for a in articles
-                     if float(a.nlp_weight or 0) >= 0.5
-                     and len((a.clean_content or a.raw_content or '').strip()) >= 50]
+    # 统计合格文章数（对齐 _feature_status：社交平台 >= 30 字，其他 >= 50 字；评论感知）
+    qualified_ids = [a.id for a in articles if (
+        (float(a.nlp_weight or 0) >= 0.5
+         and len((a.clean_content or a.raw_content or '').strip()) >= (30 if (a.source_type or '').strip().casefold() == 'social' else 50))
+        or ((a.comments_count or 0) > 0 and len((a.title or '').strip()) >= 10)
+    )]
 
     # 合格数不足 → 先补采再分析
     need_supplement = len(qualified_ids) < target
@@ -75,9 +77,13 @@ def retry_analysis(task_id: int):
         # 用更新后的 article_ids 跑分析
         from app.models.article import Article as Art
         final_articles = Art.query.filter_by(crawl_task_id=tid).all()
-        final_ids = [a.id for a in final_articles
-                     if float(a.nlp_weight or 0) >= 0.5
-                     and len((a.clean_content or a.raw_content or '').strip()) >= 50]
+        final_ids = [a.id for a in final_articles if (
+            # 合格文章: nlp>=0.5 且长度达标
+            (float(a.nlp_weight or 0) >= 0.5
+             and len((a.clean_content or a.raw_content or '').strip()) >= (30 if (a.source_type or '').strip().casefold() == 'social' else 50))
+            # 评论感知: 有评论的文章标题够长就保留（评论本身是高价值信号）
+            or ((a.comments_count or 0) > 0 and len((a.title or '').strip()) >= 10)
+        )]
         return run_search_analysis_pipeline(
             tid, final_ids, keyword=keyword, platforms=platforms, user_id=user_id, original_task_id=task_id
         )

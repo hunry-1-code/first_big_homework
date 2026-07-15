@@ -1,10 +1,11 @@
-"""少数派站内搜索爬虫 -- 文章列表API + 详情页提取"""
+"""少数派站内搜索爬虫 -- 文章列表API + 详情页提取 + 关键词过滤"""
 from __future__ import annotations
 
 import hashlib
 import re
 
 from app.crawler.base import CrawlRequest, RawDocument
+from app.crawler.rss import _matches_keyword
 
 
 class SspaiSearchCrawler:
@@ -23,11 +24,15 @@ class SspaiSearchCrawler:
         if not articles:
             return []
 
-        # 2. 获取详情页正文（少数派是科技媒体，文章天然相关）
+        # 2. 获取详情页正文，过滤关键词
         documents = []
         for a in articles:
             if len(documents) >= limit:
                 break
+            # 标题预过滤：有搜索词时跳过不相关文章
+            title = a.get("title") or ""
+            if keyword and not _matches_keyword(title, keyword):
+                continue
             try:
                 doc = self._fetch_detail(a, keyword)
                 if doc:

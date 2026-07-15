@@ -84,13 +84,15 @@ def _config_from_app() -> SentimentConfig:
 
 
 def _valid_article(article: Article) -> bool:
-    return bool(
-        article.clean_status == "success"
-        and (str(article.title or "").strip() or str(article.clean_content or "").strip())
-        and float(article.nlp_weight or 0) > 0
-        and not bool(article.is_advertisement)
-        and str(article.source_type or "") != "hotlist"
-    )
+    if bool(article.is_advertisement) or str(article.source_type or "") == "hotlist":
+        return False
+    # 标准文章：正文提取成功且有内容
+    if article.clean_status == "success" and float(article.nlp_weight or 0) > 0:
+        return bool((article.title or "").strip() or (article.clean_content or "").strip())
+    # 评论感知：无正文但有评论的文章也纳入情感分析（用评论内容作为情感信号）
+    if (article.comments_count or 0) > 0 and (article.title or "").strip():
+        return True
+    return False
 
 
 def _load_targets(aggregation: AggregationRun) -> list[dict]:
@@ -389,6 +391,13 @@ def run_sentiment_analysis(
                         "article_title": article.title,
                     }
                     text = f"{article.title or ''}\n{article.clean_content or ''}"
+                    # 无正文但有评论：用评论内容作为情感分析文本
+                    if not (article.clean_content or '').strip() and (article.comments_count or 0) > 0:
+                        from app.models.comment import Comment as _Cmt
+                        _cmts = _Cmt.query.filter_by(article_id=article.id).limit(20).all()
+                        _cmt_text = '\n'.join((c.content or '')[:200] for c in _cmts if c.content)
+                        if _cmt_text.strip():
+                            text = f"{article.title or ''}\n{_cmt_text[:2000]}"
                     llm_error = None
                     result = None
                     for _attempt in range(config.llm_retry_count + 1):

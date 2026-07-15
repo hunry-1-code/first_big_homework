@@ -27,7 +27,7 @@ def _visible_text(raw_content: str) -> str:
 
 
 def _minimum_length(source_type: str) -> int:
-    return {"social": 20, "hotlist": 5, "rss": 40, "sample": 5}.get(source_type, 100)
+    return {"social": 10, "hotlist": 5, "rss": 40, "sample": 5}.get(source_type, 100)
 
 
 def _is_valid(text: str | None, source_type: str) -> bool:

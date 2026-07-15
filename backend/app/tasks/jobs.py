@@ -146,6 +146,27 @@ def run_search_analysis_pipeline(task_id: int, article_ids: list[int], keyword: 
         run_sentiment_analysis(sentiment_run.id, task_id=task_id)
     record_stage(task_id, "sentiment", "done", f"{sentiment_run.statistics.get('result_count','?')} 篇")
 
+    # 虚假/可疑信息风险评估
+    update_task(task_id, progress=80, message="正在评估信息可信度...")
+    record_stage(task_id, "risk", "running", "风险评估中")
+    try:
+        from app.analysis.fake_detector import batch_assess_articles, _build_context
+        from app.models.article import Article as _Art
+        _all_arts = _Art.query.filter(
+            _Art.id.in_(list(dict.fromkeys(article_ids)))
+        ).all()
+        if _all_arts:
+            _ctx = _build_context(0, _all_arts)  # event_id=0 表示尚未发布
+            _results = batch_assess_articles(_all_arts, _ctx)
+            _risk_scores = [r.get("score", 0) for r in _results]
+            _avg_risk = sum(_risk_scores) / len(_risk_scores) if _risk_scores else 0
+            record_stage(task_id, "risk", "done",
+                        f"平均风险 {_avg_risk:.0f}/100，可疑 {sum(1 for r in _results if r.get('is_suspicious'))} 篇")
+        else:
+            record_stage(task_id, "risk", "done", "无待评估文章")
+    except Exception as e:
+        record_stage(task_id, "risk", "done", f"跳过 ({e})")
+
     update_task(task_id, progress=86, message="正在发布事件并生成分析报告...")
     record_stage(task_id, "publish", "running", "发布事件到看板")
     publish_count = 0
@@ -327,10 +348,16 @@ def crawl_job(task_id: int, registry: CrawlerRegistry | None = None, is_retry: b
                     if doc_hash in existing_ids or (plat_id and plat_id in existing_ids):
                         continue
                 article, _output = persist_raw_document(document, task_id)
-                # 质量检查：nlp_weight >= 0.5 且内容 >= 50 字才算合格
+                # 质量检查：对齐 _feature_status — 社交平台 >= 30 字，其他 >= 50 字
+                # 评论感知：有评论的标题短文也计入合格
                 nlp_w = float(article.nlp_weight or 0)
                 content_len = len((article.clean_content or article.raw_content or "").strip())
-                is_valid = nlp_w >= 0.5 and content_len >= 50
+                src_type = (article.source_type or "").strip().casefold()
+                has_cmt = (article.comments_count or 0) > 0
+                is_valid = (
+                    (nlp_w >= 0.5 and content_len >= (30 if src_type == 'social' else 50))
+                    or (has_cmt and len((article.title or '').strip()) >= 10)
+                )
                 if is_valid:
                     processed += 1
                     round_processed += 1
