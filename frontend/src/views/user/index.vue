@@ -127,45 +127,53 @@
         </el-card>
       </el-col>
 
-      <!-- 平台目录 -->
+      <!-- 平台目录：展示系统支持的数据源及其能力 -->
       <el-col :xs="24" class="mb-6">
         <el-card shadow="never" class="!border-slate-200/60 dark:!border-slate-800/60 rounded-xl">
           <template #header>
             <div class="flex justify-between items-center">
               <div>
-                <span class="font-bold text-slate-800 dark:text-slate-100">📡 平台目录</span>
-                <span class="text-xs text-slate-400 ml-2">关注后可在分析页快捷选择</span>
+                <span class="font-bold text-slate-800 dark:text-slate-100">📡 数据源平台</span>
+                <span class="text-xs text-slate-400 ml-2">系统支持采集和评论分析的平台，共 {{ platformSources.length }} 个</span>
               </div>
               <el-button size="small" @click="loadPlatformSources" :loading="sourcesLoading">刷新</el-button>
             </div>
           </template>
-          <div v-loading="sourcesLoading" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-            <div
-              v-for="p in platformSources"
-              :key="p.code"
-              class="platform-dir-card relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 cursor-pointer transition-all duration-200"
-              :class="p.followed
-                ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30 shadow-sm'
-                : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-600'"
-              :style="p.followed ? {} : {}"
-              @click="p.followed ? unfollowSource(p.code) : followSource(p.code)">
-              <div
-                v-if="p.followed"
-                class="absolute top-2 right-2 w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center">
-                <span class="text-white text-xs">✓</span>
-              </div>
-              <IconifyIconOffline :icon="p._icon" class="text-2xl" :style="{ color: p._color }" />
-              <span class="text-sm font-medium text-slate-700 dark:text-slate-200">{{ p._name }}</span>
-              <span class="text-[10px] px-1.5 py-0.5 rounded"
-                :class="p.followed ? 'text-blue-500 bg-blue-100 dark:bg-blue-900/30' : 'text-slate-400 bg-slate-100 dark:bg-slate-800'">
-                {{ p.followed ? '已关注' : '点击关注' }}
-              </span>
-              <div class="flex gap-1">
-                <span v-if="p.crawler_supported" class="text-[10px] text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 px-1 rounded">采集</span>
-                <span v-if="p.comment_supported" class="text-[10px] text-purple-600 bg-purple-50 dark:bg-purple-950/30 px-1 rounded">评论</span>
+          <div v-loading="sourcesLoading">
+            <div v-if="platformSources.length > 0" class="space-y-1">
+              <div v-for="p in platformSources" :key="p.code"
+                class="flex items-center gap-4 px-3 py-2.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                <!-- 图标 -->
+                <img :src="p._favicon" class="w-5 h-5 shrink-0 rounded" :alt="p._name"
+                  @error="($event.target as HTMLImageElement).style.display='none'" />
+                <IconifyIconOffline v-if="!p._favicon" :icon="p._icon" class="text-lg shrink-0" :style="{ color: p._color }" />
+                <!-- 名称 -->
+                <span class="text-sm font-medium text-slate-700 dark:text-slate-200 w-24 shrink-0">{{ p._name }}</span>
+                <!-- 类型 -->
+                <el-tag size="small" :type="p.type === 'social' ? 'danger' : p.type === 'news' ? 'success' : 'info'" effect="plain" class="shrink-0">
+                  {{ p.type === 'social' ? '社交' : p.type === 'news' ? '新闻' : p.type === 'search' ? '搜索' : p.type === 'news_group' ? '聚合' : p.type }}
+                </el-tag>
+                <!-- 能力 -->
+                <span class="flex items-center gap-1 shrink-0">
+                  <span v-if="p.crawler_supported" class="text-[10px] text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 px-1.5 py-0.5 rounded font-medium">采集</span>
+                  <span v-if="p.comment_supported" class="text-[10px] text-purple-600 bg-purple-50 dark:bg-purple-950/30 px-1.5 py-0.5 rounded font-medium">评论</span>
+                </span>
+                <!-- 官网链接 -->
+                <a :href="p.official_url" target="_blank" class="text-xs text-blue-500 hover:text-blue-600 shrink-0 hidden md:inline">官网</a>
+                <!-- 搜索链接 -->
+                <a :href="p.search_url?.replace('{keyword}','')" target="_blank" class="text-xs text-slate-400 hover:text-slate-600 shrink-0 hidden md:inline">搜索</a>
+                <!-- 关注按钮 -->
+                <el-button
+                  size="small"
+                  :type="p.followed ? 'primary' : 'default'"
+                  :plain="!p.followed"
+                  class="shrink-0 ml-auto"
+                  @click.stop="p.followed ? unfollowSource(p.code) : followSource(p.code)">
+                  {{ p.followed ? '已关注' : '+ 关注' }}
+                </el-button>
               </div>
             </div>
-            <div v-if="platformSources.length === 0 && !sourcesLoading" class="col-span-full text-xs text-slate-400 py-8 text-center">加载中...</div>
+            <div v-else class="text-xs text-slate-400 py-8 text-center">加载中...</div>
           </div>
         </el-card>
       </el-col>
@@ -278,21 +286,29 @@ function formatHistoryTime(ts: string) {
   return Math.floor(d / 86400) + "天前";
 }
 
+const FAVICON_DOMAINS: Record<string, string> = {
+  bilibili: "bilibili.com", weibo: "weibo.com", zhihu: "zhihu.com",
+  xiaohongshu: "xiaohongshu.com", douyin: "douyin.com", baidu: "baidu.com",
+  news_people: "people.com.cn", news_36kr: "36kr.com", news_thepaper: "thepaper.cn",
+  news_infoq: "infoq.cn", news_sspai: "sspai.com",
+};
+
 async function loadPlatformSources() {
   sourcesLoading.value = true;
   try {
     const r = await http.request<any>("get", "/api/user/sources");
     const raw = r.data?.presets || [];
-    // 用 PLATFORMS 数据丰富每个平台（图标、颜色、中文名）
     platformSources.value = raw.map((p: any) => {
       const cn = resolvePlatformName(p.code);
       const info = getPlatform(cn);
+      const domain = FAVICON_DOMAINS[p.code];
       return {
         ...p,
+        followed: p.followed ?? false,
         _name: cn,
         _icon: info?.icon || "ri:question-line",
         _color: info?.color || "#94a3b8",
-        _bg: info?.bg || "#f1f5f9",
+        _favicon: domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=32` : null,
       };
     });
   } catch { platformSources.value = []; }
