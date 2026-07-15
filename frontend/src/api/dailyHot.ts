@@ -8,3 +8,7 @@ export function getTodayHotspots(limit: number = 20) {
 export function enrichHotspotItem(itemId: number) {
   return apiClient.post(`/hotspots/today/items/${itemId}/enrich`);
 }
+
+export function refreshTodayHotspots() {
+  return apiClient.post("/hotspots/today/refresh");
+}

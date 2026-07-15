@@ -125,7 +125,7 @@
 import { onMounted, ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { getAllTasks } from "@/api/tasks";
-import { getTodayHotspots } from "@/api/dailyHot";
+import { getTodayHotspots, refreshTodayHotspots } from "@/api/dailyHot";
 import TaskList from "@/components/TaskList.vue";
 import { message } from "@/utils/message";
 import { http } from "@/utils/http";
@@ -193,10 +193,9 @@ async function setDHInterval(v: number) {
 async function triggerDH() {
   dhRunning.value = true;
   try {
-    await getTodayHotspots(20); // 先试读缓存
-    const r = await http.request<any>('post', '/api/hotspots/today/refresh');
+    await refreshTodayHotspots();
     message('热点采集已触发', { type: 'success' });
-    setTimeout(() => { loadHotList(); }, 5000);
+    setTimeout(() => { loadHotList(); }, 8000);
   } catch { message('触发失败', { type: 'error' }); }
   finally { dhRunning.value = false; }
 }
