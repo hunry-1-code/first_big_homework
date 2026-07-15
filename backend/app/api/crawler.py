@@ -184,8 +184,6 @@ def available_platforms():
     searchable = [
         name for name in registry.platforms()
         if name not in unavailable and name not in aggregate_news and name not in rate_limited
-        name for name in registry.platforms()
-        if name not in unavailable and name not in rate_limited
         and not name.endswith("_hot")
         and not name.startswith("rss_")
     ]
