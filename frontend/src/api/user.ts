@@ -93,3 +93,28 @@ export const getMine = (data?: object) => {
 export const getMineLogs = (data?: object) => {
   return http.request<ResultTable>("get", "/api/user/profile/logs", { data });
 };
+
+/** 获取用户配置（关键词等） */
+export const getUserConfig = () => {
+  return http.request<any>("get", "/api/user/config");
+};
+
+/** 保存用户配置 */
+export const saveUserConfig = (data: any) => {
+  return http.request<any>("put", "/api/user/config", { data });
+};
+
+/** 获取搜索历史 */
+export const getSearchHistory = (page: number = 1, size: number = 20) => {
+  return http.request<any>("get", "/api/user/search-history", { params: { page, size } });
+};
+
+/** 删除搜索历史 */
+export const deleteSearchHistory = (id: number) => {
+  return http.request<any>("delete", `/api/user/search-history/${id}`);
+};
+
+/** 复用搜索历史 */
+export const repeatSearch = (id: number) => {
+  return http.request<any>("post", `/api/user/search-history/${id}/repeat`);
+};

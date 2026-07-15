@@ -101,20 +101,29 @@
         </el-card>
       </el-col>
 
-      <!-- 最近任务 -->
-      <el-col :xs="24" :md="8" class="mb-6">
+      <!-- 搜索历史 -->
+      <el-col :xs="24" class="mb-6">
         <el-card shadow="never" class="!border-slate-200/60 dark:!border-slate-800/60 rounded-xl">
-          <template #header><span class="font-bold text-slate-800 dark:text-slate-100">🕐 最近任务</span></template>
-          <div v-if="myTasks.length > 0" class="space-y-2">
-            <div v-for="t in myTasks.slice(0, 5)" :key="t.id" class="flex items-center justify-between text-xs">
-              <span class="text-slate-500 w-8">#{{ t.id }}</span>
-              <span class="text-blue-500 flex-1 truncate px-2">{{ t.payload?.keyword || t.summary || '-' }}</span>
-              <el-tag size="small" :type="t.status === 'success' ? 'success' : t.status === 'running' ? 'warning' : 'danger'">
-                {{ t.status === 'success' ? '完成' : t.status === 'running' ? '运行中' : '失败' }}
-              </el-tag>
+          <template #header>
+            <div class="flex justify-between items-center">
+              <span class="font-bold text-slate-800 dark:text-slate-100">🕐 搜索历史</span>
+              <el-button size="small" @click="loadSearchHistory">刷新</el-button>
             </div>
+          </template>
+          <div v-loading="historyLoading">
+            <div v-if="searchHistory.length > 0" class="space-y-2">
+              <div v-for="h in searchHistory" :key="h.id"
+                class="flex items-center justify-between gap-3 p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                <span class="text-sm text-blue-600 dark:text-blue-400 font-medium min-w-0 truncate cursor-pointer"
+                  @click="goAnalyze(h.keyword)">{{ h.keyword }}</span>
+                <span class="text-xs text-slate-400 shrink-0">{{ h.platforms?.join('、') || '全部平台' }} · {{ h.target_count }}篇</span>
+                <span class="text-[10px] text-slate-400 shrink-0">{{ formatHistoryTime(h.created_at) }}</span>
+                <el-button size="small" text type="primary" class="shrink-0" @click="repeatHistorySearch(h.id)">再次搜索</el-button>
+                <el-button size="small" text type="danger" class="shrink-0" @click="removeHistory(h.id)">×</el-button>
+              </div>
+            </div>
+            <div v-else class="text-xs text-slate-400 py-4 text-center">暂无搜索历史</div>
           </div>
-          <div v-else class="text-xs text-slate-400 py-4 text-center">暂无</div>
         </el-card>
       </el-col>
 
@@ -142,6 +151,7 @@ import { onMounted, ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useUserStore } from "@/store/modules/user";
 import { getMyTasks } from "@/api/tasks";
+import { getSearchHistory, deleteSearchHistory, repeatSearch, getUserConfig, saveUserConfig } from "@/api/user";
 import { http } from "@/utils/http";
 import TaskList from "@/components/TaskList.vue";
 import { message } from "@/utils/message";
@@ -158,12 +168,14 @@ const crawlerPlatforms = ref<string[]>([]);
 const tasksLoading = ref(false);
 const saving = ref(false);
 const monitoring = ref(false);
+const searchHistory = ref<any[]>([]);
+const historyLoading = ref(false);
 
 const isAdmin = computed(() => userStore.roles.includes("admin"));
 
 async function loadConfig() {
   try {
-    const r = await http.request<any>("get", "/api/user/config");
+    const r = await getUserConfig();
     myKeywords.value = r.data?.keywords || [];
   } catch {}
 }
@@ -192,7 +204,7 @@ function removeKeyword(w: string) {
 async function saveKeywords() {
   saving.value = true;
   try {
-    await http.request("put", "/api/user/config", { data: { keywords: myKeywords.value } });
+    await saveUserConfig({ keywords: myKeywords.value });
     message("已保存", { type: "success" });
   } catch { message("保存失败", { type: "error" }); }
   finally { saving.value = false; }
@@ -202,7 +214,40 @@ function goAnalyze(kw: string) {
   router.push({ path: "/analysis", query: { keyword: kw } });
 }
 
-onMounted(() => { loadConfig(); loadMyTasks(); });
+async function loadSearchHistory() {
+  historyLoading.value = true;
+  try {
+    const r = await getSearchHistory(1, 20);
+    searchHistory.value = r.data?.records || r.data?.items || [];
+  } catch { searchHistory.value = []; }
+  finally { historyLoading.value = false; }
+}
+
+async function removeHistory(id: number) {
+  try { await deleteSearchHistory(id); loadSearchHistory(); }
+  catch { message("删除失败", { type: "error" }); }
+}
+
+async function repeatHistorySearch(id: number) {
+  try {
+    const r = await repeatSearch(id);
+    const payload = r.data?.search_payload;
+    if (payload) {
+      router.push({ path: "/analysis", query: { keyword: payload.keyword } });
+    }
+  } catch { message("复用搜索失败", { type: "error" }); }
+}
+
+function formatHistoryTime(ts: string) {
+  if (!ts) return "";
+  const d = (Date.now() - new Date(ts).getTime()) / 1000;
+  if (d < 60) return "刚刚";
+  if (d < 3600) return Math.floor(d / 60) + "分钟前";
+  if (d < 86400) return Math.floor(d / 3600) + "小时前";
+  return Math.floor(d / 86400) + "天前";
+}
+
+onMounted(() => { loadConfig(); loadSearchHistory(); loadMyTasks(); });
 
 async function loadMyTasks() {
   tasksLoading.value = true;

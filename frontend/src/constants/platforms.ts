@@ -16,6 +16,9 @@ export const PLATFORMS: PlatformInfo[] = [
   { name: "小红书",   short: "红", color: "#ff4757", bg: "#ffeef0", api: "TikHub API", icon: "simple-icons:xiaohongshu" },
   { name: "抖音",     short: "抖", color: "#111111", bg: "#f1f5f9", api: "TikHub API", icon: "simple-icons:tiktok" },
   { name: "36氪",     short: "氪", color: "#3182ce", bg: "#ebf8ff", api: "RSS 订阅",  icon: "ri:rss-fill" },
+  { name: "人民网",   short: "人", color: "#c41e3a", bg: "#fef0f0", api: "新闻爬虫", icon: "ri:rss-fill" },
+  { name: "澎湃新闻", short: "澎", color: "#1e40af", bg: "#e8f0fe", api: "新闻爬虫", icon: "ri:rss-fill" },
+  { name: "主流新闻", short: "新", color: "#1e3a5f", bg: "#e8f0fe", api: "新闻爬虫", icon: "ri:rss-fill" },
   { name: "百度热搜", short: "百", color: "#3385ff", bg: "#e8f0fe", api: "千帆 API", icon: "ant-design:baidu-outlined" },
   { name: "百度搜索", short: "百", color: "#2e77e5", bg: "#e8f0fe", api: "千帆 API", icon: "ant-design:baidu-outlined" },
 ];
@@ -40,7 +43,13 @@ const EN_TO_CN: Record<string, string> = {
   rss_36kr: "36氪",
   rss_sspai: "少数派",
   rss_infoq: "InfoQ",
-  douyin: "抖音"
+  douyin: "抖音",
+  news_people: "人民网",
+  news_36kr: "36氪",
+  news_thepaper: "澎湃新闻",
+  news_infoq: "InfoQ",
+  news_sspai: "少数派",
+  mainstream_news: "主流新闻"
 };
 
 /** 将后端英文平台代码转为前端中文名 */

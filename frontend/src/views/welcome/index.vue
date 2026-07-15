@@ -178,7 +178,7 @@ function formatDate(iso: string) {
 async function loadDailyHot() {
   dailyHotLoading.value = true;
   try {
-    const res = await getTodayHotspots(10);
+    const res = await getTodayHotspots(20);
     dailyHot.value = res.data?.items || [];
     dailyHotCategoryCounts.value = res.data?.category_counts || {};
   } catch { dailyHot.value = []; }
