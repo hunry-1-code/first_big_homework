@@ -259,6 +259,7 @@ function initCharts() {
   initRadarChart();
   initBubbleChart();
   initPropagationChart();
+  console.log('[influence] 0. 准备调用 initInfluenceChart, eventData.articles?.articles?.length:', eventData.value?.articles?.articles?.length);
   initInfluenceChart();
 }
 
@@ -654,18 +655,25 @@ function initRadarChart() {
 // ==================== 6. 报道影响力排行榜 ====================
 function initInfluenceChart() {
   const el = influenceRef.value;
+  console.log('[influence] 1. ref element:', el ? `有 (${el.clientWidth}x${el.clientHeight})` : 'NULL');
   if (!el) return;
-  // 确保容器有尺寸（echarts 需要明确的宽高）
   if (el.clientHeight === 0) {
     el.style.height = "320px";
     el.style.width = el.clientWidth > 0 ? `${el.clientWidth}px` : "100%";
   }
   if (influenceChart) influenceChart.dispose();
-  influenceChart = echarts.init(el);
+  try {
+    influenceChart = echarts.init(el);
+    console.log('[influence] 2. echarts.init 成功');
+  } catch(e) {
+    console.error('[influence] 2. echarts.init 失败:', e);
+    return;
+  }
 
   const dark = isDark.value;
   const c = chartColors(dark);
   const data = buildInfluenceData();
+  console.log('[influence] 3. buildInfluenceData:', data.length, '条');
   if (data.length === 0) {
     influenceChart.setOption({
       title: { text: '暂无互动数据', left: 'center', top: 'center', textStyle: { color: c.textColor, fontSize: 13 } }
