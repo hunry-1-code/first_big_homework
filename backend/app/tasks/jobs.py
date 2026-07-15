@@ -381,7 +381,7 @@ def crawl_job(task_id: int, registry: CrawlerRegistry | None = None, is_retry: b
         zero_plats = [p for p in round_platforms if batch.platform_counts.get(p, 0) == 0]
         if zero_plats and round_idx == 0:
             import time as _time
-            _time.sleep(3)
+            _time.sleep(10)  # TikHub限流恢复需要更长时间
             # 重试只补差额，避免超采
             shortfall = max(3, target - processed)
             retry_target = min(round_target // 2, shortfall * len(zero_plats))
