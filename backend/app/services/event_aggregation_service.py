@@ -160,11 +160,41 @@ def _postprocess_published_event(event_id: int, publish_run_id: int, user_id: in
         report.platform_data = {"platform_count": platforms}
         db.session.commit()
         status["report"] = "success"
+
+        # 传播分析（后台执行，失败不影响主流程）
+        try:
+            _compute_and_cache_propagation(event, articles, platforms)
+        except Exception:
+            pass
     except Exception as exc:
         db.session.rollback()
         status["report"] = "failed"
         status["warnings"].append(f"REPORT_POSTPROCESS_FAILED:{type(exc).__name__}")
     return status
+
+
+def _compute_and_cache_propagation(event, articles, platforms):
+    """后台计算传播数据并缓存到 event.metadata_evidence，避免页面加载时实时调豆包。"""
+    from app.propagation import build_propagation_graph
+    from app.services.api_contract_service import api_platform_name
+    from app.services.event_service import _event_keywords
+
+    graph = build_propagation_graph(articles, platform_mapper=api_platform_name)
+    try:
+        from app.services.propagation_analysis_service import analyze_propagation
+        graph.update(
+            analyze_propagation(
+                event.title, articles, graph,
+                top_keywords=(_event_keywords(event).get("keywords") or [])[:5],
+            )
+        )
+    except Exception:
+        pass  # 豆包调用失败，保留基础传播图
+
+    meta = dict(event.metadata_evidence or {})
+    meta["propagation"] = graph
+    event.metadata_evidence = meta
+    db.session.commit()
 
 
 def _utcnow() -> datetime:

@@ -641,31 +641,28 @@ def get_event_detail(event_id: int) -> dict | None:
 
 
 def get_propagation_data(event_id: int) -> dict | None:
-    """获取事件传播路径数据，包含关键节点和图结构。
+    """获取事件传播路径数据（从缓存读取，不实时计算）。
 
-    规格依据：项目需求规格说明书 §6.2 事件溯源与关键传播路径
+    传播分析在事件发布时已完成并缓存到 event.metadata_evidence。
     """
     event = Event.query.get(event_id)
     if event is None:
         return None
+    cached = (event.metadata_evidence or {}).get("propagation")
+    if cached:
+        return cached
 
+    # 缓存未命中：返回基础传播图（不含豆包溯源，避免超时）
     articles = Article.query.filter_by(event_id=event.id)\
         .order_by(Article.publish_time.asc()).all()
-
     from app.propagation import build_propagation_graph
     from app.services.api_contract_service import api_platform_name
     graph = build_propagation_graph(articles, platform_mapper=api_platform_name)
-    from app.services.propagation_analysis_service import analyze_propagation
-
-    graph.update(
-        analyze_propagation(
-            event.title,
-            articles,
-            graph,
-            top_keywords=(_event_keywords(event).get("keywords") or [])[:5],
-        )
-    )
-    return graph
+    return {
+        "graph": graph,
+        "summary": {"coverage_notice": "传播溯源将在后台计算完成后更新"},
+        "status": "pending",
+    }
 
 
 def delete_event(event_id: int) -> None:
