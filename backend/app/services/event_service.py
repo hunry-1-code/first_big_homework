@@ -643,8 +643,9 @@ def get_event_detail(event_id: int) -> dict | None:
 def get_propagation_data(event_id: int) -> dict | None:
     """获取事件溯源与关键传播路径数据。
 
-    优先读缓存（发布时后台计算），缓存未命中则实时计算关键词聚焦图。
-    按设计规范返回：1 源头节点 + 5 关键词节点 + 最多 5 条有向边。
+    优先读缓存（后台线程已计算完整溯源），缓存未命中时：
+    1. 同步返回无豆包的基础关键词图（不超时）
+    2. 后台线程触发完整溯源分析并写入缓存
     """
     event = Event.query.get(event_id)
     if event is None:
@@ -653,16 +654,46 @@ def get_propagation_data(event_id: int) -> dict | None:
     if cached:
         return cached
 
-    # 缓存未命中：实时构建关键词聚焦传播图
     articles = Article.query.filter_by(event_id=event.id)\
         .order_by(Article.publish_time.asc()).all()
+    if not articles:
+        return None
+
     from app.services.propagation_analysis_service import analyze_propagation
     top_keywords = (_event_keywords(event).get("keywords") or [])[:5]
+
+    # 同步返回基础关键词图（不含豆包溯源，避免超时）
+    # 传一个立即失败的假客户端，触发 analyze_propagation 的优雅降级
+    from app.llm.doubao_client import DoubaoUnavailableError
+    class _NoopDoubao:
+        model_name = None
+        def web_search(self, query, limit=10):
+            raise DoubaoUnavailableError('跳过同步豆包调用，后台线程将补全')
     result = analyze_propagation(
         event.title, articles, {},
         top_keywords=top_keywords,
+        doubao_client=_NoopDoubao(),
     )
-    result["status"] = "pending" if result.get("origin_analysis", {}).get("status") != "success" else "completed"
+    result["status"] = "pending"
+    if not result.get("limitations"):
+        result["limitations"] = []
+    result["limitations"].append("豆包全网溯源将在后台计算完成后更新，请稍后刷新页面")
+
+    # 后台线程触发完整溯源
+    try:
+        import threading
+        def _bg_trace():
+            from app import create_app
+            bg_app = create_app()
+            with bg_app.app_context():
+                ev = db.session.get(Event, event_id)
+                if ev:
+                    from app.services.event_aggregation_service import _compute_and_cache_propagation
+                    _compute_and_cache_propagation(ev, articles, len({a.platform for a in articles if a.platform}))
+        threading.Thread(target=_bg_trace, daemon=True).start()
+    except Exception:
+        pass
+
     return result
 
 
