@@ -270,6 +270,9 @@ def collect_daily_hot(
         deduplicate_hot_topics(list(item_map.values()), dedup_candidates)
 
     # 重新排序：merged 项不参与排名，主条目重新编号
+    # 先清空所有 rank 避免 UNIQUE 冲突
+    DailyHotItem.query.filter_by(run_id=run.id).update({DailyHotItem.rank: None})
+    db.session.flush()
     canonical_items = (
         DailyHotItem.query.filter_by(run_id=run.id, merged_into_item_id=None)
         .order_by(DailyHotItem.fused_score.desc(), DailyHotItem.id)
@@ -277,8 +280,6 @@ def collect_daily_hot(
     )
     for new_rank, item in enumerate(canonical_items, start=1):
         item.rank = new_rank
-    db.session.commit()
-    # 更新 run.item_count 为去重后数量
     run.item_count = len(canonical_items)
     db.session.commit()
     return run
