@@ -76,27 +76,41 @@
 
     <el-row :gutter="24">
       <!-- 搜索历史 -->
-      <el-col :xs="24" class="mb-6">
+      <el-col :xs="24" :md="16" class="mb-6">
         <el-card shadow="never" class="!border-slate-200/60 dark:!border-slate-800/60 rounded-xl">
           <template #header>
             <div class="flex justify-between items-center">
-              <span class="font-bold text-slate-800 dark:text-slate-100">🕐 搜索历史</span>
-              <el-button size="small" @click="loadSearchHistory">刷新</el-button>
+              <div class="flex items-center gap-2">
+                <span class="font-bold text-slate-800 dark:text-slate-100">🕐 搜索历史</span>
+                <el-tag v-if="searchHistory.length" size="small" type="info" effect="plain" round>{{ searchHistory.length }} 条</el-tag>
+              </div>
+              <el-button size="small" @click="loadSearchHistory" :loading="historyLoading">刷新</el-button>
             </div>
           </template>
           <div v-loading="historyLoading">
-            <div v-if="searchHistory.length > 0" class="space-y-2">
+            <div v-if="searchHistory.length > 0" class="grid grid-cols-1 gap-2">
               <div v-for="h in searchHistory" :key="h.id"
-                class="flex items-center justify-between gap-3 p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                <span class="text-sm text-blue-600 dark:text-blue-400 font-medium min-w-0 truncate cursor-pointer"
-                  @click="goAnalyze(h.keyword)">{{ h.keyword }}</span>
-                <span class="text-xs text-slate-400 shrink-0">{{ h.platforms?.join('、') || '全部平台' }} · {{ h.target_count }}篇</span>
-                <span class="text-[10px] text-slate-400 shrink-0">{{ formatHistoryTime(h.created_at) }}</span>
-                <el-button size="small" text type="primary" class="shrink-0" @click="repeatHistorySearch(h.id)">再次搜索</el-button>
-                <el-button size="small" text type="danger" class="shrink-0" @click="removeHistory(h.id)">×</el-button>
+                class="group flex items-center gap-4 p-3 rounded-xl border border-transparent hover:border-blue-200 dark:hover:border-blue-800/40 hover:bg-blue-50/30 dark:hover:bg-blue-950/10 transition-all cursor-pointer"
+                @click="goAnalyze(h.keyword)">
+                <!-- 关键词 -->
+                <div class="flex-1 min-w-0">
+                  <div class="text-base font-semibold text-slate-800 dark:text-slate-200 truncate">{{ h.keyword }}</div>
+                  <div class="flex items-center gap-3 mt-1">
+                    <span class="text-xs text-slate-400">{{ formatHistoryTime(h.created_at) }}</span>
+                    <span class="text-xs text-slate-400">{{ h.target_count }} 篇</span>
+                    <span v-if="h.platforms?.length" class="text-xs text-slate-400">{{ h.platforms.length }} 个平台</span>
+                  </div>
+                </div>
+                <!-- 操作按钮 -->
+                <div class="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <el-button size="small" type="primary" @click.stop="repeatHistorySearch(h.id)">再次搜索</el-button>
+                  <el-button size="small" type="danger" text @click.stop="removeHistory(h.id)">删除</el-button>
+                </div>
               </div>
             </div>
-            <div v-else class="text-xs text-slate-400 py-4 text-center">暂无搜索历史</div>
+            <div v-else class="text-sm text-slate-400 py-8 text-center">
+              <span class="text-3xl block mb-2">🕐</span>暂无搜索历史
+            </div>
           </div>
         </el-card>
       </el-col>
