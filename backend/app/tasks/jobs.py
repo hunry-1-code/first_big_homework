@@ -377,31 +377,40 @@ def crawl_job(task_id: int, registry: CrawlerRegistry | None = None, is_retry: b
         record_stage(task_id, "crawl", "done",
                      f"{label} {n_docs}篇" if round_idx == 0 else f"{label} +{n_docs}篇")
 
-        # 零返回平台检测 + 简单重试（TikHub 并发限流等临时故障）
+        # 零返回平台逐平台重试（不同平台不同延迟策略）
         zero_plats = [p for p in round_platforms if batch.platform_counts.get(p, 0) == 0]
-        if zero_plats and round_idx == 0:
+        if zero_plats:
             import time as _time
-            _time.sleep(10)  # TikHub限流恢复需要更长时间
-            # 重试只补差额，避免超采
-            shortfall = max(3, target - processed)
-            retry_target = min(round_target // 2, shortfall * len(zero_plats))
-            retry_batch = service.collect(
-                keyword=payload.get("keyword"),
-                platforms=zero_plats,
-                target_count=retry_target,
-                mode=mode,
-            )
-            retry_docs = len(retry_batch.documents)
-            if retry_docs > 0:
-                batch.documents.extend(retry_batch.documents)
-                for p, c in (retry_batch.platform_counts or {}).items():
-                    batch.platform_counts[p] = c
-                    round1_counts[p] = c
-                total_collected += retry_docs
-                n_docs += retry_docs
-                record_stage(task_id, "crawl", "done", f"重试挽救 {retry_docs} 篇 ({','.join(zero_plats)})")
-            else:
-                record_stage(task_id, "crawl", "done", f"⚠ {','.join(zero_plats)} 无结果(API限流/超时)")
+            rescued = {}
+            still_zero = []
+            # TikHub 平台需更长恢复时间
+            tikhub_plats = {'douyin', 'xiaohongshu', 'weibo'}
+            for plat in zero_plats:
+                wait = 15 if plat in tikhub_plats else 5
+                _time.sleep(wait)
+                try:
+                    crawler = registry.get(plat)
+                    docs = crawler.crawl(CrawlRequest(
+                        platform=plat, keyword=payload.get("keyword"),
+                        limit=max(3, min(10, target - processed)), mode=mode,
+                    ))
+                    if docs:
+                        batch.documents.extend(docs)
+                        batch.platform_counts[plat] = len(docs)
+                        if round_idx == 0:
+                            round1_counts[plat] = len(docs)
+                        total_collected += len(docs)
+                        n_docs += len(docs)
+                        rescued[plat] = len(docs)
+                    else:
+                        still_zero.append(plat)
+                except Exception:
+                    still_zero.append(plat)
+            if rescued:
+                detail = ' '.join(f'{p}+{c}' for p, c in rescued.items())
+                record_stage(task_id, "crawl", "done", f"重试挽救 {sum(rescued.values())}篇 ({detail})")
+            if still_zero:
+                record_stage(task_id, "crawl", "done", f"⚠ {','.join(still_zero)} 无结果")
 
         update_task(task_id, progress=15 + round_idx * 15,
                     message=f"第{round_idx+1}轮预处理（清洗、去重、质量评估）...")
