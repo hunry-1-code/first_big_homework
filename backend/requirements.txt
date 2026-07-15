@@ -20,3 +20,4 @@ snownlp==0.12.3
 sentence-transformers==5.6.0
 hdbscan==0.8.44
 umap-learn==0.5.12
+playwright==1.55.0
