@@ -108,11 +108,10 @@ def run_search_analysis_pipeline(task_id: int, article_ids: list[int], keyword: 
     )
     from app.models import AggregationCluster
 
-    update_task(task_id, status="running", progress=50, message="开始在已有数据上重新分析...")
+    update_task(task_id, status="running", progress=50, message="开始在已有数据上重新分析")
 
-    update_task(task_id, progress=52, message="正在执行内容分析（TF-IDF + BGE）...")
-    record_stage(task_id, "content_analysis", "running", "TF-IDF关键词 + BGE向量提取中...")
-    # 使用原始任务 ID 作为 source_task_id，确保 crawl_task_id 隔离正确匹配
+    update_task(task_id, progress=52, message="正在执行内容分析...")
+    record_stage(task_id, "content_analysis", "running", "TF-IDF + BGE 向量提取中")
     analysis_run, analysis_reused = create_analysis_run(
         list(dict.fromkeys(article_ids)),
         user_id=user_id,
@@ -123,10 +122,10 @@ def run_search_analysis_pipeline(task_id: int, article_ids: list[int], keyword: 
     )
     if not analysis_reused or analysis_run.status != "success":
         run_content_analysis(analysis_run.id, task_id=task_id)
-    record_stage(task_id, "content_analysis", "done", f"{analysis_run.representative_count}篇代表")
+    record_stage(task_id, "content_analysis", "done", f"{analysis_run.representative_count} 篇代表")
 
     update_task(task_id, progress=66, message="正在执行事件聚合...")
-    record_stage(task_id, "aggregation", "running", "多维聚类（BGE+TF-IDF+实体+时间）中...")
+    record_stage(task_id, "aggregation", "running", "多维聚类中")
     aggregation_run, aggregation_reused = create_aggregation_run(
         analysis_run.id,
         user_id=user_id,
@@ -134,10 +133,10 @@ def run_search_analysis_pipeline(task_id: int, article_ids: list[int], keyword: 
     )
     if not aggregation_reused or aggregation_run.status != "success":
         run_event_aggregation(aggregation_run.id, task_id=task_id)
-    record_stage(task_id, "aggregation", "done", f"{aggregation_run.statistics.get('cluster_count','?')}个簇")
+    record_stage(task_id, "aggregation", "done", f"{aggregation_run.statistics.get('cluster_count','?')} 个簇")
 
-    update_task(task_id, progress=80, message="正在执行情感分析（LLM）...")
-    record_stage(task_id, "sentiment", "running", "DeepSeek LLM + SnowNLP 情感分析中...")
+    update_task(task_id, progress=78, message="正在执行情感分析...")
+    record_stage(task_id, "sentiment", "running", "LLM + SnowNLP 情感分析中")
     sentiment_run, sentiment_reused = create_sentiment_run(
         aggregation_run.id,
         source_task_id=task_id,
@@ -145,10 +144,10 @@ def run_search_analysis_pipeline(task_id: int, article_ids: list[int], keyword: 
     )
     if not sentiment_reused or sentiment_run.status != "success":
         run_sentiment_analysis(sentiment_run.id, task_id=task_id)
-    record_stage(task_id, "sentiment", "done", f"{sentiment_run.statistics.get('result_count','?')}篇")
+    record_stage(task_id, "sentiment", "done", f"{sentiment_run.statistics.get('result_count','?')} 篇")
 
-    update_task(task_id, progress=93, message="正在发布事件...")
-    record_stage(task_id, "publish", "running", "事件发布到舆情看板中...")
+    update_task(task_id, progress=86, message="正在发布事件并生成分析报告...")
+    record_stage(task_id, "publish", "running", "发布事件到看板")
     publish_count = 0
     auto_publish = current_app.config.get("AUTO_PUBLISH_EVENTS", False)
     if auto_publish:
@@ -160,7 +159,25 @@ def run_search_analysis_pipeline(task_id: int, article_ids: list[int], keyword: 
                 publish_count += 1
             except Exception:
                 pass
-    record_stage(task_id, "publish", "done", f"{publish_count}个事件")
+    record_stage(task_id, "publish", "done", f"{publish_count} 个事件")
+
+    # 传播分析：在事件发布后计算，确保页面加载时已就绪
+    if publish_count > 0:
+        update_task(task_id, progress=93, message="正在计算传播路径...")
+        record_stage(task_id, "propagation", "running", "传播路径分析 + 全网溯源")
+        try:
+            from app.services.event_aggregation_service import _compute_and_cache_propagation
+            from app.models.event import Event as Evt
+            from app.models.article import Article
+            for cluster in AggregationCluster.query.filter_by(aggregation_run_id=aggregation_run.id).all():
+                if cluster.resolved_event_id:
+                    ev = db.session.get(Evt, cluster.resolved_event_id)
+                    if ev:
+                        arts = Article.query.filter_by(event_id=ev.id).order_by(Article.publish_time.asc()).all()
+                        _compute_and_cache_propagation(ev, arts, len({a.platform for a in arts if a.platform}))
+        except Exception:
+            pass
+        record_stage(task_id, "propagation", "done", "传播路径已缓存")
 
     result = dict(
         analysis_run_id=analysis_run.id,
@@ -173,7 +190,7 @@ def run_search_analysis_pipeline(task_id: int, article_ids: list[int], keyword: 
             else None
         ),
     )
-    record_stage(task_id, "done", "done", f"事件{publish_count}个")
+    record_stage(task_id, "done", "done", f"事件 {publish_count} 个")
     from app.services.task_service import build_summary
     s = build_summary(task_id)
     if s:
@@ -191,7 +208,7 @@ def crawl_job(task_id: int, registry: CrawlerRegistry | None = None) -> dict:
     if task is None:
         raise KeyError(f"task not found: {task_id}")
     payload = task.get("payload") or {}
-    update_task(task_id, status="running", progress=5, message="正在准备采集平台。")
+    update_task(task_id, status="running", progress=5, message="正在准备采集平台")
     registry = registry or build_crawler_registry(current_app.config)
     platforms = payload.get("platforms") or None
     mode = payload.get("mode", "search")

@@ -146,48 +146,27 @@
       </template>
 
       <div class="overflow-x-auto pb-2">
-      <el-steps :active="pipelineStage" align-center finish-status="success" class="min-w-[700px]">
+      <el-steps :active="pipelineStage" align-center finish-status="success" class="min-w-[800px]">
         <el-step title="网络爬取" :description="stageDescription('crawl')">
-          <template #icon>
-            <span v-if="isStageDone('crawl')">✓</span>
-            <span v-else-if="isStageRunning('crawl')" class="animate-pulse">🔍</span>
-            <span v-else>🔍</span>
-          </template>
+          <template #icon><span v-if="isStageDone('crawl')" class="text-emerald-500 font-bold">&#10003;</span><span v-else-if="isStageRunning('crawl')" class="animate-pulse text-blue-500">1</span><span v-else class="text-slate-300">1</span></template>
         </el-step>
         <el-step title="文本预处理" :description="stageDescription('preprocess')">
-          <template #icon>
-            <span v-if="isStageDone('preprocess')">✓</span>
-            <span v-else-if="isStageRunning('preprocess')" class="animate-pulse">🔄</span>
-            <span v-else>🔄</span>
-          </template>
+          <template #icon><span v-if="isStageDone('preprocess')" class="text-emerald-500 font-bold">&#10003;</span><span v-else-if="isStageRunning('preprocess')" class="animate-pulse text-blue-500">2</span><span v-else class="text-slate-300">2</span></template>
         </el-step>
         <el-step title="内容分析" :description="stageDescription('content_analysis')">
-          <template #icon>
-            <span v-if="isStageDone('content_analysis')">✓</span>
-            <span v-else-if="isStageRunning('content_analysis')" class="animate-pulse">📊</span>
-            <span v-else>📊</span>
-          </template>
+          <template #icon><span v-if="isStageDone('content_analysis')" class="text-emerald-500 font-bold">&#10003;</span><span v-else-if="isStageRunning('content_analysis')" class="animate-pulse text-blue-500">3</span><span v-else class="text-slate-300">3</span></template>
         </el-step>
         <el-step title="事件聚合" :description="stageDescription('aggregation')">
-          <template #icon>
-            <span v-if="isStageDone('aggregation')">✓</span>
-            <span v-else-if="isStageRunning('aggregation')" class="animate-pulse">🧩</span>
-            <span v-else>🧩</span>
-          </template>
+          <template #icon><span v-if="isStageDone('aggregation')" class="text-emerald-500 font-bold">&#10003;</span><span v-else-if="isStageRunning('aggregation')" class="animate-pulse text-blue-500">4</span><span v-else class="text-slate-300">4</span></template>
         </el-step>
         <el-step title="情感分析" :description="stageDescription('sentiment')">
-          <template #icon>
-            <span v-if="isStageDone('sentiment')">✓</span>
-            <span v-else-if="isStageRunning('sentiment')" class="animate-pulse">💚</span>
-            <span v-else>💚</span>
-          </template>
+          <template #icon><span v-if="isStageDone('sentiment')" class="text-emerald-500 font-bold">&#10003;</span><span v-else-if="isStageRunning('sentiment')" class="animate-pulse text-blue-500">5</span><span v-else class="text-slate-300">5</span></template>
         </el-step>
         <el-step title="事件发布" :description="stageDescription('publish')">
-          <template #icon>
-            <span v-if="isStageDone('publish')">✓</span>
-            <span v-else-if="isStageRunning('publish')" class="animate-pulse">📤</span>
-            <span v-else>📤</span>
-          </template>
+          <template #icon><span v-if="isStageDone('publish')" class="text-emerald-500 font-bold">&#10003;</span><span v-else-if="isStageRunning('publish')" class="animate-pulse text-blue-500">6</span><span v-else class="text-slate-300">6</span></template>
+        </el-step>
+        <el-step title="传播分析" :description="stageDescription('propagation')">
+          <template #icon><span v-if="isStageDone('propagation')" class="text-emerald-500 font-bold">&#10003;</span><span v-else-if="isStageRunning('propagation')" class="animate-pulse text-blue-500">7</span><span v-else class="text-slate-300">7</span></template>
         </el-step>
       </el-steps>
       </div>
@@ -356,25 +335,26 @@ const retrying = ref(false);
 const retryingTaskId = ref<number | null>(null);
 
 // 6 阶段顺序
-const STAGE_ORDER = ["crawl", "preprocess", "content_analysis", "aggregation", "sentiment", "publish"];
+const STAGE_ORDER = ["crawl", "preprocess", "content_analysis", "aggregation", "sentiment", "publish", "propagation"];
 
 function stageLabel(stage: string): string {
   const labels: Record<string, string> = {
     crawl: "网络爬取", preprocess: "文本预处理", content_analysis: "内容分析",
     aggregation: "事件聚合", sentiment: "情感分析", publish: "事件发布",
-    done: "完成"
+    propagation: "传播分析", done: "完成"
   };
   return labels[stage] || stage;
 }
 
 function stageDescription(stage: string): string {
   const descs: Record<string, string> = {
-    crawl: "从各平台采集数据",
-    preprocess: "清洗去重+质量评估",
-    content_analysis: "TF-IDF + BGE向量",
+    crawl: "多平台数据采集",
+    preprocess: "清洗去重 + 质量评估",
+    content_analysis: "TF-IDF + BGE 向量",
     aggregation: "多维聚类生成事件",
     sentiment: "LLM + SnowNLP",
-    publish: "发布到舆情看板"
+    publish: "发布到看板",
+    propagation: "传播路径 + 溯源"
   };
   return descs[stage] || "";
 }
@@ -388,17 +368,15 @@ function isStageRunning(stage: string): boolean {
 }
 
 function inferPipelineStage(stages: any[], progress: number): number {
-  if (progress >= 100) return 5; // all done
+  if (progress >= 100) return STAGE_ORDER.length;
   if (!stages || stages.length === 0) return 0;
-  // 找到最后一个有状态的阶段索引
   const latestStage = stages[stages.length - 1]?.stage;
   const idx = STAGE_ORDER.indexOf(latestStage);
   if (idx >= 0) return idx;
-  // fallback
   const done = stages.filter((s: any) => s.status === 'done').map((s: any) => s.stage);
   if (done.length === 0) return 0;
   for (let i = STAGE_ORDER.length - 1; i >= 0; i--) {
-    if (done.includes(STAGE_ORDER[i])) return Math.min(i + 1, 5);
+    if (done.includes(STAGE_ORDER[i])) return Math.min(i + 1, STAGE_ORDER.length);
   }
   return 0;
 }
@@ -491,7 +469,7 @@ async function startAnalysis() {
       // 命中短期缓存（2h内），提示可强制刷新
       taskMessage.value = data.message || "近期已有相同分析结果";
       taskProgress.value = 100;
-      pipelineStage.value = 5;
+      pipelineStage.value = STAGE_ORDER.length;
       state.value = "completed";
       message("命中近期缓存。如需最新数据，请勾选「强制刷新」后重新提交", { type: "success", duration: 5000 });
       return;
@@ -501,7 +479,7 @@ async function startAnalysis() {
       // 过期缓存 + 后台刷新中
       taskMessage.value = data.message || "已有过期缓存，后台正在增量刷新";
       taskProgress.value = 100;
-      pipelineStage.value = 5;
+      pipelineStage.value = STAGE_ORDER.length;
       state.value = "completed";
       message("已返回近期结果，后台正在补充最新数据。如需完全重新采集请勾选「强制刷新」", { type: "info", duration: 5000 });
       if (taskId) {
