@@ -652,15 +652,25 @@ function initRadarChart() {
 // ==================== 5. 传播路径（已改为列表展示） ====================
 
 // ==================== 6. 报道影响力排行榜 ====================
-function initInfluenceChart() {
-  if (!influenceRef.value) return;
+async function initInfluenceChart() {
+  // DOM 可能尚未挂载（Element Plus 组件渲染延迟），等待一个 tick
+  if (!influenceRef.value) {
+    await nextTick();
+    if (!influenceRef.value) return;
+  }
   if (influenceChart) influenceChart.dispose();
   influenceChart = echarts.init(influenceRef.value);
 
   const dark = isDark.value;
   const c = chartColors(dark);
   const data = buildInfluenceData();
-  if (data.length === 0) return;
+  if (data.length === 0) {
+    // 无互动数据时显示提示
+    influenceChart.setOption({
+      title: { text: '暂无互动数据', left: 'center', top: 'center', textStyle: { color: c.textColor, fontSize: 13 } }
+    });
+    return;
+  }
 
   const top10 = data.slice(0, 10);
 
@@ -1394,7 +1404,9 @@ function getProgressColor(heat: number) {
             <template #header>
               <div class="font-bold text-slate-800 dark:text-slate-100">📊 报道传播影响力排行</div>
             </template>
-            <div ref="influenceRef" class="w-full h-[320px]" />
+            <div ref="influenceRef" class="w-full h-[320px]">
+              <div v-if="!eventData?.articles?.articles?.length" class="flex items-center justify-center h-full text-sm text-slate-400">暂无报道数据</div>
+            </div>
           </el-card>
         </el-col>
       </el-row>
