@@ -89,7 +89,7 @@
                 : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-tl-none border border-slate-200/40 dark:border-slate-700/30'
             ]"
           >
-            <div class="whitespace-pre-wrap">{{ msg.content }}</div>
+            <div class="qa-markdown" v-html="renderMarkdown(msg.content)"></div>
             <div v-if="msg.time" class="text-[10px] text-right mt-1.5 opacity-60">
               {{ msg.time }}
             </div>
@@ -153,6 +153,33 @@ import { askQuestion, getQaHistory } from "@/api/qa";
 import { message } from "@/utils/message";
 import { PLATFORMS } from "@/constants/platforms";
 import IconifyIconOffline from "@/components/ReIcon/src/iconifyIconOffline";
+
+function renderMarkdown(text: string): string {
+  if (!text) return '';
+  let html = text
+    // 代码块
+    .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre class=\"bg-slate-200 dark:bg-slate-900 rounded p-3 my-2 overflow-x-auto text-xs\"><code>$2</code></pre>')
+    // 行内代码
+    .replace(/`([^`]+)`/g, '<code class=\"bg-slate-200 dark:bg-slate-800 px-1 py-0.5 rounded text-xs\">$1</code>')
+    // 标题
+    .replace(/^### (.+)$/gm, '<h3 class=\"text-base font-bold mt-3 mb-1\">$1</h3>')
+    .replace(/^## (.+)$/gm, '<h2 class=\"text-lg font-bold mt-3 mb-1\">$1</h2>')
+    .replace(/^# (.+)$/gm, '<h1 class=\"text-xl font-bold mt-4 mb-2\">$1</h1>')
+    // 粗体/斜体
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    // 链接
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href=\"$2\" target=\"_blank\" class=\"text-blue-500 underline\">$1</a>')
+    // 无序列表
+    .replace(/^- (.+)$/gm, '<li class=\"ml-4 list-disc\">$1</li>')
+    // 有序列表
+    .replace(/^\d+\. (.+)$/gm, '<li class=\"ml-4 list-decimal\">$1</li>')
+    // 段落（连续换行）
+    .replace(/\n\n/g, '</p><p class=\"mb-2\">')
+    // 单换行
+    .replace(/\n/g, '<br/>');
+  return '<p class=\"mb-2\">' + html + '</p>';
+}
 
 defineOptions({
   name: "OpinionQa"
