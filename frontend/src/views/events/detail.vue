@@ -238,9 +238,10 @@ onMounted(async () => {
     await nextTick();
     initCharts();
     // 传播数据异步加载（模板驱动，无需 echarts）
-    getEventPropagation(Number(route.params.id)).then(async r => {
-      propagationData.value = r?.data || r;
-    }).catch(err => { console.warn('[prop] fetch failed:', err); });
+    getEventPropagation(Number(route.params.id)).then(r => {
+      const d = r?.data || r;
+      propagationData.value = d;
+    }).catch(err => { console.warn('[prop] 加载失败:', err); });
   } catch (err) {
     message("加载事件详情失败", { type: "error" });
   } finally {
@@ -680,8 +681,21 @@ function initInfluenceChart() {
 
   const top10 = data.slice(0, 10);
 
+  // 平台色映射
+  const platformColors: Record<string, [string,string]> = {
+    '抖音': ['#ff0050','#ff6b81'],
+    'B站': ['#fb7299','#fc9cb9'],
+    '微博': ['#ff8200','#ffb347'],
+    '微博搜索': ['#ff8200','#ffb347'],
+    '知乎': ['#0066ff','#4d94ff'],
+    '小红书': ['#ff2442','#ff6b81'],
+    '百度': ['#3388ff','#66aaff'],
+  };
+  const defaultColor: [string,string] = ['#6366f1','#818cf8'];
+  const rankMedals = ['🥇','🥈','🥉'];
+
   influenceChart.setOption({
-    grid: { top: 10, right: 40, bottom: 20, left: 130 },
+    grid: { top: 10, right: 60, bottom: 20, left: 180 },
     tooltip: {
       trigger: "axis",
       axisPointer: { type: "shadow" },
@@ -689,45 +703,62 @@ function initInfluenceChart() {
       borderColor: dark ? "#374151" : "#e5e7eb",
       textStyle: { color: dark ? "#e2e8f0" : "#1e293b" },
       formatter: (params: any) => {
-        const d = data[params[0]?.dataIndex];
+        const d = top10[params[0]?.dataIndex];
         if (!d) return "";
         return `<b>${d.fullName}</b><br/>
-          转发: ${d.reposts.toLocaleString()} &nbsp;|&nbsp; 评论: ${d.comments.toLocaleString()} &nbsp;|&nbsp; 点赞: ${d.likes.toLocaleString()}`;
+          转发 ${d.reposts.toLocaleString()} | 评论 ${d.comments.toLocaleString()} | 点赞 ${d.likes.toLocaleString()}`;
       }
     },
     xAxis: {
       type: "value",
       name: "影响力指数",
       nameTextStyle: { color: c.textColor, fontSize: 11 },
-      axisLabel: { color: c.textColor },
+      axisLabel: { color: c.textColor, fontSize: 10 },
       splitLine: { lineStyle: { color: c.splitLineColor } }
     },
     yAxis: {
       type: "category",
-      data: top10.map((d: any) => d.name).reverse(),
-      axisLabel: { color: c.textColor, fontSize: 11 },
+      inverse: true,
+      data: top10.map((d: any, i: number) => {
+        const medal = i < 3 ? rankMedals[i] + ' ' : '';
+        const plat = d.platform.length > 4 ? d.platform.slice(0,4) : d.platform;
+        return `{rank|#${i+1}} {plat|${plat}} {name|${d.name}}`;
+      }),
+      axisLabel: {
+        color: c.textColor,
+        fontSize: 11,
+        rich: {
+          rank: { fontWeight: 'bold', width: 24, align: 'right', padding: [0,4,0,0] },
+          plat: { color: '#94a3b8', fontSize: 9, width: 36, padding: [0,2,0,0] },
+          name: { width: 110 }
+        }
+      },
       axisLine: { lineStyle: { color: c.splitLineColor } }
     },
     series: [{
       name: "影响力",
       type: "bar",
-      barWidth: "50%",
-      data: [...top10].reverse().map((d: any) => ({
-        value: d.reposts * 1.0 + d.comments * 0.8 + d.likes * 0.3,
-        itemStyle: {
-          color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
-            { offset: 0, color: "#f97316" },
-            { offset: 1, color: "#fbbf24" }
-          ]),
-          borderRadius: [0, 4, 4, 0]
-        }
-      })),
+      barWidth: "60%",
+      data: top10.map((d: any) => {
+        const pc = platformColors[d.platform] || defaultColor;
+        return {
+          value: Math.round(d.reposts * 1.0 + d.comments * 0.8 + d.likes * 0.3),
+          itemStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+              { offset: 0, color: pc[0] },
+              { offset: 1, color: pc[1] }
+            ]),
+            borderRadius: [0, 4, 4, 0]
+          }
+        };
+      }),
       label: {
         show: true,
         position: "right",
         color: c.textColor,
         fontSize: 10,
-        formatter: (p: any) => `${Math.round(p.value).toLocaleString()}`
+        fontWeight: "bold",
+        formatter: (p: any) => `${p.value.toLocaleString()}`
       }
     }]
   });
