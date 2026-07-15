@@ -386,7 +386,14 @@ def crawl_job(task_id: int, registry: CrawlerRegistry | None = None, is_retry: b
                     message=f"第{round_idx+1}轮预处理（清洗、去重、质量评估）...")
         record_stage(task_id, "preprocess", "running", f"第{round_idx+1}轮文本清洗中...")
         round_processed = 0
+        total_docs = len(batch.documents)
+        base_progress = 15 + round_idx * 15
         for index, document in enumerate(batch.documents, start=1):
+            # 每 5 篇更新一次进度，避免进度条长时间卡住
+            if index % 5 == 0:
+                pct = base_progress + int((index / max(1, total_docs)) * 10)
+                update_task(task_id, progress=pct,
+                            message=f"第{round_idx+1}轮预处理 {index}/{total_docs}（已合格 {processed} 篇）")
             try:
                 # 补采去重：已存在的文章跳过（url_hash 或 platform+id 匹配）
                 if existing_ids:
