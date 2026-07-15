@@ -174,12 +174,25 @@ function getEdgeClass(idx: number): string {
     ? 'text-blue-500 font-bold'
     : 'text-slate-300';
 }
-function getEdgeTitle(idx: number): string {
+function getEdgeFullTitle(idx: number): string {
   const links = propagationData.value?.graph?.links || [];
   const link = links[idx];
   if (!link) return '';
   const type = link.evidence_type === 'doubao_web_search' ? '豆包联网' : '规则推断';
-  return type + ' · 置信度 ' + Math.round((link.confidence || 0) * 100) + '%';
+  const base = type + ' · 置信度 ' + Math.round((link.confidence || 0) * 100) + '%';
+  // 尝试从 LLM 解释中查找演化理由
+  const expls = propagationData.value?.llm_analysis?.keyword_explanations || [];
+  const expl = expls.find((e: any) => {
+    if (!e || !e.target) return false;
+    const terms = e.target.split('→').map((s: string) => s.trim());
+    return terms.length === 2;
+  });
+  return base + (expl ? '\\n' + expl.reason : '');
+}
+function getKeywordExplain(name: string): string {
+  const expls = propagationData.value?.llm_analysis?.keyword_explanations || [];
+  const expl = expls.find((e: any) => e?.type === 'keyword' && e?.target === name);
+  return expl?.reason || '';
 }
 function buildPropagationData() {
   const raw = propagationData.value;
@@ -1412,18 +1425,19 @@ function getProgressColor(heat: number) {
             <div class="text-xs text-slate-400 mb-2">关键词传播演化链</div>
             <div class="flex items-center gap-1 flex-wrap">
               <template v-for="(node, idx) in propagationData.graph.nodes" :key="node.id">
-                <div class="flex flex-col items-center">
-                  <span class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium"
+                <div class="flex flex-col items-center" :title="getKeywordExplain(node.name)">
+                  <span class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium cursor-help"
                     :class="idx === 0 ? 'ring-2 ring-blue-400 dark:ring-blue-600 bg-blue-100 dark:bg-blue-900/40' : ''"
                     :style="idx > 0 ? { backgroundColor: getNodeBg(idx, propagationData.graph.nodes.length), color: getNodeColor(idx) } : { color: '#1e40af' }">
                     <span v-if="idx === 0" class="text-xs">📰</span>
                     {{ node.name }}
                   </span>
+                  <span v-if="getKeywordExplain(node.name)" class="text-[10px] text-slate-400 mt-0.5 max-w-[120px] truncate">{{ getKeywordExplain(node.name) }}</span>
                 </div>
                 <span v-if="idx < propagationData.graph.nodes.length - 1"
                   class="text-lg px-0.5"
                   :class="getEdgeClass(idx)"
-                  :title="getEdgeTitle(idx)">&rarr;</span>
+                  :title="getEdgeFullTitle(idx)">&rarr;</span>
               </template>
             </div>
             <!-- 图例 -->

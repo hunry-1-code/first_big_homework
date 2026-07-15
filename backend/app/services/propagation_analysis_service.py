@@ -301,6 +301,17 @@ def analyze_propagation(
             origin_analysis["limitations"].append("豆包联网搜索调用失败")
 
     focused = _focused_graph(keywords, trace)
+
+    # 用 DeepSeek 解释每个关键词为何高频 + 关键词间演化关系
+    keyword_explanations = _explain_keyword_evolution(
+        event_title, keywords, keyword_relations, focused["links"], focused["nodes"]
+    )
+    if not keyword_explanations:
+        keyword_explanations = [
+            {"terms": [link.get("source"), link.get("target")], "reason": link["evidence"][0]}
+            for link in focused["links"]
+        ]
+
     link_types = Counter(link["evidence_type"] for link in focused["links"])
     trace_succeeded = origin_analysis["status"] == "success" and bool(
         origin_analysis.get("origin")
@@ -331,15 +342,83 @@ def analyze_propagation(
             "model": model,
             "summary": summary,
             "key_paths": focused["links"],
-            "keyword_explanations": [
-                {"terms": [link.get("source"), link.get("target")], "reason": link["evidence"][0]}
-                for link in focused["links"]
-            ],
+            "keyword_explanations": keyword_explanations,
             "scope": "internet_web_search",
             "error": error,
         },
     }
     return result
+
+
+def _explain_keyword_evolution(
+    event_title: str,
+    keywords: list[dict],
+    cooccurrence: list[dict],
+    links: list[dict],
+    nodes: list[dict],
+) -> list[dict]:
+    """用 DeepSeek 解释关键词高频原因和演化关系。
+
+    输入: 事件标题 + Top5关键词 + 共现数据 + 传播边
+    输出: 每个关键词的1句解释 + 每个边对的1句演化理由
+    """
+    if not keywords or not event_title:
+        return []
+
+    # 构造关键词摘要
+    kw_lines = []
+    for kw in keywords:
+        word = kw["word"]
+        # 找共现数据
+        related = [r for r in cooccurrence if word in (r.get("terms") or [])]
+        total_arts = sum(r["article_count"] for r in related[:3]) if related else 0
+        total_plats = len(set(p for r in related[:5] for p in r.get("platforms", []))) if related else 0
+        kw_lines.append(f"- {word}(权重{kw['weight']:.2f}): 共现{total_arts}篇文章/{total_plats}个平台")
+
+    # 构造边摘要
+    edge_lines = []
+    id_to_name = {n["id"]: n.get("name", "?") for n in nodes}
+    for link in links:
+        src = id_to_name.get(link["source"], link["source"])
+        tgt = id_to_name.get(link["target"], link["target"])
+        etype = "豆包联网证据" if link.get("evidence_type") == "doubao_web_search" else "词频规则"
+        edge_lines.append(f"- {src} → {tgt} ({etype}, 置信度{link.get('confidence',0):.0%})")
+
+    prompt = (
+        f"事件：{event_title}\n\n"
+        f"词云高频词：\n" + "\n".join(kw_lines) + "\n\n"
+        f"传播路径：\n" + "\n".join(edge_lines) + "\n\n"
+        "请用中文简要解释(每条15字以内)：\n"
+        "1. 每个关键词为何在此事件中高频出现\n"
+        "2. 每条传播路径两端关键词如何关联演化\n\n"
+        "返回JSON数组: [{\"type\":\"keyword|edge\",\"target\":\"词名或src→tgt\",\"reason\":\"一句话解释\"}]"
+    )
+
+    try:
+        from app.llm.client import LLMClient
+        from flask import current_app
+        client = LLMClient(
+            api_key=current_app.config.get("LLM_API_KEY", ""),
+            base_url=current_app.config.get("LLM_BASE_URL", ""),
+            model_name=current_app.config.get("LLM_MODEL_NAME", "deepseek-chat"),
+            timeout=15,
+        )
+        resp = client.chat([
+            {"role": "system", "content": "你是舆情分析师。只返回JSON数组，不要加解释文字。"},
+            {"role": "user", "content": prompt}
+        ], temperature=0.3, max_tokens=300)
+
+        import re as _re
+        text = resp["content"].strip()
+        fenced = _re.fullmatch(r"```(?:json)?\s*(.*?)\s*```", text, _re.DOTALL | _re.IGNORECASE)
+        if fenced:
+            text = fenced.group(1).strip()
+        data = json.loads(text)
+        if isinstance(data, list):
+            return data
+    except Exception:
+        pass
+    return []
 
 
 __all__ = ["analyze_propagation"]
