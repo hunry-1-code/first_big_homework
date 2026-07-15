@@ -108,9 +108,7 @@ def run_search_analysis_pipeline(task_id: int, article_ids: list[int], keyword: 
     )
     from app.models import AggregationCluster
 
-    update_task(task_id, status="running", progress=25, message="开始在已有数据上重新分析...")
-    record_stage(task_id, "crawl", "done", f"{len(article_ids)}篇(复用)")
-    record_stage(task_id, "preprocess", "done", f"{len(article_ids)}篇(复用)")
+    update_task(task_id, status="running", progress=50, message="开始在已有数据上重新分析...")
 
     update_task(task_id, progress=52, message="正在执行内容分析（TF-IDF + BGE）...")
     record_stage(task_id, "content_analysis", "running", "TF-IDF关键词 + BGE向量提取中...")
@@ -466,7 +464,6 @@ def crawl_job(task_id: int, registry: CrawlerRegistry | None = None) -> dict:
             summary["aggregation_run_id"] = aggregation_run.id
             summary["sentiment_run_id"] = sentiment_run.id
     elif mode == "search" and persisted_article_ids:
-        record_stage(task_id, "preprocess", "done", f"{processed}篇")
         effective_platforms = platforms or list(all_platform_counts.keys())
         analysis_result = run_search_analysis_pipeline(
             task_id,
