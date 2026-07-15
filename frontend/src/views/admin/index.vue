@@ -42,6 +42,50 @@
       </div>
     </el-card>
 
+    <!-- 今日热点榜单 -->
+    <el-card shadow="never" class="!border-slate-200/60 dark:!border-slate-800/60 rounded-xl">
+      <template #header>
+        <div class="flex justify-between items-center">
+          <div class="flex items-center gap-3">
+            <span class="font-bold text-slate-800 dark:text-slate-100">📰 今日热点榜单</span>
+            <span v-if="hotDate" class="text-xs text-slate-400">{{ hotDate }}</span>
+            <el-tag v-if="hotItems.length" size="small" type="info" effect="plain">{{ hotItems.length }} 条</el-tag>
+          </div>
+          <el-button size="small" @click="loadHotList" :loading="hotLoading">刷新</el-button>
+        </div>
+      </template>
+
+      <div v-loading="hotLoading">
+        <div v-if="hotItems.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-2">
+          <div v-for="item in hotItems" :key="item.id || item.normalized_key"
+            class="flex items-center justify-between gap-3 p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors border border-transparent hover:border-slate-200 dark:hover:border-slate-700/50">
+            <div class="flex items-center gap-3 min-w-0">
+              <span class="text-lg font-bold w-7 shrink-0"
+                :class="item.rank <= 3 ? (item.rank === 1 ? 'text-amber-500' : item.rank === 2 ? 'text-slate-400' : 'text-orange-600') : 'text-slate-300'">
+                {{ item.rank }}
+              </span>
+              <div class="min-w-0">
+                <div class="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">{{ item.title }}</div>
+                <div class="flex items-center gap-1.5 mt-0.5">
+                  <span v-for="src in Object.keys(item.source_ranks || {})" :key="src"
+                    class="text-[10px] px-1.5 py-px rounded-full"
+                    :class="src === 'weibo_hot' ? 'bg-red-50 text-red-600 dark:bg-red-950/30' : src === 'baidu_hot' ? 'bg-blue-50 text-blue-600 dark:bg-blue-950/30' : 'bg-slate-100 text-slate-500 dark:bg-slate-800'">
+                    {{ SOURCE_LABELS[src] || src }}
+                    <span class="opacity-60">#{{ item.source_ranks[src] }}</span>
+                  </span>
+                  <span class="text-[10px] text-slate-400">热度 {{ (item.fused_score * 100).toFixed(0) }}</span>
+                </div>
+              </div>
+            </div>
+            <el-button size="small" type="primary" plain class="shrink-0" @click="goAnalyzeHot(item.title)">分析</el-button>
+          </div>
+        </div>
+        <div v-else class="text-center py-8 text-slate-400 text-sm">
+          <span class="text-3xl block mb-2">🔥</span>暂无今日热点，点击「手动触发」开始采集
+        </div>
+      </div>
+    </el-card>
+
     <!-- 底部：全链路进程管理器 -->
     <el-card shadow="never" class="!border-slate-200/60 dark:!border-slate-800/60 rounded-xl">
       <template #header>
@@ -79,13 +123,16 @@
 
 <script setup lang="ts">
 import { onMounted, ref, computed } from "vue";
+import { useRouter } from "vue-router";
 import { getAllTasks } from "@/api/tasks";
+import { getTodayHotspots } from "@/api/dailyHot";
 import TaskList from "@/components/TaskList.vue";
 import { message } from "@/utils/message";
 import { http } from "@/utils/http";
 
 defineOptions({ name: "OpinionAdmin" });
 
+const router = useRouter();
 const allTasks = ref<any[]>([]);
 const tasksLoading = ref(false);
 const runningCount = computed(() => allTasks.value.filter(t => t.status === 'running').length);
@@ -153,7 +200,30 @@ async function triggerDH() {
   finally { dhRunning.value = false; }
 }
 
-onMounted(() => { loadData(); loadDHStatus(); });
+// 今日热点榜单
+const hotItems = ref<any[]>([]);
+const hotLoading = ref(false);
+const hotDate = ref("");
+
+const SOURCE_LABELS: Record<string, string> = {
+  weibo_hot: "微博", baidu_hot: "百度", zhihu_hot: "知乎",
+};
+
+async function loadHotList() {
+  hotLoading.value = true;
+  try {
+    const r = await getTodayHotspots(20);
+    hotItems.value = r.data?.items || [];
+    hotDate.value = r.data?.date || "";
+  } catch { hotItems.value = []; }
+  finally { hotLoading.value = false; }
+}
+
+function goAnalyzeHot(title: string) {
+  router.push({ path: "/analysis", query: { keyword: title } });
+}
+
+onMounted(() => { loadData(); loadDHStatus(); loadHotList(); });
 </script>
 
 <style scoped>
