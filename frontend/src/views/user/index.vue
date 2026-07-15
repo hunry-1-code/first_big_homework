@@ -18,65 +18,35 @@
       <el-button type="danger" plain @click="handleLogout">退出登录</el-button>
     </div>
 
-    <el-row :gutter="24">
-      <!-- 快捷分析关键词 -->
-      <el-col :xs="24" :lg="12" class="mb-6">
+    <!-- 统一双列网格 -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <!-- ===== 左列 ===== -->
+      <div class="space-y-6">
+        <!-- 快捷分析 -->
         <el-card shadow="never" class="!border-slate-200/60 dark:!border-slate-800/60 rounded-xl">
           <template #header>
-            <div class="font-bold text-slate-800 dark:text-slate-100">🎯 快捷分析</div>
+            <span class="font-bold text-slate-800 dark:text-slate-100">🎯 快捷分析</span>
           </template>
-          <p class="text-xs text-slate-400 mb-4">预设关键词，点击即可跳转分析页面自动填入，省去重复输入。</p>
-
+          <p class="text-sm text-slate-400 mb-4">预设关键词，点击即可跳转分析页面自动填入。</p>
           <div class="flex gap-2 mb-4">
             <el-input v-model="keywordInput" placeholder="输入关键词，回车添加" size="default"
               @keyup.enter="addKeyword" class="flex-1">
               <template #suffix><span class="text-xs text-slate-400">Enter</span></template>
             </el-input>
           </div>
-
           <div class="flex flex-wrap gap-2 mb-4">
-            <span
-              v-for="kw in myKeywords"
-              :key="kw"
+            <span v-for="kw in myKeywords" :key="kw"
               class="group inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-sm cursor-pointer bg-blue-50 text-blue-600 dark:bg-blue-950/30 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
-              @click="goAnalyze(kw)"
-            >
+              @click="goAnalyze(kw)">
               {{ kw }}
-              <span class="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 ml-0.5"
-                @click.stop="removeKeyword(kw)">×</span>
+              <span class="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 ml-0.5" @click.stop="removeKeyword(kw)">×</span>
             </span>
-            <span v-if="myKeywords.length === 0" class="text-xs text-slate-400">添加关键词后点击即可快速分析</span>
+            <span v-if="myKeywords.length === 0" class="text-sm text-slate-400">添加关键词后点击即可快速分析</span>
           </div>
-
-          <div class="flex gap-2">
-            <el-button size="small" type="primary" plain @click="saveKeywords" :loading="saving">保存关键词</el-button>
-          </div>
+          <el-button size="small" type="primary" plain @click="saveKeywords" :loading="saving">保存关键词</el-button>
         </el-card>
-      </el-col>
 
-      <!-- 我的分析任务 -->
-      <el-col :xs="24" :lg="12" class="mb-6">
-        <el-card shadow="never" class="!border-slate-200/60 dark:!border-slate-800/60 rounded-xl">
-          <template #header>
-            <div class="font-bold text-slate-800 dark:text-slate-100 flex justify-between items-center">
-              <span>📋 我的分析记录</span>
-              <el-button size="small" @click="loadMyTasks">刷新</el-button>
-            </div>
-          </template>
-
-          <div v-loading="tasksLoading">
-            <TaskList :tasks="myTasks" />
-            <div v-if="myTasks.length === 0" class="text-center py-8 text-slate-400 text-sm">
-              <span class="text-3xl block mb-2">📭</span>暂无分析记录，去 <router-link to="/analysis" class="text-blue-500">事件分析</router-link> 开始第一条吧
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
-
-    <el-row :gutter="24">
-      <!-- 搜索历史 -->
-      <el-col :xs="24" :md="16" class="mb-6">
+        <!-- 搜索历史 -->
         <el-card shadow="never" class="!border-slate-200/60 dark:!border-slate-800/60 rounded-xl">
           <template #header>
             <div class="flex justify-between items-center">
@@ -92,7 +62,6 @@
               <div v-for="h in searchHistory" :key="h.id"
                 class="group flex items-center gap-4 p-3 rounded-xl border border-transparent hover:border-blue-200 dark:hover:border-blue-800/40 hover:bg-blue-50/30 dark:hover:bg-blue-950/10 transition-all cursor-pointer"
                 @click="goAnalyze(h.keyword)">
-                <!-- 关键词 -->
                 <div class="flex-1 min-w-0">
                   <div class="text-base font-semibold text-slate-800 dark:text-slate-200 truncate">{{ h.keyword }}</div>
                   <div class="flex items-center gap-3 mt-1">
@@ -101,7 +70,6 @@
                     <span v-if="h.platforms?.length" class="text-xs text-slate-400">{{ h.platforms.length }} 个平台</span>
                   </div>
                 </div>
-                <!-- 操作按钮 -->
                 <div class="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                   <el-button size="small" type="primary" @click.stop="repeatHistorySearch(h.id)">再次搜索</el-button>
                   <el-button size="small" type="danger" text @click.stop="removeHistory(h.id)">删除</el-button>
@@ -113,24 +81,44 @@
             </div>
           </div>
         </el-card>
-      </el-col>
+      </div>
 
-      <!-- 数据源概览 -->
-      <el-col :xs="24" :md="8" class="mb-6">
+      <!-- ===== 右列 ===== -->
+      <div class="space-y-6">
+        <!-- 我的分析记录 -->
         <el-card shadow="never" class="!border-slate-200/60 dark:!border-slate-800/60 rounded-xl">
-          <template #header><span class="font-bold text-slate-800 dark:text-slate-100">📡 数据源概览</span></template>
-          <div class="text-sm text-slate-500 space-y-2">
-            <div><b class="text-slate-700">12</b> 个数据平台可用</div>
-            <div class="flex flex-wrap gap-1.5">
-              <span class="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 dark:bg-blue-950/30">社交平台 6</span>
-              <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30">新闻媒体 5</span>
-              <span class="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 dark:bg-amber-950/30">搜索引擎 1</span>
+          <template #header>
+            <div class="font-bold text-slate-800 dark:text-slate-100 flex justify-between items-center">
+              <span>📋 我的分析记录</span>
+              <el-button size="small" @click="loadMyTasks">刷新</el-button>
             </div>
-            <div class="text-xs text-slate-400">具体平台和采集能力见 <router-link to="/analysis" class="text-blue-500">事件分析页</router-link></div>
+          </template>
+          <div v-loading="tasksLoading">
+            <TaskList :tasks="myTasks" />
+            <div v-if="myTasks.length === 0" class="text-center py-8 text-slate-400 text-sm">
+              <span class="text-3xl block mb-2">📭</span>暂无分析记录
+            </div>
           </div>
         </el-card>
-      </el-col>
-    </el-row>
+
+        <!-- 数据源概览 -->
+        <el-card shadow="never" class="!border-slate-200/60 dark:!border-slate-800/60 rounded-xl">
+          <template #header><span class="font-bold text-slate-800 dark:text-slate-100">📡 数据源概览</span></template>
+          <div class="text-sm text-slate-500 space-y-3">
+            <div class="flex items-baseline gap-2">
+              <span class="text-2xl font-bold text-slate-700 dark:text-slate-200">12</span>
+              <span>个数据平台可用</span>
+            </div>
+            <div class="flex flex-wrap gap-1.5">
+              <span class="text-xs px-2 py-1 rounded-full bg-blue-50 text-blue-600 dark:bg-blue-950/30 font-medium">社交平台 6</span>
+              <span class="text-xs px-2 py-1 rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 font-medium">新闻媒体 5</span>
+              <span class="text-xs px-2 py-1 rounded-full bg-amber-50 text-amber-600 dark:bg-amber-950/30 font-medium">搜索引擎 1</span>
+            </div>
+            <div class="text-xs text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-800">具体平台和采集能力见 <router-link to="/analysis" class="text-blue-500">事件分析页</router-link></div>
+          </div>
+        </el-card>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -239,8 +227,6 @@ function handleLogout() {
   userStore.logOut();
   message("已退出", { type: "success" });
 }
-
-// 我的事件
 </script>
 
 <style scoped>
