@@ -373,11 +373,11 @@ def _rule_based_risk(event, articles) -> dict:
     avg_score = sum(scores) / len(scores) if scores else 0
 
     # 综合风险分：可疑率 60% + 平均分 40%
-    risk_score = round(s_ratio * 60 + avg_score * 40, 1)
+    risk_score = round(s_ratio * 60 + (avg_score / 100) * 40, 1)
 
-    if risk_score >= 50:
+    if risk_score >= 45:
         level = "高风险"
-    elif risk_score >= 25:
+    elif risk_score >= 20:
         level = "中风险"
     else:
         level = "低风险"
