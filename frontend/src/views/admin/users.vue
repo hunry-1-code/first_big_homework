@@ -331,7 +331,7 @@ function randomPwd(): string {
   return pwd;
 }
 
-function openBatchDialog() {
+async function openBatchDialog() {
   batchForm.prefix = "user";
   batchForm.count = 5;
   batchForm.startNo = 1;
