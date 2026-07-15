@@ -111,10 +111,17 @@ def analyze_lifecycle(
         confidence = 0.82
         next_hint = "潜伏期" if peak_ratio < 0.25 else "消退期"
     # 潜伏期：综合信号低且稳定
+    # 长尾修正：时间跨度 >30 天 且 总量 >10 篇 → 至少是成长期（不是潜伏）
     elif peak < 0.25 and abs(norm_slope) < 0.06:
-        stage = "潜伏期"
-        confidence = 0.72
-        next_hint = "成长期" if momentum > 0.03 else "潜伏期"
+        days_span = point_count  # 数据点即天数
+        if days_span > 30 and total_volume >= 10:
+            stage = "成长期"
+            confidence = 0.55
+            next_hint = "成长期"
+        else:
+            stage = "潜伏期"
+            confidence = 0.72
+            next_hint = "成长期" if momentum > 0.03 else "潜伏期"
     # 高潮期：稳定在高位
     elif recent_peak_ratio >= 0.80 and variation < 0.20 and abs(norm_slope) < 0.08:
         stage = "高潮期"
