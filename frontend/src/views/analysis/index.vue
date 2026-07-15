@@ -244,7 +244,15 @@
             <span class="text-emerald-500 font-bold text-lg">{{ taskResult?.processed || 0 }}</span> 篇
           </el-descriptions-item>
           <el-descriptions-item label="覆盖平台">
-            {{ Object.keys(taskResult?.platform_counts || {}).join('、') || '-' }}
+            <span v-if="taskResult?.platform_counts" class="flex flex-wrap gap-1">
+              <span v-for="(cnt, plat) in taskResult.platform_counts" :key="plat"
+                class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium"
+                :style="{ color: platformColor(plat), background: platformBg(plat) }">
+                <IconifyIconOffline :icon="getPlatformIcon(plat)" class="text-sm" />
+                {{ resolvePlatformName(plat) }} {{ cnt }}
+              </span>
+            </span>
+            <span v-else>-</span>
           </el-descriptions-item>
           <el-descriptions-item label="分析状态">
             <el-tag type="success" size="small">全链路完成</el-tag>
@@ -300,8 +308,12 @@ import { getMyTasks, getTask, retryAnalysis } from "@/api/tasks";
 import IconifyIconOffline from "@/components/ReIcon/src/iconifyIconOffline";
 import TaskList from "@/components/TaskList.vue";
 import { message } from "@/utils/message";
-import { SEARCH_PLATFORMS } from "@/constants/platforms";
+import { SEARCH_PLATFORMS, resolvePlatformName, platformColor, platformBg, getPlatform } from "@/constants/platforms";
 import { apiClient } from "@/api/client";
+
+function getPlatformIcon(plat: string): string {
+  return getPlatform(resolvePlatformName(plat))?.icon || "ri/question-line";
+}
 
 defineOptions({
   name: "EventAnalysis"
