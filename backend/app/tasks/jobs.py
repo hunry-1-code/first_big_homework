@@ -171,39 +171,37 @@ def run_search_analysis_pipeline(task_id: int, article_ids: list[int], keyword: 
     record_stage(task_id, "publish", "running", "发布事件到看板")
     publish_count = 0
     auto_publish = current_app.config.get("AUTO_PUBLISH_EVENTS", False)
+    published_event_ids = []
     if auto_publish:
         for cluster in AggregationCluster.query.filter_by(
             aggregation_run_id=aggregation_run.id
         ).order_by(AggregationCluster.member_count.desc()).all():
             try:
-                publish_cluster(cluster.id, user_id=user_id)
+                result = publish_cluster(cluster.id, user_id=user_id)
+                eid = result.get("event_id") if isinstance(result, dict) else None
+                if eid:
+                    published_event_ids.append(eid)
                 publish_count += 1
             except Exception:
                 pass
     record_stage(task_id, "publish", "done", f"{publish_count} 个事件")
 
-    # 传播分析：后台异步计算，不阻塞任务完成
-    if publish_count > 0:
-        record_stage(task_id, "propagation", "running", "传播路径将在后台计算")
+    # 发布后立即构建传播基础图并缓存（不含豆包，快速完成）
+    # 后台线程补全豆包全网溯源后更新缓存
+    if published_event_ids:
+        record_stage(task_id, "propagation", "running", "构建传播路径图 + 缓存")
         try:
-            import threading
-            def _bg_propagation():
-                try:
-                    from app.services.event_aggregation_service import _compute_and_cache_propagation
-                    from app.models.event import Event as Evt
-                    from app.models.article import Article as _A
-                    for cluster in AggregationCluster.query.filter_by(aggregation_run_id=aggregation_run.id).all():
-                        if cluster.resolved_event_id:
-                            ev = db.session.get(Evt, cluster.resolved_event_id)
-                            if ev:
-                                arts = _A.query.filter_by(event_id=ev.id).order_by(_A.publish_time.asc()).all()
-                                _compute_and_cache_propagation(ev, arts, len({a.platform for a in arts if a.platform}))
-                except Exception:
-                    pass
-            threading.Thread(target=_bg_propagation, daemon=True).start()
+            from app.services.event_aggregation_service import _compute_and_cache_propagation
+            from app.models.event import Event as Evt
+            from app.models.article import Article as _A
+            for eid in published_event_ids:
+                ev = db.session.get(Evt, eid)
+                if ev:
+                    arts = _A.query.filter_by(event_id=ev.id).order_by(_A.publish_time.asc()).all()
+                    _compute_and_cache_propagation(ev, arts, len({a.platform for a in arts if a.platform}))
         except Exception:
             pass
-        record_stage(task_id, "propagation", "done", "传播路径将在后台计算")
+        record_stage(task_id, "propagation", "done", "传播路径已缓存")
 
     result = dict(
         analysis_run_id=analysis_run.id,
