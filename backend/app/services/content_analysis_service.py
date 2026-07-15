@@ -249,6 +249,7 @@ def _llm_client():
 
 _LLM_SEMANTIC_PROMPT = (
     "判断以下文章标题是否与搜索关键词描述同一事件或同一主题。\n"
+    "注意：仅凭标题中出现个别同名词语不代表相关（如搜索「苹果AI」但文章讲的是「苹果手机壳」就无关）。\n"
     "搜索关键词：{keyword}\n"
     "文章标题：{title}\n"
     "仅回答「是」或「否」，不要解释。"
@@ -372,51 +373,32 @@ def create_analysis_run(
     # 同一 URL 被再次抓取时会复用 Article 行，其 crawl_task_id 仍可能是首次任务；
     # 因此不能再按该单值字段过滤，否则强制刷新会把本轮文章全部排除。
 
-    # 关键词相关性过滤：标题包含搜索关键词的才进入聚类（所有搜索模式都执行）
-    if mode == "search" and keyword:
+    # 关键词相关性过滤：用 LLM 语义判断替代 jieba 分词（全用大模型跑）
+    if mode == "search" and keyword and current_app.config.get("LLM_SEMANTIC_FILTER_ENABLED", True):
+        kw = keyword.strip()
+        # 所有文章送给 LLM 批量判断：是否与关键词相关（同时排除广告/无关内容）
+        all_candidates = [(aid, (articles_by_id.get(aid) or Article()).title or "") for aid in requested_ids]
+        llm_matched = _llm_batch_semantic_match(kw, all_candidates)
+        filtered_ids = list(llm_matched)
+        keyword_matched_ids = set(filtered_ids)
+        if len(all_candidates) - len(filtered_ids) > 0:
+            run.warnings = (run.warnings or []) + [
+                f"LLM 语义筛选：{len(all_candidates)}篇中采纳{len(filtered_ids)}篇，排除{len(all_candidates)-len(filtered_ids)}篇"
+            ]
+    elif mode == "search" and keyword:
+        # LLM 不可用时回退到 jieba 分词
         kw = keyword.strip()
         kw_parts = _search_keyword_terms(kw)
         filtered_ids = []
-        skipped_ids: list[tuple[int, str]] = []
-        passed_ids: list[tuple[int, str]] = []
         for article_id in requested_ids:
             article = articles_by_id.get(article_id)
             if article is None:
                 continue
-            title = (article.title or "")
-            if _title_matches_keyword(title, kw_parts):
+            if _title_matches_keyword((article.title or ""), kw_parts):
                 filtered_ids.append(article_id)
-                passed_ids.append((article_id, title))
-            else:
-                skipped_ids.append((article_id, title))
-        keyword_skipped = len(skipped_ids)
-
-        # LLM 语义筛选：对失败的文章尝试挽救，对通过的文章做精准度复核
-        llm_rescued = 0
-        llm_rejected = 0
-        if current_app.config.get("LLM_SEMANTIC_FILTER_ENABLED", True):
-            # 挽救失败的文章
-            if skipped_ids:
-                llm_matched = _llm_batch_semantic_match(kw, skipped_ids)
-                for article_id, _ in skipped_ids:
-                    if article_id in llm_matched:
-                        filtered_ids.append(article_id)
-                        llm_rescued += 1
-            # 复核通过的文章（排除误判：标题含关键词但实际主题不相关）
-            if passed_ids:
-                llm_verified = _llm_batch_semantic_match(kw, passed_ids)
-                for article_id, _ in passed_ids:
-                    if article_id not in llm_verified:
-                        filtered_ids.remove(article_id)
-                        llm_rejected += 1
-
-        if keyword_skipped or llm_rescued or llm_rejected:
-            parts = [f"关键词「{kw}」过滤 {keyword_skipped} 篇标题不相关文章"]
-            if llm_rescued:
-                parts.append(f"LLM 挽救 {llm_rescued} 篇")
-            if llm_rejected:
-                parts.append(f"LLM 复核排除 {llm_rejected} 篇(标题含关键词但实际主题不相关)")
-            run.warnings = (run.warnings or []) + ["；".join(parts)]
+        keyword_matched_ids = set(filtered_ids)
+    else:
+        keyword_matched_ids = None
         keyword_matched_ids = set(filtered_ids)
         requested_ids = [
             article_id
