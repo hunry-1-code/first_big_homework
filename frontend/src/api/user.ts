@@ -118,3 +118,8 @@ export const deleteSearchHistory = (id: number) => {
 export const repeatSearch = (id: number) => {
   return http.request<any>("post", `/api/user/search-history/${id}/repeat`);
 };
+
+/** 获取平台目录（含关注状态、搜索地址等） */
+export const getUserSources = () => {
+  return http.request<any>("get", "/api/user/sources");
+};
