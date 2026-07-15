@@ -316,18 +316,21 @@ def crawl_job(task_id: int, registry: CrawlerRegistry | None = None, is_retry: b
     # 主流新闻聚合源固定只取一轮，避免对五站重复请求同一批内容。
     max_rounds = 1 if platforms and set(platforms) == {"mainstream_news"} else 2
     round1_counts: dict[str, int] = {}  # 第1轮各平台产出量，用于第2轮动态配额
+    # RSS/新闻源内容少，降低配额避免浪费请求
+    _low_yield = {'news_thepaper', 'news_36kr', 'news_infoq', 'news_sspai'}
     for round_idx in range(max_rounds):
-        round_target = int(target * 1.3) if round_idx == 0 else int((target - processed) * 1.5)
+        round_target = int(target * 1.1) if round_idx == 0 else int((target - processed) * 1.5)
         if round_idx > 0 and round_target < 5:
             break
         round_target = max(1, round_target)
 
-        # 第1轮：全平台均匀探索
-        # 第2轮：按各平台第1轮产出占比分配配额，死平台不参与
         if round_idx == 0:
             round_platforms = list(platforms) if platforms else None
             use_dynamic_quotas = False
         else:
+            # 第2轮只在未达标时启动
+            if processed >= target:
+                break
             total_r1 = sum(round1_counts.values()) or 1
             round_platforms = []
             platform_quotas: dict[str, int] = {}
@@ -341,11 +344,8 @@ def crawl_job(task_id: int, registry: CrawlerRegistry | None = None, is_retry: b
         if not round_platforms:
             break
 
-        p_names = ','.join(f'{p}({platform_quotas.get(p,0)})' if use_dynamic_quotas else p for p in round_platforms[:5])
-        more = f' +{len(round_platforms)-5}' if len(round_platforms) > 5 else ''
-        quota_msg = f'配额: {p_names}{more}' if use_dynamic_quotas else '全平台均分'
         update_task(task_id, progress=5 + round_idx * 10,
-                    message=f'{prefix}第{round_idx+1}轮采集，目标 {round_target} 篇 ({quota_msg})')
+                    message=f'{prefix}第{round_idx+1}轮采集，目标 {round_target} 篇')
 
         # 逐平台串行采集（避免TikHub等多平台并发限流）
         import time as _time
@@ -353,8 +353,14 @@ def crawl_job(task_id: int, registry: CrawlerRegistry | None = None, is_retry: b
         if use_dynamic_quotas and platform_quotas:
             plat_targets = list(platform_quotas.items())
         else:
-            # 第1轮：均分目标到各平台
-            alloc = max(2, round_target // max(1, len(round_platforms)))
+            # 第1轮：社交平台配额=target/平台数×1.5, RSS源配额=2~3
+            plat_targets = []
+            for p in round_platforms:
+                if p in _low_yield:
+                    plat_targets.append((p, 3))
+                else:
+                    alloc = max(3, round_target * 3 // max(1, len(round_platforms)) // 2)
+                    plat_targets.append((p, min(alloc, round_target)))
             plat_targets = [(p, min(alloc, round_target)) for p in round_platforms]
         for plat, quota in plat_targets:
             try:
