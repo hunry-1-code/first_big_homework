@@ -43,39 +43,46 @@ def retry_analysis(task_id: int):
     payload = task.payload or {}
     keyword = payload.get("keyword")
     platforms = payload.get("platforms")
+    target = payload.get("target_count") or 50
 
-    # 创建新的分析子任务
-    retry_payload = {
-        "keyword": keyword,
-        "platforms": platforms,
-        "article_ids": article_ids,
-        "mode": "retry_analysis",
-        "original_task_id": task_id,
-    }
+    # 统计合格文章数
+    qualified_ids = [a.id for a in articles
+                     if float(a.nlp_weight or 0) >= 0.5
+                     and len((a.clean_content or a.raw_content or '').strip()) >= 50]
+
+    # 合格数不足 → 先补采再分析
+    need_supplement = len(qualified_ids) < target
+    supplement_msg = f"合格 {len(qualified_ids)}/{target}，先补采再分析" if need_supplement else f"合格 {len(qualified_ids)} 篇，直接分析"
+
     user_id = g.current_user["id"]
 
-    # 直接复用原任务，不创建新任务
-    from app.extensions import db
-    from app.models.task import Task
-    from app.services.task_service import update_task, record_stage
-
     # 重置原任务状态
-    update_task(task_id, status="running", progress=0, message="正在复用已采集数据，重新分析...")
-    # 清除旧阶段记录
+    update_task(task_id, status="running", progress=0, message=supplement_msg)
     t = db.session.get(Task, task_id)
     if t:
         t.stages = []
         db.session.commit()
 
     def retry_job(tid: int):
-        from app.tasks.jobs import run_search_analysis_pipeline
+        from app.tasks.jobs import crawl_job, run_search_analysis_pipeline
+        # 合格数不足 → 先补采
+        if need_supplement:
+            shortfall = target - len(qualified_ids)
+            update_task(tid, progress=5, message=f"合格不足，补充采集 {shortfall}+ 篇...")
+            crawl_job(tid)  # crawl_job 内部会自动按 target 补采
+        # 用更新后的 article_ids 跑分析
+        from app.models.article import Article as Art
+        final_articles = Art.query.filter_by(crawl_task_id=tid).all()
+        final_ids = [a.id for a in final_articles
+                     if float(a.nlp_weight or 0) >= 0.5
+                     and len((a.clean_content or a.raw_content or '').strip()) >= 50]
         return run_search_analysis_pipeline(
-            tid, article_ids, keyword=keyword, platforms=platforms, user_id=user_id, original_task_id=task_id
+            tid, final_ids, keyword=keyword, platforms=platforms, user_id=user_id, original_task_id=task_id
         )
 
     from app.tasks.runner import submit_background_job
     submit_background_job(current_app._get_current_object(), retry_job, task_id)
-    return ok({"task_id": task_id}, message=f"重新分析已启动，将复用已采集的 {len(article_ids)} 篇文章。")
+    return ok({"task_id": task_id}, message=f"重新分析已启动({supplement_msg})，共 {len(articles)} 篇原始数据。")
 
 
 @tasks_bp.delete("/<int:task_id>")
