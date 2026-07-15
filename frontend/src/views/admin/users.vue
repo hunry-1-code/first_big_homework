@@ -454,13 +454,14 @@ async function handleSubmit() {
       await updateUser(userForm.id, { nickname: userForm.nickname, role: userForm.role });
       message("修改成功", { type: "success" });
     } else {
+      const pwd = userForm.password || "123456";
       await createUser({
         username: userForm.username,
-        password: userForm.password || "123456",
+        password: pwd,
         nickname: userForm.nickname,
         role: userForm.role
       });
-      message("新增成功", { type: "success" });
+      message(`新增成功，初始密码: ${pwd}`, { type: "success", duration: 8000 });
     }
     dialogVisible.value = false;
     loadUsers();
