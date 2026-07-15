@@ -132,13 +132,14 @@
         <el-card shadow="never" class="!border-slate-200/60 dark:!border-slate-800/60 rounded-xl">
           <template #header><span class="font-bold text-slate-800 dark:text-slate-100">📡 可用爬虫</span></template>
           <div class="space-y-1.5">
-            <div v-for="p in crawlerPlatforms" :key="p"
+            <div v-for="p in crawlerPlatforms" :key="p.code"
               class="flex items-center justify-between text-xs">
-              <span class="text-slate-600 dark:text-slate-400">{{ p }}</span>
+              <span class="text-slate-600 dark:text-slate-400">{{ p.name }}</span>
               <span class="w-2 h-2 rounded-full"
-                :class="p === 'baidu' || p === 'douyin' ? 'bg-orange-400' : 'bg-emerald-400'"
-                :title="p === 'baidu' ? '限流' : p === 'douyin' ? '缺Key' : '正常'" />
+                :class="p.status === 'rate_limited' ? 'bg-orange-400' : 'bg-emerald-400'"
+                :title="p.status === 'rate_limited' ? '限流' : '正常'" />
             </div>
+            <div v-if="crawlerPlatforms.length === 0" class="text-xs text-slate-400 py-4 text-center">加载中...</div>
           </div>
         </el-card>
       </el-col>
@@ -150,6 +151,7 @@
 import { onMounted, ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useUserStore } from "@/store/modules/user";
+import { resolvePlatformName } from "@/constants/platforms";
 import { getMyTasks } from "@/api/tasks";
 import { getSearchHistory, deleteSearchHistory, repeatSearch, getUserConfig, saveUserConfig } from "@/api/user";
 import { http } from "@/utils/http";
@@ -164,7 +166,7 @@ const userStore = useUserStore();
 const keywordInput = ref("");
 const myKeywords = ref<string[]>([]);
 const myTasks = ref<any[]>([]);
-const crawlerPlatforms = ref<string[]>([]);
+const crawlerPlatforms = ref<Array<{code: string; name: string; status: string}>>([]);
 const tasksLoading = ref(false);
 const saving = ref(false);
 const monitoring = ref(false);
@@ -247,7 +249,7 @@ function formatHistoryTime(ts: string) {
   return Math.floor(d / 86400) + "天前";
 }
 
-onMounted(() => { loadConfig(); loadSearchHistory(); loadMyTasks(); });
+onMounted(() => { loadConfig(); loadSearchHistory(); loadMyTasks(); loadCrawlerPlatforms(); });
 
 async function loadMyTasks() {
   tasksLoading.value = true;
@@ -314,17 +316,19 @@ async function changePassword() {
   finally { changingPwd.value = false; }
 }
 
-onMounted(() => {
-  loadMyTasks();
-  http.request<any>("get", "/api/crawler/platforms").then(r => {
-    crawlerPlatforms.value = r.data?.platforms || [];
-  }).catch(() => {});
+async function loadCrawlerPlatforms() {
   try {
-    http.request<any>("get", "/api/user/config").then(r => {
-      myKeywords.value = r.data?.keywords || [];
-    }).catch(() => {});
-  } catch {}
-});
+    const r = await http.request<any>("get", "/api/crawler/platforms");
+    const codes: string[] = r.data?.platforms || [];
+    const rssCodes: string[] = r.data?.rss || [];
+    const rateLimited: string[] = r.data?.rate_limited || [];
+    crawlerPlatforms.value = [...codes, ...rssCodes].map(code => ({
+      code,
+      name: resolvePlatformName(code),
+      status: rateLimited.includes(code) ? "rate_limited" : "active",
+    }));
+  } catch { crawlerPlatforms.value = []; }
+}
 </script>
 
 <style scoped>
