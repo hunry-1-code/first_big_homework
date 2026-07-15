@@ -186,22 +186,49 @@ def run_search_analysis_pipeline(task_id: int, article_ids: list[int], keyword: 
                 pass
     record_stage(task_id, "publish", "done", f"{publish_count} 个事件")
 
-    # 发布后立即构建传播基础图并缓存（不含豆包，快速完成）
-    # 后台线程补全豆包全网溯源后更新缓存
+    # 发布后：同步缓存基础关键词图（<1s），后台线程补全豆包溯源
     if published_event_ids:
-        record_stage(task_id, "propagation", "running", "构建传播路径图 + 缓存")
+        record_stage(task_id, "propagation", "running", "构建传播路径图")
         try:
-            from app.services.event_aggregation_service import _compute_and_cache_propagation
             from app.models.event import Event as Evt
             from app.models.article import Article as _A
+            from app.services.event_service import _event_keywords
+            from app.services.propagation_analysis_service import analyze_propagation
+            from app.llm.doubao_client import DoubaoUnavailableError
+            # 同步：无豆包基础图，快速缓存
+            class _FastDoubao:
+                model_name = None
+                def web_search(self, query, limit=10):
+                    raise DoubaoUnavailableError('同步跳过，后台补全')
             for eid in published_event_ids:
                 ev = db.session.get(Evt, eid)
                 if ev:
                     arts = _A.query.filter_by(event_id=ev.id).order_by(_A.publish_time.asc()).all()
-                    _compute_and_cache_propagation(ev, arts, len({a.platform for a in arts if a.platform}))
+                    top_kw = (_event_keywords(ev).get("keywords") or [])[:5]
+                    fast = analyze_propagation(ev.title, arts, {}, top_keywords=top_kw, doubao_client=_FastDoubao())
+                    meta = dict(ev.metadata_evidence or {})
+                    meta["propagation"] = fast
+                    ev.metadata_evidence = meta
+            db.session.commit()
+            # 后台线程：补全豆包溯源
+            import threading
+            def _bg_propagation():
+                from app import create_app as _ca
+                bg_app = _ca()
+                with bg_app.app_context():
+                    for eid in published_event_ids:
+                        try:
+                            ev2 = db.session.get(Evt, eid)
+                            if ev2:
+                                a2 = _A.query.filter_by(event_id=ev2.id).order_by(_A.publish_time.asc()).all()
+                                from app.services.event_aggregation_service import _compute_and_cache_propagation
+                                _compute_and_cache_propagation(ev2, a2, len({a.platform for a in a2 if a.platform}))
+                        except Exception:
+                            pass
+            threading.Thread(target=_bg_propagation, daemon=True).start()
         except Exception:
             pass
-        record_stage(task_id, "propagation", "done", "传播路径已缓存")
+        record_stage(task_id, "propagation", "done", "传播路径已缓存（溯源后台补全）")
 
     result = dict(
         analysis_run_id=analysis_run.id,
