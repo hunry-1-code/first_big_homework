@@ -145,47 +145,52 @@ def _search_keyword_terms(keyword: str) -> list[str]:
     return [keyword]
 
 
-def _jieba_segments(text: str) -> list[str]:
-    """用 jieba 分词提取 ≥2 字的有意义片段。"""
-    try:
-        import jieba
-        return [w for w in jieba.lcut(text) if len(w.strip()) >= 2]
-    except Exception:
-        # fallback: 每2字机械切分
-        return [text[i:i+2] for i in range(0, len(text)-1, 2)]
-
-
 def _title_matches_keyword(title: str, terms: list[str]) -> bool:
     """标题是否包含搜索关键词。
 
-    策略：
-    1. 完整归一化子串匹配（处理「台风巴威」vs 台风巴威）
-    2. jieba 分词 + 松散匹配：≥60% 关键词单元命中
+    不拆词，不做分词。只做归一化子串匹配：
+    - 去标点空白后，关键词完整出现在标题中即命中
+    - 处理「台风巴威」→"台风巴威"、"功夫女足电影"→"功夫女足电影"
+    - 额外尝试去掉最后一个词（如"电影"是类别限定词），匹配核心实体
     """
     import re as _re
     folded = title.casefold()
-    title_norm = _re.sub(r'[\s　「」【】《》""''、。，；：！？…—]+', '', folded)
+    # 归一化：去掉所有标点、空白、书名号等
+    title_norm = _re.sub(r'[\s　「」【】《》""''、。，；：！？…—～～·]+', '', folded)
 
     for term in terms:
         folded_term = term.casefold()
-        # 英文：边界匹配
+        # 英文：单词边界匹配
         if folded_term.isascii() and folded_term.isalnum():
             if _re.search(rf'(?<![a-z0-9]){_re.escape(folded_term)}(?![a-z0-9])', folded):
                 return True
-        # 完整中文子串 或 归一化后子串
-        elif folded_term in folded:
-            return True
-        elif len(folded_term) >= 3:
-            term_norm = _re.sub(r'[\s　「」【】《》""''、。，；：！？…—]+', '', folded_term)
-            if term_norm and term_norm in title_norm:
-                return True
+            continue
 
-    # jieba 分词松散匹配：≥60% 关键词单元在标题中出现即算命中
-    kw_segments = _jieba_segments(terms[0]) if terms else []
-    if len(kw_segments) >= 2:
-        hits = sum(1 for s in kw_segments if s in folded)
-        if hits / len(kw_segments) >= 0.6:
+        # 归一化关键词
+        term_norm = _re.sub(r'[\s　「」【】《》""''、。，；：！？…—～～·]+', '', folded_term)
+        # 完整关键词在标题中
+        if term_norm and term_norm in title_norm:
             return True
+        # 原始文本中匹配
+        if folded_term in folded:
+            return True
+
+    # 额外尝试：去掉最后一个空格/词后的部分（类别限定词）
+    # "功夫女足电影" → 先试完整匹配 → 再试 "功夫女足"
+    if len(terms) == 1 and not any(ch.isspace() for ch in terms[0]):
+        kw = terms[0]
+        # 尝试用 jieba 分词后去掉最后一个词
+        try:
+            import jieba
+            segs = jieba.lcut(kw)
+            if len(segs) >= 2:
+                # 去掉最后一个词再试（"功夫女足电影" → "功夫女足"）
+                core = ''.join(segs[:-1])
+                core_norm = _re.sub(r'[\s　「」【】《》""''、。，；：！？…—～～·]+', '', core.casefold())
+                if core_norm and len(core_norm) >= 2 and core_norm in title_norm:
+                    return True
+        except Exception:
+            pass
 
     return False
 
