@@ -108,9 +108,9 @@ def run_search_analysis_pipeline(task_id: int, article_ids: list[int], keyword: 
     )
     from app.models import AggregationCluster
 
-    update_task(task_id, status="running", progress=50, message="开始在已有数据上重新分析")
+    update_task(task_id, status="running", progress=35, message="开始在已有数据上重新分析")
 
-    update_task(task_id, progress=52, message="正在执行内容分析...")
+    update_task(task_id, progress=38, message="正在执行内容分析...")
     record_stage(task_id, "content_analysis", "running", "TF-IDF + BGE 向量提取中")
     analysis_run, analysis_reused = create_analysis_run(
         list(dict.fromkeys(article_ids)),
@@ -124,7 +124,7 @@ def run_search_analysis_pipeline(task_id: int, article_ids: list[int], keyword: 
         run_content_analysis(analysis_run.id, task_id=task_id)
     record_stage(task_id, "content_analysis", "done", f"{analysis_run.representative_count} 篇代表")
 
-    update_task(task_id, progress=66, message="正在执行事件聚合...")
+    update_task(task_id, progress=58, message="正在执行事件聚合...")
     record_stage(task_id, "aggregation", "running", "多维聚类中")
     aggregation_run, aggregation_reused = create_aggregation_run(
         analysis_run.id,
@@ -135,7 +135,7 @@ def run_search_analysis_pipeline(task_id: int, article_ids: list[int], keyword: 
         run_event_aggregation(aggregation_run.id, task_id=task_id)
     record_stage(task_id, "aggregation", "done", f"{aggregation_run.statistics.get('cluster_count','?')} 个簇")
 
-    update_task(task_id, progress=78, message="正在执行情感分析...")
+    update_task(task_id, progress=70, message="正在执行情感分析...")
     record_stage(task_id, "sentiment", "running", "LLM + SnowNLP 情感分析中")
     sentiment_run, sentiment_reused = create_sentiment_run(
         aggregation_run.id,
@@ -147,7 +147,7 @@ def run_search_analysis_pipeline(task_id: int, article_ids: list[int], keyword: 
     record_stage(task_id, "sentiment", "done", f"{sentiment_run.statistics.get('result_count','?')} 篇")
 
     # 虚假/可疑信息风险评估
-    update_task(task_id, progress=80, message="正在评估信息可信度...")
+    update_task(task_id, progress=82, message="正在评估信息可信度...")
     record_stage(task_id, "risk", "running", "风险评估中")
     try:
         from app.analysis.fake_detector import batch_assess_articles, _build_context
@@ -167,7 +167,7 @@ def run_search_analysis_pipeline(task_id: int, article_ids: list[int], keyword: 
     except Exception as e:
         record_stage(task_id, "risk", "done", f"跳过 ({e})")
 
-    update_task(task_id, progress=86, message="正在发布事件并生成分析报告...")
+    update_task(task_id, progress=88, message="正在发布事件并生成分析报告...")
     record_stage(task_id, "publish", "running", "发布事件到看板")
     publish_count = 0
     auto_publish = current_app.config.get("AUTO_PUBLISH_EVENTS", False)
