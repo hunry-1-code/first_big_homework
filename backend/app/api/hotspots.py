@@ -142,15 +142,17 @@ def refresh_today_hotspots():
             )
         ),
         source_limit=current_app.config.get("DAILY_HOT_SOURCE_LIMIT", 30),
-        result_limit=current_app.config.get("DAILY_HOT_RESULT_LIMIT", 10),
-        rrf_k=current_app.config.get("DAILY_HOT_RRF_K", 60),
+        result_limit=current_app.config.get("DAILY_HOT_RESULT_LIMIT", 20),
+        rrf_k=current_app.config.get("DAILY_HOT_RRF_K", 10),
+        candidate_limit=current_app.config.get("DAILY_HOT_CANDIDATE_LIMIT", 50),
+        consensus_bonus=current_app.config.get("DAILY_HOT_CONSENSUS_BONUS", 0.10),
         ttl_seconds=current_app.config.get("DAILY_HOT_TTL_SECONDS", 900),
         force=True,
     )
     return ok(
         serialize_daily_hot_run(
             run,
-            limit=current_app.config.get("DAILY_HOT_RESULT_LIMIT", 10),
+            limit=current_app.config.get("DAILY_HOT_RESULT_LIMIT", 20),
             ttl_seconds=current_app.config.get("DAILY_HOT_TTL_SECONDS", 900),
         ),
         message="今日热点已刷新。",

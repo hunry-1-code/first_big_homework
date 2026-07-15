@@ -56,6 +56,8 @@ def _config_hash(
     source_limit: int,
     result_limit: int,
     rrf_k: int,
+    candidate_limit: int = 50,
+    consensus_bonus: float = 0.10,
 ) -> str:
     payload = json.dumps(
         {
@@ -63,6 +65,9 @@ def _config_hash(
             "source_limit": int(source_limit),
             "result_limit": int(result_limit),
             "rrf_k": int(rrf_k),
+            "candidate_limit": int(candidate_limit),
+            "consensus_bonus": float(consensus_bonus),
+            "algorithm": "weighted-rrf-v2",
         },
         sort_keys=True,
         separators=(",", ":"),
@@ -80,12 +85,17 @@ def _source_error(code: str, *, retryable: bool = False) -> dict:
 
 def _rank(document, fallback: int) -> int:
     raw = document.raw_json or {}
-    value = raw.get("rank") or raw.get("realpos") or fallback
-    try:
-        parsed = int(value)
-    except (TypeError, ValueError):
-        return fallback
-    return parsed if parsed > 0 else fallback
+    # 按优先级尝试各平台原生排名字段，排除非正数
+    for field in ("rank", "realpos", "index", "pos"):
+        value = raw.get(field)
+        if value is not None:
+            try:
+                parsed = int(value)
+            except (TypeError, ValueError):
+                continue
+            if parsed > 0:
+                return parsed
+    return fallback
 
 
 def collect_daily_hot(
@@ -93,9 +103,11 @@ def collect_daily_hot(
     registry: CrawlerRegistry | None = None,
     sources: list[str] | None = None,
     source_limit: int = 30,
-    result_limit: int = 10,
-    rrf_k: int = 60,
+    result_limit: int = 20,
+    rrf_k: int = 10,
     ttl_seconds: int = 900,
+    candidate_limit: int = 50,
+    consensus_bonus: float = 0.10,
     now: datetime | None = None,
     force: bool = False,
     progress_callback=None,
@@ -112,11 +124,14 @@ def collect_daily_hot(
     result_limit = max(1, min(int(result_limit), 100))
     rrf_k = max(1, int(rrf_k))
     ttl_seconds = max(0, int(ttl_seconds))
+    candidate_limit = max(10, min(int(candidate_limit), 100))
     config_hash = _config_hash(
         selected_sources,
         source_limit=source_limit,
         result_limit=result_limit,
         rrf_k=rrf_k,
+        candidate_limit=candidate_limit,
+        consensus_bonus=consensus_bonus,
     )
     latest = (
         DailyHotRun.query.filter_by(
@@ -192,10 +207,12 @@ def collect_daily_hot(
 
     if progress_callback is not None:
         progress_callback("fusion", len(ranked_items), len(selected_sources), None)
-    fused = fuse_hot_rankings(
+    # 先全量融合（不截断），LLM去重后再截Top N
+    fused_all = fuse_hot_rankings(
         ranked_items,
         rrf_k=rrf_k,
-        limit=result_limit,
+        limit=None,
+        consensus_bonus=consensus_bonus,
     )
     previous_attempt = (
         db.session.query(func.max(DailyHotRun.attempt))
@@ -212,7 +229,7 @@ def collect_daily_hot(
         else ("partial" if failed_sources else "success")
     )
     if progress_callback is not None:
-        progress_callback("persistence", len(fused), result_limit, None)
+        progress_callback("persistence", len(fused_all), result_limit, None)
     run = DailyHotRun(
         run_date=now.date(),
         status=status,
@@ -220,30 +237,49 @@ def collect_daily_hot(
         available_sources=sorted(available_sources),
         failed_sources=sorted(failed_sources),
         errors=errors,
-        item_count=len(fused),
+        item_count=len(fused_all),
         config_hash=config_hash,
         completed_at=now,
     )
     db.session.add(run)
     db.session.flush()
-    for rank, item in enumerate(fused, start=1):
+    item_map: dict[str, DailyHotItem] = {}
+    for rank, item in enumerate(fused_all, start=1):
         from app.services.event_topic_service import classify_topic_text
         classification = classify_topic_text(item.normalized_title)
-        db.session.add(
-            DailyHotItem(
-                run_id=run.id,
-                normalized_key=item.normalized_key,
-                title=item.normalized_title,
-                fused_score=item.fused_score,
-                rank=rank,
-                source_ranks=item.source_ranks,
-                source_payloads=_sanitize_payload(item.source_payloads),
-                first_seen_at=now,
-                last_seen_at=now,
-                enrichment_status="pending",
-                topic_keywords=classification["evidence"],
-            )
+        db_item = DailyHotItem(
+            run_id=run.id,
+            normalized_key=item.normalized_key,
+            title=item.normalized_title,
+            fused_score=item.fused_score,
+            rank=rank,
+            source_ranks=item.source_ranks,
+            source_payloads=_sanitize_payload(item.source_payloads),
+            first_seen_at=now,
+            last_seen_at=now,
+            enrichment_status="pending",
+            topic_keywords=classification["evidence"],
         )
+        db.session.add(db_item)
+        item_map[item.normalized_title] = db_item
+    db.session.flush()
+
+    # LLM 语义去重：取前 candidate_limit 条，用 ID 匹配
+    dedup_candidates = fused_all[:candidate_limit]
+    if len(dedup_candidates) > 1:
+        deduplicate_hot_topics(list(item_map.values()), dedup_candidates)
+
+    # 重新排序：merged 项不参与排名，主条目重新编号
+    canonical_items = (
+        DailyHotItem.query.filter_by(run_id=run.id, merged_into_item_id=None)
+        .order_by(DailyHotItem.fused_score.desc(), DailyHotItem.id)
+        .all()
+    )
+    for new_rank, item in enumerate(canonical_items, start=1):
+        item.rank = new_rank
+    db.session.commit()
+    # 更新 run.item_count 为去重后数量
+    run.item_count = len(canonical_items)
     db.session.commit()
     return run
 
@@ -270,7 +306,7 @@ def serialize_daily_hot_run(
             "total": 0,
         }
     items = (
-        DailyHotItem.query.filter_by(run_id=run.id)
+        DailyHotItem.query.filter_by(run_id=run.id, merged_into_item_id=None)
         .order_by(DailyHotItem.rank, DailyHotItem.id)
         .limit(max(1, min(int(limit), 100)))
         .all()
@@ -406,12 +442,32 @@ def create_daily_hot_item_enrichment_task(item_id: int, *, created_by: int) -> d
     return task
 
 
-def deduplicate_hot_topics(items: list[DailyHotItem]) -> list[DailyHotItem]:
-    """LLM 主题聚合：语义去重，合并描述同一事件的标题。返回主条目列表。"""
-    if len(items) <= 1:
-        return items
+def deduplicate_hot_topics(
+    all_items: list[DailyHotItem],
+    candidates: list[FusedHotItem],
+) -> None:
+    """LLM 语义去重（ID 匹配），直接修改 DailyHotItem.merged_into_item_id。
 
-    titles = [item.title for item in items]
+    给 LLM 传入带稳定 ID 的候选标题列表，要求返回分组。
+    匹配用 ID 而非标题字符串，避免标点偏差导致合并失败。
+    """
+    if len(candidates) <= 1:
+        return
+
+    # 构建 ID→item 映射（用 rank 作为稳定 ID）
+    id_map: dict[str, DailyHotItem] = {}
+    id_list: list[dict] = []
+    for c in candidates:
+        item = next((i for i in all_items if i.normalized_key == c.normalized_key), None)
+        if item is None:
+            continue
+        sid = str(item.rank)
+        id_map[sid] = item
+        id_list.append({"id": sid, "title": c.normalized_title})
+
+    if len(id_list) < 2:
+        return
+
     try:
         from flask import current_app
         from app.llm.client import LLMClient
@@ -421,69 +477,59 @@ def deduplicate_hot_topics(items: list[DailyHotItem]) -> list[DailyHotItem]:
             model_name=current_app.config.get("LLM_MODEL_NAME", ""),
             timeout=20,
         )
-        joined = "\n".join(f"{i+1}. {t}" for i, t in enumerate(titles))
+        joined = "\n".join(f'{d["id"]}. {d["title"]}' for d in id_list)
         resp = client.chat([
             {"role": "system", "content": (
-                "你是热榜去重助手。以下热榜标题可能描述同一事件，将其分组去重。"
-                "每组用 canonical_name 命名，提取 3-5 个关键词。"
-                "只输出 JSON 数组，不要 markdown 包裹：\n"
-                '[{"canonical_name":"规范名","keywords":["词"],"merged_titles":["原标题"]}]\n'
-                "merged_titles 里放精确匹配的原标题。只输出有 >=2 个标题的组（单个不输出）。"
-                "标题含引号时内部用单引号。"
+                "你是热榜去重助手。输入是带ID的标题列表。将描述同一事件的标题分组。"
+                "返回 JSON 数组（每组 >=2 个标题才输出）：\n"
+                '[{"canonical_id":"主ID","member_ids":["ID1","ID2"],'
+                '"keywords":["词1","词2"]}]\n'
+                "ID 必须来自输入的 ID，不能自己编造。不输出单条标题的组。"
             )},
             {"role": "user", "content": f"热榜标题：\n{joined}\n\n分组去重（只输出 JSON）："}
-        ], temperature=0.2, max_tokens=400)
+        ], temperature=0.2, max_tokens=300)
         text = resp["content"].strip()
         fenced = re.fullmatch(r"```(?:json)?\s*(.*?)\s*```", text, re.DOTALL | re.IGNORECASE)
-        if fenced: text = fenced.group(1)
-        # 容错：尝试修复常见 JSON 错误
+        if fenced:
+            text = fenced.group(1)
         text = text.replace('\n', ' ').replace('\r', '')
         try:
             groups = json.loads(text)
         except json.JSONDecodeError:
-            # 尝试截取到最后一个合法 ]
             idx = text.rfind(']')
             if idx > 0:
-                groups = json.loads(text[:idx+1])
+                groups = json.loads(text[:idx + 1])
             else:
                 raise
 
-        if not isinstance(groups, list) or not groups:
-            return items
+        if not isinstance(groups, list):
+            return
 
-        # 用标题精确匹配做去重（避免 index 映射 bug）
-        title_to_item = {item.title: item for item in items}
-        canonical = []
+        seen_ids: set[str] = set()
         for g in groups:
-            if not isinstance(g, dict): continue
-            merged_titles = g.get("merged_titles", [])
-            if not merged_titles: continue
-            # 第一个标题 = 主条目
-            canonical_item = title_to_item.get(merged_titles[0])
-            if canonical_item is None: continue
+            if not isinstance(g, dict):
+                continue
+            member_ids = g.get("member_ids", [])
+            if not isinstance(member_ids, list) or len(member_ids) < 2:
+                continue
+            canonical_id = str(g.get("canical_id") or member_ids[0])
+            canonical_item = id_map.get(canonical_id)
+            if canonical_item is None:
+                continue
             canonical_item.topic_keywords = g.get("keywords", [])
-            canonical.append(canonical_item)
-            # 其余标记为 merged
-            for mt in merged_titles[1:]:
-                merged_item = title_to_item.get(mt)
+            for mid in member_ids:
+                mid_str = str(mid)
+                if mid_str == canonical_id:
+                    continue
+                if mid_str in seen_ids:
+                    continue
+                merged_item = id_map.get(mid_str)
                 if merged_item and merged_item.id != canonical_item.id:
                     merged_item.merged_into_item_id = canonical_item.id
-
-        # 补充 LLM 未返回的单独标题（singletons）
-        merged_ids = {item.id for item in items if item.merged_into_item_id is not None}
-        merged_ids.update({c.id for c in canonical})  # canonical 自身
-        for item in items:
-            if item.id not in merged_ids:
-                canonical.append(item)
-        if canonical:
-            # 按原始排名重排
-            canonical.sort(key=lambda x: x.rank)
-            return canonical
-        return items
+                    seen_ids.add(mid_str)
     except Exception as e:
         import logging
         logging.getLogger(__name__).warning("LLM topic dedup failed: %s", e)
-        return items
 
 
 __all__ = [

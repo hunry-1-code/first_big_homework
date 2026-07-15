@@ -714,11 +714,19 @@ def daily_hot_job(task_id: int, registry: CrawlerRegistry | None = None) -> dict
         ),
         result_limit=payload.get(
             "result_limit",
-            current_app.config.get("DAILY_HOT_RESULT_LIMIT", 10),
+            current_app.config.get("DAILY_HOT_RESULT_LIMIT", 20),
         ),
         rrf_k=payload.get(
             "rrf_k",
-            current_app.config.get("DAILY_HOT_RRF_K", 60),
+            current_app.config.get("DAILY_HOT_RRF_K", 10),
+        ),
+        candidate_limit=payload.get(
+            "candidate_limit",
+            current_app.config.get("DAILY_HOT_CANDIDATE_LIMIT", 50),
+        ),
+        consensus_bonus=payload.get(
+            "consensus_bonus",
+            current_app.config.get("DAILY_HOT_CONSENSUS_BONUS", 0.10),
         ),
         ttl_seconds=payload.get(
             "ttl_seconds",

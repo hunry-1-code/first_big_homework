@@ -55,16 +55,30 @@ def _normalized_key(title: str) -> str:
     return re.sub(r"[\W_]+", "", title, flags=re.UNICODE).casefold()
 
 
+_SOURCE_WEIGHTS = {
+    "weibo_hot": 1.15,
+    "baidu_hot": 1.00,
+    "zhihu_hot": 0.90,
+}
+
+
+def _source_weight(source: str) -> float:
+    return _SOURCE_WEIGHTS.get(str(source).strip().casefold(), 1.0)
+
+
 def fuse_hot_rankings(
     items: list[HotRankItem],
     *,
-    rrf_k: int = 60,
+    rrf_k: int = 10,
     limit: int | None = None,
+    consensus_bonus: float = 0.10,
 ) -> list[FusedHotItem]:
+    """加权 RRF + 共识奖励。
+
+    score = Σ(source_weight / (k + rank)) × (1 + consensus_bonus × (source_count - 1))
+    """
     if rrf_k < 1:
         raise ValueError("rrf_k must be positive")
-    if limit is not None and limit < 1:
-        return []
 
     grouped: dict[str, dict[str, HotRankItem]] = {}
     titles: dict[str, list[tuple[int, str, str]]] = {}
@@ -106,13 +120,18 @@ def fuse_hot_rankings(
             for source, item in sorted(source_items.items())
         }
         display_title = min(titles[key])[2]
+        # 加权 RRF
+        base_score = sum(
+            _source_weight(source) / (rrf_k + rank)
+            for source, rank in source_ranks.items()
+        )
+        # 共识奖励
+        consensus = 1.0 + consensus_bonus * (len(source_ranks) - 1)
         fused.append(
             FusedHotItem(
                 normalized_key=key,
                 normalized_title=display_title,
-                fused_score=sum(
-                    1.0 / (rrf_k + rank) for rank in source_ranks.values()
-                ),
+                fused_score=round(base_score * consensus, 6),
                 source_ranks=source_ranks,
                 source_urls=source_urls,
                 source_payloads=source_payloads,

@@ -260,11 +260,16 @@ class Config:
         100,
         max(1, int(os.getenv("DAILY_HOT_RESULT_LIMIT", "20"))),
     )
-    DAILY_HOT_RRF_K = max(1, int(os.getenv("DAILY_HOT_RRF_K", "60")))
+    DAILY_HOT_RRF_K = max(1, int(os.getenv("DAILY_HOT_RRF_K", "10")))
+    DAILY_HOT_CANDIDATE_LIMIT = min(100, max(10, int(os.getenv("DAILY_HOT_CANDIDATE_LIMIT", "50"))))
     DAILY_HOT_TTL_SECONDS = max(
         60,
         int(os.getenv("DAILY_HOT_TTL_SECONDS", "900")),
     )
+    DAILY_HOT_WEIBO_WEIGHT = float(os.getenv("DAILY_HOT_WEIBO_WEIGHT", "1.15"))
+    DAILY_HOT_BAIDU_WEIGHT = float(os.getenv("DAILY_HOT_BAIDU_WEIGHT", "1.00"))
+    DAILY_HOT_ZHIHU_WEIGHT = float(os.getenv("DAILY_HOT_ZHIHU_WEIGHT", "0.90"))
+    DAILY_HOT_CONSENSUS_BONUS = float(os.getenv("DAILY_HOT_CONSENSUS_BONUS", "0.10"))
     DAILY_HOT_REFRESH_INTERVAL_SECONDS = max(
         60,
         int(os.getenv("DAILY_HOT_REFRESH_INTERVAL_SECONDS", "900")),
