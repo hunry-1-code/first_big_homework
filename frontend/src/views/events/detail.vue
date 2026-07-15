@@ -259,7 +259,6 @@ function initCharts() {
   initRadarChart();
   initBubbleChart();
   initPropagationChart();
-  console.log('[influence] 0. 准备调用 initInfluenceChart, eventData.articles?.articles?.length:', eventData.value?.articles?.articles?.length);
   initInfluenceChart();
 }
 
@@ -654,26 +653,27 @@ function initRadarChart() {
 
 // ==================== 6. 报道影响力排行榜 ====================
 function initInfluenceChart() {
-  const el = influenceRef.value;
-  console.log('[influence] 1. ref element:', el ? `有 (${el.clientWidth}x${el.clientHeight})` : 'NULL');
-  if (!el) return;
+  // ref 可能因 Vue 编译优化未绑定，用 DOM 查询兜底
+  let el = influenceRef.value;
+  if (!el) {
+    const allH320 = document.querySelectorAll('.h-\\[320px\\]');
+    for (const div of allH320) {
+      if (div.closest('.el-card')?.querySelector('.el-card__header')?.textContent?.includes('报道传播影响力排行')) {
+        el = div;
+        break;
+      }
+    }
+    if (!el) return;
+  }
   if (el.clientHeight === 0) {
     el.style.height = "320px";
-    el.style.width = el.clientWidth > 0 ? `${el.clientWidth}px` : "100%";
   }
   if (influenceChart) influenceChart.dispose();
-  try {
-    influenceChart = echarts.init(el);
-    console.log('[influence] 2. echarts.init 成功');
-  } catch(e) {
-    console.error('[influence] 2. echarts.init 失败:', e);
-    return;
-  }
+  influenceChart = echarts.init(el);
 
   const dark = isDark.value;
   const c = chartColors(dark);
   const data = buildInfluenceData();
-  console.log('[influence] 3. buildInfluenceData:', data.length, '条');
   if (data.length === 0) {
     influenceChart.setOption({
       title: { text: '暂无互动数据', left: 'center', top: 'center', textStyle: { color: c.textColor, fontSize: 13 } }
