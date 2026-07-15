@@ -217,22 +217,28 @@ function getKeywordExplain(name: string): string {
 }
 function getEdgeEvolution(idx: number): string {
   const expls = propagationData.value?.llm_analysis?.keyword_explanations || [];
-  // 旧格式: terms ["keyword:N", "keyword:N+1"], 新格式: type="edge", target="A→B"
-  const nodes = propagationData.value?.graph?.nodes || [];
-  const idToName: Record<string, string> = {};
-  nodes.forEach((n: any) => { idToName[n.id] = n.name; });
-  // 先找新格式
   const kwNames = keywordExplains.value.map((e: any) => e.target);
-  if (idx < kwNames.length - 1) {
-    const pair = kwNames[idx] + '→' + kwNames[idx + 1];
-    const found = expls.find((e: any) => e?.type === 'edge' && e?.target === pair);
-    if (found) return found.reason;
-  }
-  // 旧格式兜底
-  const tgtId = 'keyword:' + (idx + 1);
-  const oldFound = expls.find((e: any) => e?.terms && e.terms[1] === tgtId);
-  if (oldFound && oldFound.reason && !oldFound.reason.includes('按词云频率顺序')) {
-    return oldFound.reason;
+  if (idx >= kwNames.length - 1) return '';
+  const a = kwNames[idx];
+  const b = kwNames[idx + 1];
+  // 1) 新格式: {type:"edge", target:"A->B", reason:"..."}
+  let found = expls.find((e: any) => e?.type === 'edge' && e?.target === (a + '->' + b));
+  if (found) return found.reason;
+  found = expls.find((e: any) => e?.type === 'edge' && e?.target === (a + '→' + b));
+  if (found) return found.reason;
+  // 2) 旧格式: {terms:["keyword:N","keyword:N+1"], reason:"..."}
+  const nodes = propagationData.value?.graph?.nodes || [];
+  const nameToId: Record<string, string> = {};
+  nodes.forEach((n: any) => { nameToId[n.name] = n.id; });
+  const srcId = nameToId[a];
+  const tgtId = nameToId[b];
+  if (srcId && tgtId) {
+    found = expls.find((e: any) => {
+      if (!e?.terms || e.terms.length !== 2) return false;
+      return (e.terms[0] === srcId && e.terms[1] === tgtId) ||
+             (e.terms[0] === 'keyword:' + a && e.terms[1] === 'keyword:' + b);
+    });
+    if (found && found.reason && !found.reason.includes('按词云频率顺序')) return found.reason;
   }
   return '';
 }
