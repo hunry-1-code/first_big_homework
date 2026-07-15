@@ -223,15 +223,15 @@ function buildInfluenceData() {
 
 onMounted(async () => {
   try {
-    const [eventResp, propResp] = await Promise.all([
-      getEvent(Number(route.params.id)),
-      getEventPropagation(Number(route.params.id))
-    ]);
+    // 先加载事件主体数据，传播数据单独加载（可能慢），不阻塞页面
+    const eventResp = await getEvent(Number(route.params.id));
     eventData.value = eventResp.data;
-    propagationData.value = propResp.data;
-    nextTick(() => {
-      initCharts();
-    });
+    await nextTick();
+    initCharts();
+    // 传播数据异步加载，失败不报错
+    getEventPropagation(Number(route.params.id)).then(r => {
+      propagationData.value = r.data;
+    }).catch(() => {});
   } catch (err) {
     message("加载事件详情失败", { type: "error" });
   } finally {
