@@ -12,6 +12,7 @@ from app.crawler.qianfan import QianfanSearchCrawler, QianfanTrendingCrawler
 from app.crawler.news import NewsCrawler
 from app.crawler.rss import RssCrawler
 from app.crawler.sample import SampleCrawler
+from app.crawler.sspai_search import SspaiSearchCrawler
 from app.crawler.tikhub import TikHubCrawler
 from app.crawler.weibo import WeiboHotCrawler
 from app.crawler.zhihu import ZhihuHotCrawler, ZhihuSearchCrawler
@@ -74,11 +75,9 @@ def build_crawler_registry(config) -> CrawlerRegistry:
             platform="news_infoq",
             minimum_content_length=50,
         ),
-        RssCrawler(
+        SspaiSearchCrawler(
             _client("sspai.com", timeout, "news_sspai", max_response_bytes),
-            "https://sspai.com/feed",
-            platform="news_sspai",
-            minimum_content_length=50,
+            min_content_length=100,
         ),
     ]
     # 注册个体新闻源（人民网/36氪/澎湃/InfoQ/少数派），用户可单独选择

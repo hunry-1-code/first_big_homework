@@ -111,11 +111,6 @@ class RssCrawler:
         for node in nodes[: max(request.limit * 5, 20)]:
             title = _text(node, ("title",)) or ""
             content = _text(node, ("content", "description", "summary")) or ""
-            keyword = (request.keyword or "").strip()
-            if keyword:
-                searchable = f"{title}\n{_visible_text(content)[:1200]}"
-                if not _matches_keyword(searchable, keyword):
-                    continue
             item_id = _text(node, ("guid", "id", "contId"))
             link = _text(node, ("link",))
             if not link:
