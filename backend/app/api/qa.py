@@ -18,7 +18,8 @@ def ask():
     event_id = payload.get("event_id")
     platform = payload.get("platform")
     use_history = payload.get("use_history", True)
-    return ok(answer_question(g.current_user["id"], question, event_id, platform, use_history=use_history))
+    deep_thinking = payload.get("deep_thinking", False)
+    return ok(answer_question(g.current_user["id"], question, event_id, platform, use_history=use_history, deep_thinking=deep_thinking))
 
 
 @qa_bp.post("/ask/stream")
@@ -31,7 +32,8 @@ def ask_stream():
     event_id = payload.get("event_id")
     platform = payload.get("platform")
     use_history = payload.get("use_history", True)
-    return ok(answer_question(g.current_user["id"], question, event_id, platform, use_history=use_history), message="stream reserved")
+    deep_thinking = payload.get("deep_thinking", False)
+    return ok(answer_question(g.current_user["id"], question, event_id, platform, use_history=use_history, deep_thinking=deep_thinking), message="stream reserved")
 
 
 @qa_bp.get("/history")
