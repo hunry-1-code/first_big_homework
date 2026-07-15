@@ -18,6 +18,8 @@ export const PLATFORMS: PlatformInfo[] = [
   { name: "36氪",     short: "氪", color: "#3182ce", bg: "#ebf8ff", api: "RSS 订阅",  icon: "ri:rss-fill" },
   { name: "人民网",   short: "人", color: "#c41e3a", bg: "#fef0f0", api: "新闻爬虫", icon: "ri:rss-fill" },
   { name: "澎湃新闻", short: "澎", color: "#1e40af", bg: "#e8f0fe", api: "新闻爬虫", icon: "ri:rss-fill" },
+  { name: "InfoQ",    short: "Q",  color: "#38a169", bg: "#f0fff4", api: "新闻爬虫", icon: "ri:rss-fill" },
+  { name: "少数派",   short: "派", color: "#d53f8c", bg: "#fff5f7", api: "新闻爬虫", icon: "ri:rss-fill" },
   { name: "主流新闻", short: "新", color: "#1e3a5f", bg: "#e8f0fe", api: "新闻爬虫", icon: "ri:rss-fill" },
   { name: "百度热搜", short: "百", color: "#3385ff", bg: "#e8f0fe", api: "千帆 API", icon: "ant-design:baidu-outlined" },
   { name: "百度搜索", short: "百", color: "#2e77e5", bg: "#e8f0fe", api: "千帆 API", icon: "ant-design:baidu-outlined" },

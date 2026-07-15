@@ -132,24 +132,40 @@
         <el-card shadow="never" class="!border-slate-200/60 dark:!border-slate-800/60 rounded-xl">
           <template #header>
             <div class="flex justify-between items-center">
-              <span class="font-bold text-slate-800 dark:text-slate-100">📡 平台目录</span>
+              <div>
+                <span class="font-bold text-slate-800 dark:text-slate-100">📡 平台目录</span>
+                <span class="text-xs text-slate-400 ml-2">关注后可在分析页快捷选择</span>
+              </div>
               <el-button size="small" @click="loadPlatformSources" :loading="sourcesLoading">刷新</el-button>
             </div>
           </template>
           <div v-loading="sourcesLoading" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-            <div v-for="p in platformSources" :key="p.code"
-              class="flex flex-col items-center gap-2 p-3 rounded-lg border transition-colors cursor-pointer"
-              :class="p.followed ? 'border-blue-300 bg-blue-50 dark:bg-blue-950/20' : 'border-slate-200 dark:border-slate-700 hover:border-slate-300'"
+            <div
+              v-for="p in platformSources"
+              :key="p.code"
+              class="platform-dir-card relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 cursor-pointer transition-all duration-200"
+              :class="p.followed
+                ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30 shadow-sm'
+                : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-600'"
+              :style="p.followed ? {} : {}"
               @click="p.followed ? unfollowSource(p.code) : followSource(p.code)">
-              <span class="text-lg">{{ p.platform?.slice(0,1) || '?' }}</span>
-              <span class="text-xs font-medium text-slate-700 dark:text-slate-300">{{ p.platform }}</span>
-              <span class="text-[10px]" :class="p.followed ? 'text-blue-500' : 'text-slate-400'">
+              <div
+                v-if="p.followed"
+                class="absolute top-2 right-2 w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center">
+                <span class="text-white text-xs">✓</span>
+              </div>
+              <IconifyIconOffline :icon="p._icon" class="text-2xl" :style="{ color: p._color }" />
+              <span class="text-sm font-medium text-slate-700 dark:text-slate-200">{{ p._name }}</span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded"
+                :class="p.followed ? 'text-blue-500 bg-blue-100 dark:bg-blue-900/30' : 'text-slate-400 bg-slate-100 dark:bg-slate-800'">
                 {{ p.followed ? '已关注' : '点击关注' }}
               </span>
-              <span v-if="p.crawler_supported" class="text-[10px] text-emerald-500">可采集</span>
-              <span v-if="p.comment_supported" class="text-[10px] text-purple-500">可评论</span>
+              <div class="flex gap-1">
+                <span v-if="p.crawler_supported" class="text-[10px] text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 px-1 rounded">采集</span>
+                <span v-if="p.comment_supported" class="text-[10px] text-purple-600 bg-purple-50 dark:bg-purple-950/30 px-1 rounded">评论</span>
+              </div>
             </div>
-            <div v-if="platformSources.length === 0 && !sourcesLoading" class="col-span-full text-xs text-slate-400 py-4 text-center">加载中...</div>
+            <div v-if="platformSources.length === 0 && !sourcesLoading" class="col-span-full text-xs text-slate-400 py-8 text-center">加载中...</div>
           </div>
         </el-card>
       </el-col>
@@ -161,7 +177,8 @@
 import { onMounted, ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useUserStore } from "@/store/modules/user";
-import { resolvePlatformName } from "@/constants/platforms";
+import { resolvePlatformName, getPlatform, PLATFORMS } from "@/constants/platforms";
+import IconifyIconOffline from "@/components/ReIcon/src/iconifyIconOffline";
 import { getMyTasks } from "@/api/tasks";
 import { getSearchHistory, deleteSearchHistory, repeatSearch, getUserConfig, saveUserConfig } from "@/api/user";
 import { http } from "@/utils/http";
@@ -265,7 +282,19 @@ async function loadPlatformSources() {
   sourcesLoading.value = true;
   try {
     const r = await http.request<any>("get", "/api/user/sources");
-    platformSources.value = r.data?.presets || [];
+    const raw = r.data?.presets || [];
+    // 用 PLATFORMS 数据丰富每个平台（图标、颜色、中文名）
+    platformSources.value = raw.map((p: any) => {
+      const cn = resolvePlatformName(p.code);
+      const info = getPlatform(cn);
+      return {
+        ...p,
+        _name: cn,
+        _icon: info?.icon || "ri:question-line",
+        _color: info?.color || "#94a3b8",
+        _bg: info?.bg || "#f1f5f9",
+      };
+    });
   } catch { platformSources.value = []; }
   finally { sourcesLoading.value = false; }
 }
