@@ -15,12 +15,12 @@ export const PLATFORMS: PlatformInfo[] = [
   { name: "B站",      short: "B",  color: "#fb7299", bg: "#fff0f5", api: "bilibili-api", icon: "ant-design:bilibili-filled" },
   { name: "小红书",   short: "红", color: "#ff4757", bg: "#ffeef0", api: "TikHub API", icon: "simple-icons:xiaohongshu" },
   { name: "抖音",     short: "抖", color: "#111111", bg: "#f1f5f9", api: "TikHub API", icon: "simple-icons:tiktok" },
-  { name: "36氪",     short: "氪", color: "#3182ce", bg: "#ebf8ff", api: "RSS 订阅",  icon: "ri:rss-fill" },
-  { name: "人民网",   short: "人", color: "#c41e3a", bg: "#fef0f0", api: "新闻爬虫", icon: "ri:rss-fill" },
-  { name: "澎湃新闻", short: "澎", color: "#1e40af", bg: "#e8f0fe", api: "新闻爬虫", icon: "ri:rss-fill" },
-  { name: "InfoQ",    short: "Q",  color: "#38a169", bg: "#f0fff4", api: "新闻爬虫", icon: "ri:rss-fill" },
-  { name: "少数派",   short: "派", color: "#d53f8c", bg: "#fff5f7", api: "新闻爬虫", icon: "ri:rss-fill" },
-  { name: "主流新闻", short: "聚", color: "#1e3a5f", bg: "#e8f0fe", api: "聚合人民网·36氪·澎湃·InfoQ·少数派", icon: "ri:rss-fill" },
+  { name: "36氪",     short: "氪", color: "#3182ce", bg: "#ebf8ff", api: "RSS 订阅",  icon: "ri/rss-fill" },
+  { name: "人民网",   short: "人", color: "#c41e3a", bg: "#fef0f0", api: "新闻爬虫", icon: "ri/rss-fill" },
+  { name: "澎湃新闻", short: "澎", color: "#1e40af", bg: "#e8f0fe", api: "新闻爬虫", icon: "ri/rss-fill" },
+  { name: "InfoQ",    short: "Q",  color: "#38a169", bg: "#f0fff4", api: "新闻爬虫", icon: "ri/rss-fill" },
+  { name: "少数派",   short: "派", color: "#d53f8c", bg: "#fff5f7", api: "新闻爬虫", icon: "ri/rss-fill" },
+  { name: "主流新闻", short: "聚", color: "#1e3a5f", bg: "#e8f0fe", api: "聚合人民网·36氪·澎湃·InfoQ·少数派", icon: "ri/rss-fill" },
   { name: "百度热搜", short: "百", color: "#3385ff", bg: "#e8f0fe", api: "千帆 API", icon: "ant-design:baidu-outlined" },
   { name: "百度搜索", short: "百", color: "#2e77e5", bg: "#e8f0fe", api: "千帆 API", icon: "ant-design:baidu-outlined" },
 ];
@@ -141,7 +141,7 @@ export const SEARCH_PLATFORMS: SearchPlatform[] = [
     name: "人民网",
     id: "news_people",
     always: true,
-    icon: "ri:rss-fill",
+    icon: "ri/rss-fill",
     color: "#c41e3a",
     bg: "#fef0f0"
   },
@@ -149,7 +149,7 @@ export const SEARCH_PLATFORMS: SearchPlatform[] = [
     name: "36氪",
     id: "news_36kr",
     always: true,
-    icon: "ri:rss-fill",
+    icon: "ri/rss-fill",
     color: "#3182ce",
     bg: "#ebf8ff"
   },
@@ -157,7 +157,7 @@ export const SEARCH_PLATFORMS: SearchPlatform[] = [
     name: "澎湃新闻",
     id: "news_thepaper",
     always: true,
-    icon: "ri:rss-fill",
+    icon: "ri/rss-fill",
     color: "#1e40af",
     bg: "#e8f0fe"
   },
@@ -165,7 +165,7 @@ export const SEARCH_PLATFORMS: SearchPlatform[] = [
     name: "InfoQ",
     id: "news_infoq",
     always: true,
-    icon: "ri:rss-fill",
+    icon: "ri/rss-fill",
     color: "#38a169",
     bg: "#f0fff4"
   },
@@ -173,7 +173,7 @@ export const SEARCH_PLATFORMS: SearchPlatform[] = [
     name: "少数派",
     id: "news_sspai",
     always: true,
-    icon: "ri:rss-fill",
+    icon: "ri/rss-fill",
     color: "#d53f8c",
     bg: "#fff5f7"
   },
