@@ -66,7 +66,7 @@
         class="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-px rounded font-medium"
         :style="{ color: p.color, background: p.bg }"
       >
-        <img v-if="p.icon && p.icon.startsWith('http')" :src="p.icon" class="w-4 h-4 rounded" @error="(e: any) => e.target.style.display='none'" />
+        <img v-if="p.icon && (p.icon.startsWith('http') || p.icon.startsWith('/favicon'))" :src="p.icon" class="w-4 h-4 rounded" @error="(e: any) => e.target.style.display='none'" />
                 <IconifyIconOffline v-else :icon="p.icon" class="text-xs" />
         {{ p.name }}
       </span>

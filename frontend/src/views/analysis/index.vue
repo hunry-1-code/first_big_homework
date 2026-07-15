@@ -53,7 +53,7 @@
               :style="state === 'running' ? 'pointer-events:none;opacity:0.6' : ''"
               @click="togglePlatform(p.id)">
               <div v-if="selectedPlatforms.includes(p.id)" class="absolute top-2 right-2 w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center"><span class="text-white text-xs">✓</span></div>
-              <img v-if="p.icon.startsWith('http')" :src="p.icon" class="w-6 h-6 rounded" :alt="p.name" @error="(e) => { e.target.style.display = 'none' }" />
+              <img v-if="p.icon.startsWith('http') || p.icon.startsWith('/favicon')" :src="p.icon" class="w-6 h-6 rounded" :alt="p.name" @error="(e) => { e.target.style.display = 'none' }" />
               <IconifyIconOffline v-else :icon="p.icon" class="text-2xl" :style="{ color: p.color }" />
               <span class="text-sm font-medium text-slate-700 dark:text-slate-200">{{ p.name }}</span>
             </div>
@@ -66,7 +66,7 @@
               :style="state === 'running' ? 'pointer-events:none;opacity:0.6' : ''"
               @click="togglePlatform(p.id)">
               <div v-if="selectedPlatforms.includes(p.id)" class="absolute top-2 right-2 w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center"><span class="text-white text-xs">✓</span></div>
-              <img v-if="p.icon.startsWith('http')" :src="p.icon" class="w-6 h-6 rounded" :alt="p.name" @error="(e) => { e.target.style.display = 'none' }" />
+              <img v-if="p.icon.startsWith('http') || p.icon.startsWith('/favicon')" :src="p.icon" class="w-6 h-6 rounded" :alt="p.name" @error="(e) => { e.target.style.display = 'none' }" />
               <IconifyIconOffline v-else :icon="p.icon" class="text-2xl" :style="{ color: p.color }" />
               <span class="text-sm font-medium text-slate-700 dark:text-slate-200">{{ p.name }}</span>
             </div>
@@ -79,7 +79,7 @@
               :style="state === 'running' ? 'pointer-events:none;opacity:0.6' : ''"
               @click="togglePlatform(p.id)">
               <div v-if="selectedPlatforms.includes(p.id)" class="absolute top-2 right-2 w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center"><span class="text-white text-xs">✓</span></div>
-              <img v-if="p.icon.startsWith('http')" :src="p.icon" class="w-6 h-6 rounded" :alt="p.name" @error="(e) => { e.target.style.display = 'none' }" />
+              <img v-if="p.icon.startsWith('http') || p.icon.startsWith('/favicon')" :src="p.icon" class="w-6 h-6 rounded" :alt="p.name" @error="(e) => { e.target.style.display = 'none' }" />
               <IconifyIconOffline v-else :icon="p.icon" class="text-2xl" :style="{ color: p.color }" />
               <span class="text-sm font-medium text-slate-700 dark:text-slate-200">{{ p.name }}</span>
             </div>
