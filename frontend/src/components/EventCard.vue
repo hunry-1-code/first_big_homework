@@ -106,7 +106,7 @@ import { computed } from "vue";
 import { PLATFORMS, type PlatformInfo, getPlatform, resolvePlatformName } from "@/constants/platforms";
 import IconifyIconOffline from "@/components/ReIcon/src/iconifyIconOffline";
 
-defineProps<{
+const props = defineProps<{
   event: {
     id: number;
     title: string;
