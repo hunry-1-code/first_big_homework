@@ -131,33 +131,62 @@ def query_fingerprint(mode, keyword, platforms) -> str:
 
 
 def _search_keyword_terms(keyword: str) -> list[str]:
+    """提取用于标题匹配的关键词变体。
+
+    返回两个列表：
+    - full_terms: 完整关键词（英文边界匹配 or 去标点归一化匹配）
+    - required_parts: 所有必须同时出现的字片段（中文≥2字关键词拆分后AND匹配）
+    """
     aliases = {
         "人工智能": ["人工智能", "AI", "AIGC", "大模型"],
     }
     if keyword in aliases:
         return aliases[keyword]
-    if any(ch.isspace() for ch in keyword):
-        return [part for part in keyword.split() if part]
-    terms = [keyword]
-    if any("一" <= ch <= "鿿" for ch in keyword) and len(keyword) >= 4:
-        for index in range(0, len(keyword) - 1, 2):
-            part = keyword[index : index + 2]
-            if part not in terms:
-                terms.append(part)
-    return terms
+    return [keyword]
+
+
+def _jieba_segments(text: str) -> list[str]:
+    """用 jieba 分词提取 ≥2 字的有意义片段。"""
+    try:
+        import jieba
+        return [w for w in jieba.lcut(text) if len(w.strip()) >= 2]
+    except Exception:
+        # fallback: 每2字机械切分
+        return [text[i:i+2] for i in range(0, len(text)-1, 2)]
 
 
 def _title_matches_keyword(title: str, terms: list[str]) -> bool:
+    """标题是否包含搜索关键词。
+
+    策略：
+    1. 完整归一化子串匹配（处理「台风巴威」vs 台风巴威）
+    2. jieba 分词 + 松散匹配：≥60% 关键词单元命中
+    """
+    import re as _re
     folded = title.casefold()
+    title_norm = _re.sub(r'[\s　「」【】《》""''、。，；：！？…—]+', '', folded)
+
     for term in terms:
         folded_term = term.casefold()
+        # 英文：边界匹配
         if folded_term.isascii() and folded_term.isalnum():
-            if re.search(
-                rf"(?<![a-z0-9]){re.escape(folded_term)}(?![a-z0-9])", folded
-            ):
+            if _re.search(rf'(?<![a-z0-9]){_re.escape(folded_term)}(?![a-z0-9])', folded):
                 return True
+        # 完整中文子串 或 归一化后子串
         elif folded_term in folded:
             return True
+        elif len(folded_term) >= 3:
+            term_norm = _re.sub(r'[\s　「」【】《》""''、。，；：！？…—]+', '', folded_term)
+            if term_norm and term_norm in title_norm:
+                return True
+
+    # jieba 分词松散匹配：≥60% 关键词单元在标题中出现即算命中
+    kw_segments = _jieba_segments(terms[0]) if terms else []
+    if len(kw_segments) >= 2:
+        hits = sum(1 for s in kw_segments if s in folded)
+        if hits / len(kw_segments) >= 0.6:
+            return True
+
     return False
 
 

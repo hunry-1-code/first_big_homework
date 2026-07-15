@@ -217,20 +217,29 @@ def crawl_job(task_id: int, registry: CrawlerRegistry | None = None) -> dict:
 
     # 主流新闻聚合源固定只取一轮，避免对五站重复请求同一批内容。
     max_rounds = 1 if platforms and set(platforms) == {"mainstream_news"} else 2
+    productive_platforms = list(platforms) if platforms else None  # 第一轮全平台
     for round_idx in range(max_rounds):
         round_target = int(target * 1.3) if round_idx == 0 else int((target - processed) * 1.5)
         if round_idx > 0 and round_target < 5:
-            break  # 缺口太小不补
+            break
         round_target = max(1, round_target)
 
+        # 补采轮次：只向有产出的平台追加，死平台不再浪费配额
+        round_platforms = productive_platforms
+        if round_idx > 0 and productive_platforms:
+            round_platforms = productive_platforms
+
         update_task(task_id, progress=5 + round_idx * 10,
-                    message=f"第{round_idx+1}轮采集，目标 {round_target} 篇...")
+                    message=f"第{round_idx+1}轮采集，目标 {round_target} 篇（{'仅' + str(len(round_platforms)) + '个活跃平台' if round_idx > 0 else '全平台'}）...")
         batch = service.collect(
             keyword=payload.get("keyword"),
-            platforms=platforms,
+            platforms=round_platforms,
             target_count=round_target,
             mode=mode,
         )
+        # 记录本轮的活跃平台（有产出的）
+        if round_idx == 0:
+            productive_platforms = [p for p, c in (batch.platform_counts or {}).items() if c > 0]
         total_collected += len(batch.documents)
         record_stage(task_id, "crawl", "done" if round_idx == 0 else "done",
                      f"{len(batch.documents)}篇" if round_idx == 0 else f"+{len(batch.documents)}篇(补)")
