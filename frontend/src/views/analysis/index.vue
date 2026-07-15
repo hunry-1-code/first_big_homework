@@ -184,21 +184,26 @@
           :stroke-width="8"
           :color="taskProgress >= 95 ? '#22c55e' : '#3b82f6'"
         />
-        <div class="mt-3 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg flex items-start gap-2">
-          <span class="animate-pulse text-blue-500 shrink-0">●</span>
-          <span class="text-sm text-slate-600 dark:text-slate-300">{{ taskMessage }}</span>
+        <div class="mt-3 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg text-sm text-slate-600 dark:text-slate-300">
+          {{ taskMessage }}
         </div>
-        <!-- 阶段详情列表 -->
-        <div v-if="stageRecords.length > 0" class="mt-3 space-y-1 max-h-48 overflow-y-auto">
-          <div
-            v-for="(rec, idx) in stageRecords"
-            :key="idx"
-            class="flex items-center gap-2 text-xs px-2 py-1 rounded"
-            :class="rec.status === 'done' ? 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/20' : 'text-blue-500 bg-blue-50 dark:bg-blue-950/20'"
-          >
-            <span>{{ rec.status === 'done' ? '✅' : '⏳' }}</span>
-            <span class="font-medium">{{ stageLabel(rec.stage) }}</span>
-            <span v-if="rec.message" class="text-slate-400">· {{ rec.message }}</span>
+
+        <!-- 阶段时间线 -->
+        <div v-if="timelineStages.length > 0" class="mt-4 pl-2">
+          <div v-for="(item, idx) in timelineStages" :key="idx" class="flex gap-3">
+            <div class="flex flex-col items-center shrink-0">
+              <div class="w-2.5 h-2.5 rounded-full mt-1.5"
+                :class="item.status === 'done' ? 'bg-emerald-500' : item.status === 'running' ? 'bg-blue-500 animate-pulse' : 'bg-slate-300 dark:bg-slate-600'" />
+              <div v-if="idx < timelineStages.length - 1" class="w-0.5 flex-1 min-h-[20px]"
+                :class="item.status === 'done' ? 'bg-emerald-200 dark:bg-emerald-800' : 'bg-slate-200 dark:bg-slate-700'" />
+            </div>
+            <div class="pb-2.5 flex-1 min-w-0">
+              <span class="text-sm font-medium"
+                :class="item.status === 'done' ? 'text-emerald-700 dark:text-emerald-400' : item.status === 'running' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400'">
+                {{ item.label }}
+              </span>
+              <span v-if="item.detail" class="text-xs text-slate-400 ml-2">{{ item.detail }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -336,6 +341,30 @@ const myTasks = ref<any[]>([]);
 const stageRecords = ref<Array<{stage: string; status: string; message: string}>>([]);
 const retrying = ref(false);
 const retryingTaskId = ref<number | null>(null);
+
+// 去重合并阶段记录为时间线展示
+const timelineStages = computed(() => {
+  const records = stageRecords.value;
+  if (!records.length) return [];
+
+  // 合并同阶段多条记录：取最终状态，拼接详情
+  const merged: Record<string, { status: string; messages: string[] }> = {};
+  for (const r of records) {
+    if (!merged[r.stage]) merged[r.stage] = { status: r.status, messages: [] };
+    if (r.message) merged[r.stage].messages.push(r.message);
+    // done 覆盖 running
+    if (r.status === 'done') merged[r.stage].status = 'done';
+    else if (r.status === 'running' && merged[r.stage].status !== 'done') merged[r.stage].status = 'running';
+  }
+
+  // 按 STAGE_ORDER 排列
+  return STAGE_ORDER.filter(s => merged[s]).map(s => ({
+    stage: s,
+    status: merged[s].status,
+    label: stageLabel(s),
+    detail: merged[s].messages[merged[s].messages.length - 1] || '',
+  }));
+});
 
 // 6 阶段顺序
 const STAGE_ORDER = ["crawl", "preprocess", "content_analysis", "aggregation", "sentiment", "publish", "propagation"];
