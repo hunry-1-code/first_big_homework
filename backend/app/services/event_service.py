@@ -657,12 +657,13 @@ def get_propagation_data(event_id: int) -> dict | None:
         .order_by(Article.publish_time.asc()).all()
     from app.propagation import build_propagation_graph
     from app.services.api_contract_service import api_platform_name
-    graph = build_propagation_graph(articles, platform_mapper=api_platform_name)
-    return {
-        "graph": graph,
-        "summary": {"coverage_notice": "传播溯源将在后台计算完成后更新"},
-        "status": "pending",
-    }
+    result = build_propagation_graph(articles, platform_mapper=api_platform_name)
+    # build_propagation_graph 返回 {graph: {nodes,links}, summary, ...}
+    # 直接返回 result（不要再包一层 graph）
+    result["status"] = "pending"
+    result["summary"] = result.get("summary", {})
+    result["summary"]["coverage_notice"] = "传播溯源将在后台计算完成后更新"
+    return result
 
 
 def delete_event(event_id: int) -> None:
