@@ -364,10 +364,13 @@ def crawl_job(task_id: int, registry: CrawlerRegistry | None = None, is_retry: b
         if zero_plats and round_idx == 0:
             import time as _time
             _time.sleep(3)
+            # 重试只补差额，避免超采
+            shortfall = max(3, target - processed)
+            retry_target = min(round_target // 2, shortfall * len(zero_plats))
             retry_batch = service.collect(
                 keyword=payload.get("keyword"),
                 platforms=zero_plats,
-                target_count=round_target,
+                target_count=retry_target,
                 mode=mode,
             )
             retry_docs = len(retry_batch.documents)
