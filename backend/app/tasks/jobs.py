@@ -251,6 +251,8 @@ def run_search_analysis_pipeline(task_id: int, article_ids: list[int], keyword: 
         if t:
             t.summary = s
             db.session.commit()
+    update_task(task_id, status="success", progress=100,
+                message=f"分析完成，发布 {publish_count} 个事件")
     return result
 
 
