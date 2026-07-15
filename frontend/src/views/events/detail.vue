@@ -652,20 +652,21 @@ function initRadarChart() {
 // ==================== 5. 传播路径（已改为列表展示） ====================
 
 // ==================== 6. 报道影响力排行榜 ====================
-async function initInfluenceChart() {
-  // DOM 可能尚未挂载（Element Plus 组件渲染延迟），等待一个 tick
-  if (!influenceRef.value) {
-    await nextTick();
-    if (!influenceRef.value) return;
+function initInfluenceChart() {
+  const el = influenceRef.value;
+  if (!el) return;
+  // 确保容器有尺寸（echarts 需要明确的宽高）
+  if (el.clientHeight === 0) {
+    el.style.height = "320px";
+    el.style.width = el.clientWidth > 0 ? `${el.clientWidth}px` : "100%";
   }
   if (influenceChart) influenceChart.dispose();
-  influenceChart = echarts.init(influenceRef.value);
+  influenceChart = echarts.init(el);
 
   const dark = isDark.value;
   const c = chartColors(dark);
   const data = buildInfluenceData();
   if (data.length === 0) {
-    // 无互动数据时显示提示
     influenceChart.setOption({
       title: { text: '暂无互动数据', left: 'center', top: 'center', textStyle: { color: c.textColor, fontSize: 13 } }
     });
