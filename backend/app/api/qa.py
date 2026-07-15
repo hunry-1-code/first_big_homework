@@ -39,3 +39,18 @@ def ask_stream():
 def history():
     return ok(list_history(g.current_user["id"]))
 
+
+@qa_bp.delete("/history")
+@login_required
+def clear_history():
+    """清空当前用户全部或指定事件的问答历史。"""
+    from app.extensions import db
+    from app.models.qa_history import QaHistory
+    event_id = request.args.get("event_id", type=int)
+    query = QaHistory.query.filter_by(user_id=g.current_user["id"])
+    if event_id:
+        query = query.filter_by(event_id=event_id)
+    deleted = query.delete()
+    db.session.commit()
+    return ok({"deleted": deleted}, message=f"已清空 {deleted} 条历史记录")
+

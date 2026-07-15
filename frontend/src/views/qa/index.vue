@@ -63,6 +63,15 @@
 
     <!-- 右侧：ChatGPT 对话气泡窗 -->
     <div class="flex-1 flex flex-col bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/60 rounded-xl shadow-sm overflow-hidden h-full">
+      <!-- 顶栏 -->
+      <div class="flex items-center justify-between px-4 py-2 border-b border-slate-100 dark:border-slate-800">
+        <span class="text-sm font-medium text-slate-500">{{ selectedEventId ? '事件对话' : '通用问答' }}</span>
+        <el-popconfirm title="确认清空当前事件的全部对话记录？" @confirm="handleClearHistory">
+          <template #reference>
+            <el-button size="small" text type="danger" :disabled="messages.length === 0">清空记录</el-button>
+          </template>
+        </el-popconfirm>
+      </div>
       <!-- 聊天消息区域 -->
       <div ref="chatBoxRef" class="flex-1 p-6 overflow-y-auto space-y-4">
         <div v-if="messages.length === 0" class="flex flex-col items-center justify-center h-full text-slate-400">
@@ -152,7 +161,7 @@
 import { onMounted, ref, computed, nextTick, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useEventsStore } from "@/store/modules/events";
-import { askQuestion, getQaHistory } from "@/api/qa";
+import { askQuestion, getQaHistory, clearQaHistory } from "@/api/qa";
 import { message } from "@/utils/message";
 import { PLATFORMS } from "@/constants/platforms";
 import IconifyIconOffline from "@/components/ReIcon/src/iconifyIconOffline";
@@ -323,6 +332,14 @@ function scrollToBottom() {
       chatBoxRef.value.scrollTop = chatBoxRef.value.scrollHeight;
     }
   });
+}
+
+async function handleClearHistory() {
+  try {
+    await clearQaHistory(selectedEventId.value);
+    messages.value = [];
+    message("已清空", { type: "success" });
+  } catch { message("清空失败", { type: "error" }); }
 }
 
 // 辅助方法：处理回车发送
