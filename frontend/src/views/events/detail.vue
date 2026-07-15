@@ -215,6 +215,27 @@ function getKeywordExplain(name: string): string {
   const expl = expls.find((e: any) => e?.type === 'keyword' && e?.target === name);
   return expl?.reason || '';
 }
+function getEdgeEvolution(idx: number): string {
+  const expls = propagationData.value?.llm_analysis?.keyword_explanations || [];
+  // 旧格式: terms ["keyword:N", "keyword:N+1"], 新格式: type="edge", target="A→B"
+  const nodes = propagationData.value?.graph?.nodes || [];
+  const idToName: Record<string, string> = {};
+  nodes.forEach((n: any) => { idToName[n.id] = n.name; });
+  // 先找新格式
+  const kwNames = keywordExplains.value.map((e: any) => e.target);
+  if (idx < kwNames.length - 1) {
+    const pair = kwNames[idx] + '→' + kwNames[idx + 1];
+    const found = expls.find((e: any) => e?.type === 'edge' && e?.target === pair);
+    if (found) return found.reason;
+  }
+  // 旧格式兜底
+  const tgtId = 'keyword:' + (idx + 1);
+  const oldFound = expls.find((e: any) => e?.terms && e.terms[1] === tgtId);
+  if (oldFound && oldFound.reason && !oldFound.reason.includes('按词云频率顺序')) {
+    return oldFound.reason;
+  }
+  return '';
+}
 function buildPropagationData() {
   const raw = propagationData.value;
   if (!raw || !raw.graph || !raw.graph.nodes || raw.graph.nodes.length === 0) {
@@ -1467,16 +1488,22 @@ function getProgressColor(heat: number) {
               <span v-if="propagationData?.summary?.coverage_notice">{{ propagationData.summary.coverage_notice }}</span>
             </div>
 
-            <!-- 关键词解读（独立卡片） -->
+            <!-- 关键词解读 + 演化推导 -->
             <div v-if="keywordExplains.length > 0" class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/60">
-              <div class="text-xs text-slate-400 mb-2">📖 关键词含义解读</div>
-              <div class="space-y-2">
-                <div v-for="kw in keywordExplains" :key="kw.target" class="flex gap-2 text-xs">
-                  <span class="shrink-0 inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium"
-                    :style="{ backgroundColor: getNodeBg(keywordExplains.indexOf(kw), keywordExplains.length), color: getNodeColor(keywordExplains.indexOf(kw)) }">
-                    {{ kw.target }}
-                  </span>
-                  <span class="text-slate-600 dark:text-slate-400 leading-relaxed">{{ kw.reason }}</span>
+              <div class="text-sm font-medium text-slate-600 dark:text-slate-400 mb-3">📖 关键词含义与演化推导</div>
+              <div class="space-y-3">
+                <div v-for="(kw, i) in keywordExplains" :key="kw.target">
+                  <div class="flex gap-2">
+                    <span class="shrink-0 inline-flex items-center px-2 py-0.5 rounded text-sm font-medium"
+                      :style="{ backgroundColor: getNodeBg(i, keywordExplains.length), color: getNodeColor(i) }">
+                      {{ kw.target }}
+                    </span>
+                    <span class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">{{ kw.reason }}</span>
+                  </div>
+                  <div v-if="i < keywordExplains.length - 1" class="flex items-center gap-1 ml-2 mt-1 text-xs text-slate-400">
+                    <span class="text-blue-500">↓</span>
+                    <span>{{ getEdgeEvolution(i) || '关键词演化传播' }}</span>
+                  </div>
                 </div>
               </div>
             </div>

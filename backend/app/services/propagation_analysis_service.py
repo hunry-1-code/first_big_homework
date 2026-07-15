@@ -406,7 +406,7 @@ def _explain_keyword_evolution(
         resp = client.chat([
             {"role": "system", "content": "你是舆情分析师。只返回JSON数组，不要加解释文字。"},
             {"role": "user", "content": prompt}
-        ], temperature=0.3, max_tokens=300)
+        ], temperature=0.3, max_tokens=600)
 
         import re as _re
         text = resp["content"].strip()
@@ -421,8 +421,13 @@ def _explain_keyword_evolution(
         data = json.loads(text)
         if isinstance(data, list) and len(data) > 0:
             return data
-    except Exception as e:
-        pass
+    except Exception:
+        import traceback
+        try:
+            from flask import current_app
+            current_app.logger.warning('_explain_keyword_evolution JSON解析失败: %s', traceback.format_exc())
+        except Exception:
+            pass
     return []
 
 
