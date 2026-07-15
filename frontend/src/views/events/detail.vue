@@ -29,6 +29,27 @@ const propagationNotice = computed(() =>
   buildPropagationNotice(propagationData.value)
 );
 const lifecycleNote = computed(() => buildLifecycleNote(eventData.value));
+const keywordExplains = computed(() => {
+  const expls = propagationData.value?.llm_analysis?.keyword_explanations || [];
+  // 新格式 {type, target, reason} 或旧格式 {terms, reason}
+  const nodes = propagationData.value?.graph?.nodes || [];
+  const idToName: Record<string, string> = {};
+  nodes.forEach((n: any) => { idToName[n.id] = n.name; });
+
+  return expls
+    .filter((e: any) => {
+      if (e?.type === 'keyword') return true;           // 新格式
+      if (e?.terms && e.terms.length === 2) return true; // 旧格式: 取目标节点名
+      return false;
+    })
+    .map((e: any) => {
+      if (e.type === 'keyword') return e;  // 新格式直接用
+      // 旧格式: terms[1] 是 keyword:id 格式
+      const tgtId = e.terms[1];
+      return { type: 'keyword', target: idToName[tgtId] || tgtId, reason: e.reason };
+    })
+    .filter((e: any) => e.target && !e.target.startsWith('keyword:') && !e.target.startsWith('internet:'));
+});
 const publicOpinion = computed<PublicOpinionSnapshot | null>(() => eventData.value?.public_opinion || null);
 const opinionModeLabel = computed(() => publicOpinion.value?.analysis_mode === "narrative_gap" ? "机构叙事与公众意见对照" : publicOpinion.value?.analysis_mode === "public_opinion_only" ? "仅公众意见分析" : "数据不足");
 const rate = (value: number | null | undefined) => value == null ? "--" : `${Math.round(value * 100)}%`;
@@ -1425,14 +1446,13 @@ function getProgressColor(heat: number) {
             <div class="text-xs text-slate-400 mb-2">关键词传播演化链</div>
             <div class="flex items-center gap-1 flex-wrap">
               <template v-for="(node, idx) in propagationData.graph.nodes" :key="node.id">
-                <div class="flex flex-col items-center" :title="getKeywordExplain(node.name)">
-                  <span class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium cursor-help"
+                <div class="flex flex-col items-center">
+                  <span class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium"
                     :class="idx === 0 ? 'ring-2 ring-blue-400 dark:ring-blue-600 bg-blue-100 dark:bg-blue-900/40' : ''"
                     :style="idx > 0 ? { backgroundColor: getNodeBg(idx, propagationData.graph.nodes.length), color: getNodeColor(idx) } : { color: '#1e40af' }">
                     <span v-if="idx === 0" class="text-xs">📰</span>
                     {{ node.name }}
                   </span>
-                  <span v-if="getKeywordExplain(node.name)" class="text-[10px] text-slate-400 mt-0.5 max-w-[120px] truncate">{{ getKeywordExplain(node.name) }}</span>
                 </div>
                 <span v-if="idx < propagationData.graph.nodes.length - 1"
                   class="text-lg px-0.5"
@@ -1445,6 +1465,20 @@ function getProgressColor(heat: number) {
               <span class="flex items-center gap-1"><span class="w-3 h-0.5 bg-blue-500 rounded"></span>豆包联网证据</span>
               <span class="flex items-center gap-1"><span class="w-3 h-0.5 bg-slate-300 rounded"></span>规则推断</span>
               <span v-if="propagationData?.summary?.coverage_notice">{{ propagationData.summary.coverage_notice }}</span>
+            </div>
+
+            <!-- 关键词解读（独立卡片） -->
+            <div v-if="keywordExplains.length > 0" class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/60">
+              <div class="text-xs text-slate-400 mb-2">📖 关键词含义解读</div>
+              <div class="space-y-2">
+                <div v-for="kw in keywordExplains" :key="kw.target" class="flex gap-2 text-xs">
+                  <span class="shrink-0 inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium"
+                    :style="{ backgroundColor: getNodeBg(keywordExplains.indexOf(kw), keywordExplains.length), color: getNodeColor(keywordExplains.indexOf(kw)) }">
+                    {{ kw.target }}
+                  </span>
+                  <span class="text-slate-600 dark:text-slate-400 leading-relaxed">{{ kw.reason }}</span>
+                </div>
+              </div>
             </div>
           </div>
         </template>

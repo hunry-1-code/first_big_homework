@@ -388,10 +388,10 @@ def _explain_keyword_evolution(
         f"事件：{event_title}\n\n"
         f"词云高频词：\n" + "\n".join(kw_lines) + "\n\n"
         f"传播路径：\n" + "\n".join(edge_lines) + "\n\n"
-        "请用中文简要解释(每条15字以内)：\n"
-        "1. 每个关键词为何在此事件中高频出现\n"
-        "2. 每条传播路径两端关键词如何关联演化\n\n"
-        "返回JSON数组: [{\"type\":\"keyword|edge\",\"target\":\"词名或src→tgt\",\"reason\":\"一句话解释\"}]"
+        "请用中文解释：\n"
+        "1. 每个关键词：结合事件背景和共现数据，说明该词在事件中的角色和重要原因（40-80字）\n"
+        "2. 每条传播路径：解释这两个关键词之间的事件演化关系，即前一个词如何引出/推动后一个词（20-40字）\n\n"
+        "返回JSON数组: [{\"type\":\"keyword|edge\",\"target\":\"词名或src→tgt\",\"reason\":\"解释\"}]"
     )
 
     try:
@@ -410,13 +410,18 @@ def _explain_keyword_evolution(
 
         import re as _re
         text = resp["content"].strip()
+        # 去掉 markdown 代码块
         fenced = _re.fullmatch(r"```(?:json)?\s*(.*?)\s*```", text, _re.DOTALL | _re.IGNORECASE)
         if fenced:
             text = fenced.group(1).strip()
+        # 提取 JSON 数组
+        match = _re.search(r"\[.*\]", text, _re.DOTALL)
+        if match:
+            text = match.group(0)
         data = json.loads(text)
-        if isinstance(data, list):
+        if isinstance(data, list) and len(data) > 0:
             return data
-    except Exception:
+    except Exception as e:
         pass
     return []
 
