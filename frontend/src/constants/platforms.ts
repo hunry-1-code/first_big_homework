@@ -138,15 +138,6 @@ export const SEARCH_PLATFORMS: SearchPlatform[] = [
   },
   // ===== 主流新闻媒体 =====
   {
-    name: "主流新闻",
-    id: "mainstream_news",
-    always: true,
-    needKey: "聚合上述5个新闻源",
-    icon: "ri:rss-fill",
-    color: "#1e3a5f",
-    bg: "#e8f0fe"
-  },
-  {
     name: "人民网",
     id: "news_people",
     always: true,

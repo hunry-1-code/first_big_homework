@@ -45,29 +45,40 @@
             监测平台 <span class="text-red-500">*</span>
             <span class="text-xs text-slate-400 font-normal ml-2">（不选则自动使用全部可用平台，共 {{ availablePlatforms.length }} 个）</span>
           </label>
-          <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-            <div
-              v-for="p in availablePlatforms"
-              :key="p.id"
-              :class="[
-                'platform-card relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 cursor-pointer transition-all duration-200',
-                selectedPlatforms.includes(p.id)
-                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30 shadow-sm'
-                  : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-600',
-                state === 'running' ? 'pointer-events-none opacity-60' : ''
-              ]"
-              @click="togglePlatform(p.id)"
-            >
-              <div
-                v-if="selectedPlatforms.includes(p.id)"
-                class="absolute top-2 right-2 w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center"
-              >
-                <span class="text-white text-xs">✓</span>
-              </div>
+          <!-- 社交平台 -->
+          <div class="text-xs font-medium text-slate-400 mb-2 mt-1">社交平台</div>
+          <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-4">
+            <div v-for="p in socialPlatforms" :key="p.id" class="platform-card relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 cursor-pointer transition-all duration-200"
+              :class="selectedPlatforms.includes(p.id) ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30 shadow-sm' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-600'"
+              :style="state === 'running' ? 'pointer-events:none;opacity:0.6' : ''"
+              @click="togglePlatform(p.id)">
+              <div v-if="selectedPlatforms.includes(p.id)" class="absolute top-2 right-2 w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center"><span class="text-white text-xs">✓</span></div>
               <IconifyIconOffline :icon="p.icon" class="text-2xl" :style="{ color: p.color }" />
               <span class="text-sm font-medium text-slate-700 dark:text-slate-200">{{ p.name }}</span>
-              <span v-if="p.needKey" class="text-[10px] px-1.5 py-0.5 rounded text-slate-400 bg-slate-100 dark:bg-slate-800">{{ p.needKey }}</span>
-              <span v-else class="text-[10px] px-1.5 py-0.5 rounded text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30">可用</span>
+            </div>
+          </div>
+          <!-- 搜索引擎 -->
+          <div class="text-xs font-medium text-slate-400 mb-2 mt-4">搜索引擎</div>
+          <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-4">
+            <div v-for="p in searchPlatforms" :key="p.id" class="platform-card relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 cursor-pointer transition-all duration-200"
+              :class="selectedPlatforms.includes(p.id) ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30 shadow-sm' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-600'"
+              :style="state === 'running' ? 'pointer-events:none;opacity:0.6' : ''"
+              @click="togglePlatform(p.id)">
+              <div v-if="selectedPlatforms.includes(p.id)" class="absolute top-2 right-2 w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center"><span class="text-white text-xs">✓</span></div>
+              <IconifyIconOffline :icon="p.icon" class="text-2xl" :style="{ color: p.color }" />
+              <span class="text-sm font-medium text-slate-700 dark:text-slate-200">{{ p.name }}</span>
+            </div>
+          </div>
+          <!-- 新闻媒体 -->
+          <div class="text-xs font-medium text-slate-400 mb-2 mt-4">新闻媒体 <span class="text-slate-300">（RSS订阅源，不支持关键词搜索，返回最新资讯）</span></div>
+          <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            <div v-for="p in newsPlatforms" :key="p.id" class="platform-card relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 cursor-pointer transition-all duration-200"
+              :class="selectedPlatforms.includes(p.id) ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30 shadow-sm' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-600'"
+              :style="state === 'running' ? 'pointer-events:none;opacity:0.6' : ''"
+              @click="togglePlatform(p.id)">
+              <div v-if="selectedPlatforms.includes(p.id)" class="absolute top-2 right-2 w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center"><span class="text-white text-xs">✓</span></div>
+              <IconifyIconOffline :icon="p.icon" class="text-2xl" :style="{ color: p.color }" />
+              <span class="text-sm font-medium text-slate-700 dark:text-slate-200">{{ p.name }}</span>
             </div>
           </div>
         </div>
@@ -314,7 +325,11 @@ const keyword = ref((route.query.keyword as string) || "");
 const selectedPlatforms = ref<string[]>([]);
 const targetCount = ref(50);
 const forceRefresh = ref(false);
-const availablePlatforms = ref(SEARCH_PLATFORMS); // 默认常量，API 加载后替换
+const availablePlatforms = ref(SEARCH_PLATFORMS);
+
+const socialPlatforms = computed(() => availablePlatforms.value.filter(p => ['bilibili','weibo','zhihu','xiaohongshu','douyin'].includes(p.id)));
+const searchPlatforms = computed(() => availablePlatforms.value.filter(p => ['baidu','baidu_news'].includes(p.id)));
+const newsPlatforms = computed(() => availablePlatforms.value.filter(p => p.id.startsWith('news_')));
 
 async function loadPlatforms() {
   try {

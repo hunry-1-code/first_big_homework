@@ -177,9 +177,13 @@ def available_platforms():
     registry = build_crawler_registry(current_app.config)
     # 排除：热榜类、演示类、不可用的
     unavailable = {"sample", "rss"}  # 排除演示和RSS
+    # 聚合平台不单独展示（用户直接选个体新闻源）
+    aggregate_news = {"mainstream_news"}
     # 已知配额耗尽/不可用的平台（动态变化，临时排除）
     rate_limited = current_app.config.get("CRAWL_RATE_LIMITED_PLATFORMS", [])
     searchable = [
+        name for name in registry.platforms()
+        if name not in unavailable and name not in aggregate_news and name not in rate_limited
         name for name in registry.platforms()
         if name not in unavailable and name not in rate_limited
         and not name.endswith("_hot")
