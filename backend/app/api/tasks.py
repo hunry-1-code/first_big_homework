@@ -58,8 +58,8 @@ def retry_analysis(task_id: int):
 
     user_id = g.current_user["id"]
 
-    # 重置原任务状态，标注为重新分析
-    update_task(task_id, status="running", progress=0, message=f"[重新分析] {supplement_msg}")
+    # 重置为pending，让后台claim_task能拿到锁
+    update_task(task_id, status="pending", progress=0, message=f"[重新分析] {supplement_msg}")
     t = db.session.get(Task, task_id)
     if t:
         t.stages = [{"stage": "retry", "status": "running", "message": supplement_msg}]
