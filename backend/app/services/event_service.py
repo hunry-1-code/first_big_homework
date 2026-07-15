@@ -384,9 +384,9 @@ def _rule_based_risk(event, articles) -> dict:
 
     factors = []
     if s_ratio > 0.2:
-        factors.append("可疑报道占比较高")
-    if avg_score > 0.3:
-        factors.append("文章可疑度平均分较高")
+        factors.append(f"可疑报道占比 {round(s_ratio*100)}%")
+    if avg_score >= 30:
+        factors.append(f"文章平均可疑度偏高 ({avg_score:.0f}/100)")
     if total < 5:
         factors.append("报道总量偏低，可能存在信息不完整")
     if not factors:

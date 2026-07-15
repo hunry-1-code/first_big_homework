@@ -1336,22 +1336,22 @@ function getProgressColor(heat: number) {
               <div class="font-bold text-slate-800 dark:text-slate-100">🤖 AI 研判与核心摘要</div>
             </template>
             <!-- 核心摘要网格 -->
-            <div class="grid grid-cols-2 gap-2 text-xs border-b border-gray-100 dark:border-gray-800 pb-3 mb-3">
-              <div><span class="text-gray-400">时间:</span>
-                <span class="font-medium ml-1 text-gray-700 dark:text-gray-300">{{ eventData.time_code || '-' }}</span></div>
-              <div><span class="text-gray-400">地点:</span>
-                <span class="font-medium ml-1 text-gray-700 dark:text-gray-300">{{ eventData.location || '-' }}</span></div>
-              <div class="col-span-2"><span class="text-gray-400">人物/机构:</span>
-                <span class="font-medium ml-1 text-gray-700 dark:text-gray-300">{{ eventData.key_figures || '-' }}</span></div>
-              <div class="col-span-2"><span class="text-gray-400">起因:</span>
-                <span class="font-medium ml-1 text-gray-700 dark:text-gray-300 line-clamp-1" :title="eventData.cause">{{ eventData.cause || '-' }}</span></div>
+            <div class="grid grid-cols-2 gap-x-3 gap-y-2 text-xs border-b border-gray-100 dark:border-gray-800 pb-3 mb-3">
+              <div><span class="text-gray-400">🕐 时间</span>
+                <div class="font-medium text-gray-700 dark:text-gray-300 mt-0.5">{{ eventData.time_code || '-' }}</div></div>
+              <div><span class="text-gray-400">📍 地点</span>
+                <div class="font-medium text-gray-700 dark:text-gray-300 mt-0.5">{{ eventData.location || '-' }}</div></div>
+              <div class="col-span-2"><span class="text-gray-400">👥 人物/机构</span>
+                <div class="font-medium text-gray-700 dark:text-gray-300 mt-0.5">{{ eventData.key_figures || '-' }}</div></div>
+              <div class="col-span-2"><span class="text-gray-400">📌 起因</span>
+                <div class="font-medium text-gray-700 dark:text-gray-300 mt-0.5">{{ eventData.cause || '-' }}</div></div>
             </div>
             <p class="text-sm text-gray-600 dark:text-gray-300 leading-relaxed mb-2">
-              {{ eventData.report?.overview_text || '暂无研判摘要' }}
+              {{ eventData.report?.overview_text || eventData.summary || '暂无研判摘要' }}
             </p>
-            <div v-if="eventData.report?.risk_data?.factors?.length" class="text-xs text-gray-400 mt-2">
-              <span class="font-medium text-orange-500">风险因素：</span>
-              {{ eventData.report.risk_data.factors.join('；') }}
+            <div v-if="eventData.report?.risk_data?.factors?.length" class="text-xs mt-2 p-2 rounded bg-orange-50 dark:bg-orange-950/20">
+              <span class="font-medium text-orange-600 dark:text-orange-400">⚠ 风险因素：</span>
+              <span class="text-orange-600 dark:text-orange-400">{{ eventData.report.risk_data.factors.join('；') }}</span>
             </div>
             <div class="mt-3 pt-3 border-t border-gray-100 dark:border-gray-800">
               <el-button type="primary" size="small" class="w-full" @click="router.push(`/qa?event_id=${route.params.id}`)">
