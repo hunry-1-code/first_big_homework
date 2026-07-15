@@ -10,6 +10,10 @@ import Lock from "~icons/ri/lock-fill";
 import User from "~icons/ri/user-3-fill";
 import Nickname from "~icons/ri/user-smile-line";
 
+const emit = defineEmits<{
+  registered: [username: string, password: string];
+}>();
+
 const loading = ref(false);
 const ruleFormRef = ref<FormInstance>();
 const ruleForm = reactive({
@@ -48,8 +52,8 @@ const onRegister = async (formEl: FormInstance | undefined) => {
         }
       });
       if (res.code === 200) {
-        message("注册成功，初始密码: " + ruleForm.password + "，请返回登录", { type: "success", duration: 8000 });
-        useUserStoreHook().SET_CURRENTPAGE(0);
+        message("注册成功，已自动填入登录表单", { type: "success", duration: 3000 });
+        emit("registered", ruleForm.username, ruleForm.password);
       } else {
         message(res.message || "注册失败", { type: "error" });
       }

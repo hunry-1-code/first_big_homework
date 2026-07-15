@@ -295,7 +295,7 @@ watch(loginDay, value => {
             </Motion>
           </el-form>
           <!-- 注册 -->
-          <LoginRegist v-if="currentPage === 3" />
+          <LoginRegist v-if="currentPage === 3" @registered="(u:string,p:string) => { ruleForm.username = u; ruleForm.password = p; useUserStoreHook().SET_CURRENTPAGE(0); }" />
           <!-- 忘记密码 -->
           <LoginUpdate v-if="currentPage === 4" />
         </div>
