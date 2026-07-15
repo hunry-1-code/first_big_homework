@@ -177,21 +177,18 @@ def available_platforms():
     registry = build_crawler_registry(current_app.config)
     # 排除：热榜类、演示类、不可用的
     unavailable = {"sample", "rss"}  # 排除演示和RSS
-    internal_news = {
-        "news_people", "news_36kr", "news_thepaper", "news_infoq", "news_sspai"
-    }
     # 已知配额耗尽/不可用的平台（动态变化，临时排除）
     rate_limited = current_app.config.get("CRAWL_RATE_LIMITED_PLATFORMS", [])
     searchable = [
         name for name in registry.platforms()
-        if name not in unavailable and name not in internal_news and name not in rate_limited
+        if name not in unavailable and name not in rate_limited
         and not name.endswith("_hot")
         and not name.startswith("rss_")
     ]
     # RSS 订阅源作为独立信源（不需要关键词搜索，提供最新资讯）
     rss_platforms = [
         name for name in registry.platforms()
-        if name.startswith("rss_") and name not in internal_news
+        if name.startswith("rss_")
     ]
     return ok({
         "platforms": sorted(searchable),

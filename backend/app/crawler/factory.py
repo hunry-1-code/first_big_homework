@@ -81,6 +81,10 @@ def build_crawler_registry(config) -> CrawlerRegistry:
             minimum_content_length=50,
         ),
     ]
+    # 注册个体新闻源（人民网/36氪/澎湃/InfoQ/少数派），用户可单独选择
+    for source in news_sources:
+        registry.register(source)
+    # 聚合爬虫（一键搜索全部5个新闻源）
     registry.register(
         MainstreamNewsCrawler(
             news_sources,

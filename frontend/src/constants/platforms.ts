@@ -141,10 +141,50 @@ export const SEARCH_PLATFORMS: SearchPlatform[] = [
     name: "主流新闻",
     id: "mainstream_news",
     always: true,
-    needKey: "聚合人民网·36氪·澎湃·InfoQ·少数派",
+    needKey: "聚合上述5个新闻源",
     icon: "ri:rss-fill",
     color: "#1e3a5f",
     bg: "#e8f0fe"
+  },
+  {
+    name: "人民网",
+    id: "news_people",
+    always: true,
+    icon: "ri:rss-fill",
+    color: "#c41e3a",
+    bg: "#fef0f0"
+  },
+  {
+    name: "36氪",
+    id: "news_36kr",
+    always: true,
+    icon: "ri:rss-fill",
+    color: "#3182ce",
+    bg: "#ebf8ff"
+  },
+  {
+    name: "澎湃新闻",
+    id: "news_thepaper",
+    always: true,
+    icon: "ri:rss-fill",
+    color: "#1e40af",
+    bg: "#e8f0fe"
+  },
+  {
+    name: "InfoQ",
+    id: "news_infoq",
+    always: true,
+    icon: "ri:rss-fill",
+    color: "#38a169",
+    bg: "#f0fff4"
+  },
+  {
+    name: "少数派",
+    id: "news_sspai",
+    always: true,
+    icon: "ri:rss-fill",
+    color: "#d53f8c",
+    bg: "#fff5f7"
   },
   {
     name: "百度新闻",
