@@ -270,6 +270,8 @@ class Config:
     DAILY_HOT_BAIDU_WEIGHT = float(os.getenv("DAILY_HOT_BAIDU_WEIGHT", "1.00"))
     DAILY_HOT_ZHIHU_WEIGHT = float(os.getenv("DAILY_HOT_ZHIHU_WEIGHT", "0.90"))
     DAILY_HOT_CONSENSUS_BONUS = float(os.getenv("DAILY_HOT_CONSENSUS_BONUS", "0.10"))
+
+    LLM_SEMANTIC_FILTER_ENABLED = os.getenv("LLM_SEMANTIC_FILTER_ENABLED", "true").lower() == "true"
     DAILY_HOT_REFRESH_INTERVAL_SECONDS = max(
         60,
         int(os.getenv("DAILY_HOT_REFRESH_INTERVAL_SECONDS", "900")),
