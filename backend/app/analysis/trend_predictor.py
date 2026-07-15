@@ -107,14 +107,15 @@ def analyze_lifecycle(
     # ── 多因素阶段判断 ──
     # 活动指数：当前综合信号相对于峰值的位置
     activity_index = current / max(0.01, peak)
-    # 近期密度：最近 7 天日均 vs 全部日均
-    recent_window = min(7, point_count)
-    recent_density = sum(combined[-recent_window:]) / recent_window if recent_window > 0 else 0
-    all_density = total_volume / point_count if point_count > 0 else 0
-    density_ratio = recent_density / max(0.01, all_density)
+    # 长尾检测用原始文章数，不被评论归一化虚高干扰
+    raw_recent_window = min(7, point_count)
+    raw_counts = list(daily_counts) if daily_counts else counts
+    raw_recent_density = sum(raw_counts[-raw_recent_window:]) / raw_recent_window if raw_recent_window > 0 else 0
+    raw_total_span = point_count  # 天数跨度
+    raw_total_volume = sum(raw_counts)
 
-    # 消退期：历史跨度大 + 绝对活跃度低（不用相对值，长尾事件 d_ratio 会虚高）
-    if point_count > 90 and activity_index < 0.3 and recent_density < 0.6:
+    # 消退期：长跨度 + 近期真实文章密度极低（<1篇/天）
+    if raw_total_span > 90 and raw_recent_density < 1.0:
         stage = "消退期"
         confidence = 0.80
         next_hint = "消退期"
@@ -143,8 +144,8 @@ def analyze_lifecycle(
         stage = "成长期"
         confidence = 0.55
         next_hint = "成长期"
-    # 跨度长但绝对密度极低 → 消退期
-    elif point_count > 30 and recent_density < 0.3:
+    # 跨度长但真实密度极低 → 消退期
+    elif point_count > 30 and raw_recent_density < 0.5:
         stage = "消退期"
         confidence = 0.60
         next_hint = "消退期"
