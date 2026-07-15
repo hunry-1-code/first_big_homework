@@ -157,6 +157,15 @@ function getEnrichedTrend(): { dates: string[]; counts: number[] } {
 }
 
 // 构造传播网络数据——使用后端真实数据 + force 自动布局
+function getNodeBg(idx: number, total: number): string {
+  const colors = ["#fee2e2", "#ffedd5", "#dbeafe", "#dcfce7", "#f3e8ff", "#fce7f3"];
+  return colors[idx % colors.length];
+}
+function getNodeColor(idx: number): string {
+  const colors = ["#dc2626", "#ea580c", "#2563eb", "#16a34a", "#9333ea", "#db2777"];
+  return colors[idx % colors.length];
+}
+
 function buildPropagationData() {
   const raw = propagationData.value;
   if (!raw || !raw.graph || !raw.graph.nodes || raw.graph.nodes.length === 0) {
@@ -640,72 +649,7 @@ function initRadarChart() {
   });
 }
 
-// ==================== 5. 传播路径网络图 ====================
-function initPropagationChart() {
-  if (!propagationRef.value) return;
-  if (!propagationData.value?.graph?.nodes?.length) return;
-  if (propagationChart) propagationChart.dispose();
-  propagationChart = echarts.init(propagationRef.value);
-
-  const dark = isDark.value;
-  const data = buildPropagationData();
-  const categoryColors = ["#ef4444", "#f97316", "#3b82f6", "#22c55e", "#94a3b8"];
-
-  propagationChart.setOption({
-    tooltip: {
-      trigger: "item",
-      formatter: (params: any) => {
-        if (params.dataType === "edge") {
-          return `<b>${params.data.source} → ${params.data.target}</b><br/>传播量: ${params.data.value?.toLocaleString() || params.value}`;
-        }
-        return `<b>${params.name}</b><br/>类型: ${data.categories[params.data.category]?.name || ""}`;
-      },
-      backgroundColor: dark ? "rgba(17,24,39,0.95)" : "rgba(255,255,255,0.95)",
-      borderColor: dark ? "#374151" : "#e5e7eb",
-      textStyle: { color: dark ? "#e2e8f0" : "#1e293b", fontSize: 12 }
-    },
-    legend: {
-      data: data.categories.map((c: any) => c.name),
-      bottom: 0,
-      padding: [12, 0, 6, 0],
-      textStyle: { color: dark ? "#94a3b8" : "#64748b", fontSize: 11 },
-      itemWidth: 10, itemHeight: 10
-    },
-    series: [{
-      type: "graph",
-      layout: "force",
-      roam: true,
-      force: {
-        repulsion: 300,
-        edgeLength: [100, 250],
-        gravity: 0.1
-      },
-      categories: data.categories.map((c: any, i: number) => ({ name: c.name, itemStyle: { color: categoryColors[i] } })),
-      data: data.nodes,
-      links: data.links,
-      lineStyle: { color: dark ? "#475569" : "#cbd5e1", curveness: 0.3, opacity: 0.45, width: 1.2 },
-      edgeSymbol: ["none", "arrow"],
-      edgeSymbolSize: [0, 6],
-      emphasis: {
-        focus: "adjacency",
-        lineStyle: { width: 2, opacity: 0.8 },
-        itemStyle: { shadowBlur: 10, shadowColor: "rgba(0,0,0,0.2)" }
-      },
-      label: {
-        show: true,
-        fontSize: 11,
-        color: dark ? "#cbd6df" : "#334155",
-        fontWeight: 500
-      },
-      itemStyle: {
-        borderColor: dark ? "#1e293b" : "#fff",
-        borderWidth: 2,
-        shadowBlur: 3,
-        shadowColor: "rgba(0,0,0,0.08)"
-      }
-    }]
-  });
-}
+// ==================== 5. 传播路径（已改为列表展示） ====================
 
 // ==================== 6. 报道影响力排行榜 ====================
 function initInfluenceChart() {
@@ -1332,51 +1276,46 @@ function getProgressColor(heat: number) {
         </el-col>
       </el-row>
 
-      <!-- ===== 传播路径网络图 ===== -->
+      <!-- ===== 事件溯源与关键传播路径 ===== -->
       <el-card shadow="never" class="!border-slate-200/60 dark:!border-slate-800/60 rounded-xl mb-6">
         <template #header>
-          <div class="flex justify-between items-center w-full">
-            <div class="font-bold text-slate-800 dark:text-slate-100">
-              🔗 事件溯源与关键传播路径
-            </div>
-            <div class="flex items-center gap-3">
-              <span class="text-[11px] text-slate-400 dark:text-slate-500 hidden sm:inline">左→右: 源头 → 传播者 → 平台 → 官媒 → 公众</span>
-              <span class="text-[11px] text-slate-400">{{ Math.round(propagationZoom * 100) }}%</span>
-              <el-button-group size="small">
-                <el-button @click="propagationZoomIn" title="放大"><el-icon><PlusIcon /></el-icon></el-button>
-                <el-button @click="propagationZoomOut" title="缩小"><el-icon><MinusIcon /></el-icon></el-button>
-                <el-button @click="propagationResetZoom" title="重置"><el-icon><RefreshRightIcon /></el-icon></el-button>
-              </el-button-group>
-            </div>
-          </div>
+          <div class="font-bold text-slate-800 dark:text-slate-100">事件溯源与关键传播路径</div>
         </template>
-        <div
-          v-if="propagationNotice"
-          class="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-700 dark:border-amber-800/60 dark:bg-amber-950/30 dark:text-amber-300"
-        >
-          {{ propagationNotice }}
-        </div>
-        <div class="flex gap-3 mb-3">
-          <div class="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
-            <span class="w-2.5 h-2.5 rounded-full bg-red-500" /> 信息源头
-          </div>
-          <div class="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
-            <span class="w-2.5 h-2.5 rounded-full bg-orange-500" /> 关键传播者
-          </div>
-          <div class="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
-            <span class="w-2.5 h-2.5 rounded-full bg-blue-500" /> 平台扩散
-          </div>
-          <div class="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
-            <span class="w-2.5 h-2.5 rounded-full bg-green-500" /> 官方媒体
-          </div>
-          <div class="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
-            <span class="w-2.5 h-2.5 rounded-full bg-slate-400" /> 公众讨论
+        <div v-if="propagationNotice" class="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-800/60 dark:bg-amber-950/30 dark:text-amber-300">{{ propagationNotice }}</div>
+
+        <!-- 关键词传播链 -->
+        <div v-if="propagationData?.graph?.nodes?.length" class="mb-4">
+          <div class="text-xs text-slate-400 mb-2">关键词传播演化链</div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <template v-for="(node, idx) in propagationData.graph.nodes" :key="node.id">
+              <span class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium"
+                :style="{ backgroundColor: getNodeBg(idx, propagationData.graph.nodes.length), color: getNodeColor(idx) }">
+                {{ node.name }}
+                <span class="text-[10px] opacity-60">({{ Math.round((node.symbolSize || 0) / 40 * 100) }}%)</span>
+              </span>
+              <span v-if="idx < propagationData.graph.nodes.length - 1" class="text-slate-300 text-lg">&rarr;</span>
+            </template>
           </div>
         </div>
-        <div class="w-full h-[480px] overflow-hidden flex items-center justify-center bg-slate-50/30 dark:bg-slate-950/30 rounded-lg">
-          <div v-if="!propagationData" class="text-xs text-slate-400">传播数据加载中...</div>
-          <div ref="propagationRef" class="w-full h-full" />
+
+        <!-- 溯源信息 -->
+        <div v-if="propagationData?.origin_analysis" class="text-xs text-slate-500 space-y-1">
+          <div v-if="propagationData.origin_analysis.status === 'completed' && propagationData.origin_analysis.origin">
+            <span class="font-medium">疑似源头:</span>
+            {{ propagationData.origin_analysis.origin.title }}
+            <span v-if="propagationData.origin_analysis.origin.source">({{ propagationData.origin_analysis.origin.source }})</span>
+          </div>
+          <div v-else-if="propagationData?.coverage_status === 'partial'">
+            <span class="text-amber-500">溯源状态: 部分完成，待豆包联网复核</span>
+          </div>
+          <div v-else>
+            <span class="text-slate-400">溯源分析将在后台计算完成后更新</span>
+          </div>
+          <div v-if="propagationData?.summary?.coverage_notice">{{ propagationData.summary.coverage_notice }}</div>
         </div>
+
+        <div v-if="!propagationData" class="text-xs text-slate-400 py-4 text-center">传播数据加载中...</div>
+        <div v-else-if="!propagationData.graph?.nodes?.length" class="text-xs text-slate-400 py-4 text-center">暂无传播路径数据</div>
       </el-card>
 
       <!-- ===== 关键事件时间轴 + 报道影响力排行榜 ===== -->
