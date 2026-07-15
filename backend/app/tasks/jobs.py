@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from flask import current_app
 
 from app.analysis.hot_seed import HotSeedSnapshot, merge_hot_seeds
-from app.crawler.base import CrawlIssue, CrawlerRegistry, RawDocument
+from app.crawler.base import CrawlBatch, CrawlIssue, CrawlRequest, CrawlerRegistry, RawDocument
 from app.crawler.factory import build_crawler_registry
 from app.extensions import db
 from app.models import HotSeedExpansion
