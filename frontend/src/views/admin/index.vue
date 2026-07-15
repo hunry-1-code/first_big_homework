@@ -2,16 +2,16 @@
   <div class="admin-dashboard-container p-6 space-y-6">
     <!-- 头部 -->
     <div class="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/60 p-6 rounded-2xl shadow-sm">
-      <h1 class="text-2xl font-bold text-slate-800 dark:text-slate-100">⚙️ 运维管理</h1>
-      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">全链路进程监控 · 每日热点调度</p>
+      <h1 class="text-2xl font-bold text-slate-800 dark:text-slate-100">📊 热点监控</h1>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">每日热点榜单 · 全链路进程管理</p>
     </div>
 
-    <!-- 每日热点调度控制 -->
+    <!-- 每日热点调度控制（仅管理员可见） -->
     <el-card shadow="never" class="!border-slate-200/60 dark:!border-slate-800/60 rounded-xl">
       <template #header>
         <div class="flex justify-between items-center">
           <span class="font-bold text-slate-800 dark:text-slate-100">🔥 每日热点定时调度</span>
-          <div class="flex items-center gap-2">
+          <div v-if="isAdmin" class="flex items-center gap-2">
             <el-switch v-model="dhEnabled" :loading="dhLoading" active-text="启用" inactive-text="停用"
               @change="toggleDH" />
             <el-popconfirm title="确认立即执行一次每日热点采集？会调用爬虫API。" @confirm="triggerDH">
@@ -22,7 +22,7 @@
           </div>
         </div>
       </template>
-      <div class="flex items-center gap-6 text-sm">
+      <div v-if="isAdmin" class="flex items-center gap-6 text-sm">
         <div class="flex items-center gap-2">
           <span class="text-slate-400">采集间隔：</span>
           <el-select v-model="dhInterval" size="small" style="width:120px" @change="setDHInterval">
@@ -81,7 +81,7 @@
           </div>
         </div>
         <div v-else class="text-center py-8 text-slate-400 text-sm">
-          <span class="text-3xl block mb-2">🔥</span>暂无今日热点，点击「手动触发」开始采集
+          <span class="text-3xl block mb-2">🔥</span>{{ isAdmin ? '暂无今日热点，点击「手动触发」开始采集' : '暂无今日热点数据' }}
         </div>
       </div>
     </el-card>
@@ -124,6 +124,7 @@
 <script setup lang="ts">
 import { onMounted, ref, computed } from "vue";
 import { useRouter } from "vue-router";
+import { useUserStoreHook } from "@/store/modules/user";
 import { getAllTasks } from "@/api/tasks";
 import { getTodayHotspots, refreshTodayHotspots } from "@/api/dailyHot";
 import TaskList from "@/components/TaskList.vue";
@@ -133,6 +134,7 @@ import { http } from "@/utils/http";
 defineOptions({ name: "OpinionAdmin" });
 
 const router = useRouter();
+const isAdmin = computed(() => useUserStoreHook().roles.includes("admin"));
 const allTasks = ref<any[]>([]);
 const tasksLoading = ref(false);
 const runningCount = computed(() => allTasks.value.filter(t => t.status === 'running').length);

@@ -62,9 +62,8 @@ export default [
         name: "Admin",
         component: () => import("@/views/admin/index.vue"),
         meta: {
-          icon: "ep:setting",
-          title: "运维管理",
-          roles: ["admin"]
+          icon: "ep:trend-charts",
+          title: "热点监控"
         }
       }
     ]
