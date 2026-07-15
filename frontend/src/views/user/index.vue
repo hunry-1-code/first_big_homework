@@ -50,7 +50,6 @@
 
           <div class="flex gap-2">
             <el-button size="small" type="primary" plain @click="saveKeywords" :loading="saving">保存关键词</el-button>
-            <el-button size="small" type="success" plain @click="monitorAll" :loading="monitoring" :disabled="myKeywords.length === 0">🔍 一键监控全部</el-button>
           </div>
         </el-card>
       </el-col>
@@ -76,31 +75,6 @@
     </el-row>
 
     <el-row :gutter="24">
-      <!-- 分析统计 -->
-      <el-col :xs="24" :md="8" class="mb-6">
-        <el-card shadow="never" class="!border-slate-200/60 dark:!border-slate-800/60 rounded-xl">
-          <template #header><span class="font-bold text-slate-800 dark:text-slate-100">📊 分析统计</span></template>
-          <div class="grid grid-cols-2 gap-3 text-center">
-            <div class="bg-blue-50 dark:bg-blue-950/30 rounded-lg p-3">
-              <div class="text-2xl font-bold text-blue-600">{{ myTasks.length }}</div>
-              <div class="text-xs text-slate-500 mt-1">分析任务</div>
-            </div>
-            <div class="bg-emerald-50 dark:bg-emerald-950/30 rounded-lg p-3">
-              <div class="text-2xl font-bold text-emerald-600">{{ doneCount }}</div>
-              <div class="text-xs text-slate-500 mt-1">已完成</div>
-            </div>
-            <div class="bg-orange-50 dark:bg-orange-950/30 rounded-lg p-3">
-              <div class="text-2xl font-bold text-orange-600">{{ runningCount }}</div>
-              <div class="text-xs text-slate-500 mt-1">运行中</div>
-            </div>
-            <div class="bg-red-50 dark:bg-red-950/30 rounded-lg p-3">
-              <div class="text-2xl font-bold text-red-500">{{ failedCount }}</div>
-              <div class="text-xs text-slate-500 mt-1">失败</div>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-
       <!-- 搜索历史 -->
       <el-col :xs="24" class="mb-6">
         <el-card shadow="never" class="!border-slate-200/60 dark:!border-slate-800/60 rounded-xl">
@@ -127,22 +101,18 @@
         </el-card>
       </el-col>
 
-      <!-- 数据源概览：简要展示系统支持采集的平台数量和类型 -->
+      <!-- 数据源概览 -->
       <el-col :xs="24" :md="8" class="mb-6">
         <el-card shadow="never" class="!border-slate-200/60 dark:!border-slate-800/60 rounded-xl">
           <template #header><span class="font-bold text-slate-800 dark:text-slate-100">📡 数据源概览</span></template>
-          <div v-loading="sourcesLoading">
-            <div v-if="platformSources.length > 0" class="text-sm text-slate-500 space-y-2">
-              <div><b class="text-slate-700">{{ platformSources.length }}</b> 个数据平台可用</div>
-              <div class="flex flex-wrap gap-1.5">
-                <span v-for="type in sourceTypeStats" :key="type.name"
-                  class="text-xs px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800">
-                  {{ type.name }} {{ type.count }}
-                </span>
-              </div>
-              <div class="text-xs text-slate-400">具体平台和采集能力见 <router-link to="/analysis" class="text-blue-500">事件分析页</router-link></div>
+          <div class="text-sm text-slate-500 space-y-2">
+            <div><b class="text-slate-700">12</b> 个数据平台可用</div>
+            <div class="flex flex-wrap gap-1.5">
+              <span class="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 dark:bg-blue-950/30">社交平台 6</span>
+              <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30">新闻媒体 5</span>
+              <span class="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 dark:bg-amber-950/30">搜索引擎 1</span>
             </div>
-            <div v-else class="text-xs text-slate-400 py-4 text-center">加载中...</div>
+            <div class="text-xs text-slate-400">具体平台和采集能力见 <router-link to="/analysis" class="text-blue-500">事件分析页</router-link></div>
           </div>
         </el-card>
       </el-col>
@@ -154,10 +124,8 @@
 import { onMounted, ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useUserStore } from "@/store/modules/user";
-import { resolvePlatformName } from "@/constants/platforms";
 import { getMyTasks } from "@/api/tasks";
 import { getSearchHistory, deleteSearchHistory, repeatSearch, getUserConfig, saveUserConfig } from "@/api/user";
-import { http } from "@/utils/http";
 import TaskList from "@/components/TaskList.vue";
 import { message } from "@/utils/message";
 
@@ -169,11 +137,8 @@ const userStore = useUserStore();
 const keywordInput = ref("");
 const myKeywords = ref<string[]>([]);
 const myTasks = ref<any[]>([]);
-const platformSources = ref<any[]>([]);
-const sourcesLoading = ref(false);
 const tasksLoading = ref(false);
 const saving = ref(false);
-const monitoring = ref(false);
 const searchHistory = ref<any[]>([]);
 const historyLoading = ref(false);
 
@@ -184,17 +149,6 @@ async function loadConfig() {
     const r = await getUserConfig();
     myKeywords.value = r.data?.keywords || [];
   } catch {}
-}
-
-async function monitorAll() {
-  monitoring.value = true;
-  try {
-    for (const kw of myKeywords.value) {
-      await http.request("post", "/api/crawler/search", { data: { keyword: kw, target_count: 30 } });
-    }
-    message(`已提交 ${myKeywords.value.length} 个关键词的监控任务`, { type: "success" });
-  } catch { message("提交失败", { type: "error" }); }
-  finally { monitoring.value = false; }
 }
 
 function addKeyword() {
@@ -253,32 +207,7 @@ function formatHistoryTime(ts: string) {
   return Math.floor(d / 86400) + "天前";
 }
 
-const FAVICON_DOMAINS: Record<string, string> = {
-  bilibili: "bilibili.com", weibo: "weibo.com", zhihu: "zhihu.com",
-  xiaohongshu: "xiaohongshu.com", douyin: "douyin.com", baidu: "baidu.com",
-  news_people: "people.com.cn", news_36kr: "36kr.com", news_thepaper: "thepaper.cn",
-  news_infoq: "infoq.cn", news_sspai: "sspai.com",
-};
-
-const sourceTypeStats = computed(() => {
-  const map: Record<string, number> = {};
-  for (const p of platformSources.value) {
-    const t = p.type === 'social' ? '社交平台' : p.type === 'news' ? '新闻媒体' : p.type === 'search' ? '搜索引擎' : p.type === 'news_group' ? '聚合源' : p.type;
-    map[t] = (map[t] || 0) + 1;
-  }
-  return Object.entries(map).map(([name, count]) => ({ name, count }));
-});
-
-async function loadPlatformSources() {
-  sourcesLoading.value = true;
-  try {
-    const r = await http.request<any>("get", "/api/user/sources");
-    platformSources.value = r.data?.presets || [];
-  } catch { platformSources.value = []; }
-  finally { sourcesLoading.value = false; }
-}
-
-onMounted(() => { loadConfig(); loadSearchHistory(); loadMyTasks(); loadPlatformSources(); });
+onMounted(() => { loadConfig(); loadSearchHistory(); loadMyTasks(); });
 
 async function loadMyTasks() {
   tasksLoading.value = true;
@@ -294,57 +223,7 @@ function handleLogout() {
   message("已退出", { type: "success" });
 }
 
-// 平台状态
-const platformStatus = ref<Array<{name:string,ok:boolean,status:string}>>([]);
-async function loadPlatformStatus() {
-  try {
-    const r = await http.request<any>("get", "/api/crawler/status");
-    const data = r.data || {};
-    const list = [];
-    // 从 crawler status 提取各平台状态
-    for (const [name, info] of Object.entries(data)) {
-      if (typeof info === 'object' && info !== null) {
-        const s = info as any;
-        list.push({ name, ok: s.error_count === 0 || s.total_count > 0, status: s.error_count > 0 ? '异常' : '正常' });
-      }
-    }
-    if (list.length === 0) {
-      // fallback: hardcoded status based on earlier tests
-      list.push({ name: 'B站', ok: true, status: '正常' });
-      list.push({ name: '知乎', ok: true, status: '正常' });
-      list.push({ name: '微博', ok: true, status: '正常' });
-      list.push({ name: '百度', ok: false, status: '限流' });
-      list.push({ name: '抖音', ok: false, status: '缺Key' });
-    }
-    platformStatus.value = list;
-  } catch { platformStatus.value = []; }
-}
-
 // 我的事件
-const myEvents = ref<any[]>([]);
-async function loadMyEvents() {
-  try {
-    const r = await http.request<any>("get", "/api/events", { params: { size: 10 } });
-    myEvents.value = r.data?.events || [];
-  } catch {}
-}
-
-// 修改密码
-const newPassword = ref("");
-const changingPwd = ref(false);
-async function changePassword() {
-  if (!newPassword.value || newPassword.value.length < 6) {
-    message("密码至少6位", { type: "warning" }); return;
-  }
-  changingPwd.value = true;
-  try {
-    await http.request("put", "/api/user/profile", { data: { password: newPassword.value } });
-    message("密码已修改", { type: "success" });
-    newPassword.value = "";
-  } catch { message("修改失败", { type: "error" }); }
-  finally { changingPwd.value = false; }
-}
-
 </script>
 
 <style scoped>
