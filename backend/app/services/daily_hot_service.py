@@ -270,8 +270,10 @@ def collect_daily_hot(
         deduplicate_hot_topics(list(item_map.values()), dedup_candidates)
 
     # 重新排序：merged 项不参与排名，主条目重新编号
-    # 先清空所有 rank 避免 UNIQUE 冲突
-    DailyHotItem.query.filter_by(run_id=run.id).update({DailyHotItem.rank: None})
+    # 用负值做中间态，逐个更新避免 UNIQUE(run_id, rank) 冲突
+    all_run_items = DailyHotItem.query.filter_by(run_id=run.id).order_by(DailyHotItem.id).all()
+    for i, item in enumerate(all_run_items):
+        item.rank = -(i + 1)
     db.session.flush()
     canonical_items = (
         DailyHotItem.query.filter_by(run_id=run.id, merged_into_item_id=None)
