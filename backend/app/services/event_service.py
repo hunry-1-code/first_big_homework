@@ -417,6 +417,7 @@ def _event_item(event: Event, snapshot: EventHeatSnapshot | None = None, platfor
     from app.services.lifecycle_prediction_service import build_prediction_payload
     return {
         "id": event.id,
+        "created_at": event.created_at.isoformat() if event.created_at else None,
         "title": event.title,
         "summary": event.summary,
         "top_keywords": top3,
