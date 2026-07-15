@@ -203,7 +203,7 @@ def run_search_analysis_pipeline(task_id: int, article_ids: list[int], keyword: 
     return result
 
 
-def crawl_job(task_id: int, registry: CrawlerRegistry | None = None, is_retry: bool = False) -> dict:
+def crawl_job(task_id: int, registry: CrawlerRegistry | None = None, is_retry: bool = False, override_target: int | None = None) -> dict:
     task = get_task(task_id)
     if task is None:
         raise KeyError(f"task not found: {task_id}")
@@ -221,7 +221,7 @@ def crawl_job(task_id: int, registry: CrawlerRegistry | None = None, is_retry: b
         maximum_target_count=current_app.config.get("CRAWL_MAX_TARGET_COUNT", 200),
         preferred_platform_limit=current_app.config.get("CRAWL_PLATFORM_PREFERRED_LIMIT", 50),
     )
-    target = payload.get("target_count") or current_app.config.get("CRAWL_DEFAULT_TARGET_COUNT", 50)
+    target = override_target or payload.get("target_count") or current_app.config.get("CRAWL_DEFAULT_TARGET_COUNT", 50)
     persisted_article_ids = []
     persisted_hot_documents = []
     processed = 0
