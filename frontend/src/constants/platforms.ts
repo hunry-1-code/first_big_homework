@@ -134,6 +134,23 @@ export const SEARCH_PLATFORMS: SearchPlatform[] = [
     color: "#111111",
     bg: "#f1f5f9"
   },
+  // ===== 主流新闻媒体 =====
+  {
+    name: "主流新闻",
+    id: "mainstream_news",
+    always: true,
+    icon: "ri:rss-fill",
+    color: "#1e3a5f",
+    bg: "#e8f0fe"
+  },
+  {
+    name: "百度新闻",
+    id: "baidu_news",
+    always: true,
+    icon: "ant-design:baidu-outlined",
+    color: "#3385ff",
+    bg: "#e8f0fe"
+  },
   // ===== RSS 资讯订阅源（无需关键词，提供最新资讯） =====
   {
     name: "36氪",
