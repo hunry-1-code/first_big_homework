@@ -1191,34 +1191,34 @@ function getProgressColor(heat: number) {
           <h4 class="text-sm font-bold text-slate-600 dark:text-slate-400 mb-3">AI 识别公众关注主题</h4>
           <!-- 正面 -->
           <div v-if="publicOpinion.opinion_themes.some((x:any) => x.sentiment === 'positive')" class="mb-2">
-            <div class="text-xs text-emerald-600 dark:text-emerald-400 mb-1">😊 正面</div>
+            <div class="text-sm text-emerald-600 dark:text-emerald-400 mb-1">😊 正面</div>
             <div class="flex flex-wrap gap-1.5">
               <span v-for="(t, i) in publicOpinion.opinion_themes.filter((x:any) => x.sentiment === 'positive')" :key="'p'+i"
-                class="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400">
+                class="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400">
                 {{ t.theme }}
-                <span class="opacity-50 text-[10px]">{{ t.example?.slice(0, 20) }}</span>
+                <span class="opacity-50 text-xs">{{ t.example?.slice(0, 20) }}</span>
               </span>
             </div>
           </div>
           <!-- 负面 -->
           <div v-if="publicOpinion.opinion_themes.some((x:any) => x.sentiment === 'negative')" class="mb-2">
-            <div class="text-xs text-red-600 dark:text-red-400 mb-1">😡 负面</div>
+            <div class="text-sm text-red-600 dark:text-red-400 mb-1">😡 负面</div>
             <div class="flex flex-wrap gap-1.5">
               <span v-for="(t, i) in publicOpinion.opinion_themes.filter((x:any) => x.sentiment === 'negative')" :key="'n'+i"
-                class="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400">
+                class="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400">
                 {{ t.theme }}
-                <span class="opacity-50 text-[10px]">{{ t.example?.slice(0, 20) }}</span>
+                <span class="opacity-50 text-xs">{{ t.example?.slice(0, 20) }}</span>
               </span>
             </div>
           </div>
           <!-- 中性 -->
           <div v-if="publicOpinion.opinion_themes.some((x:any) => x.sentiment !== 'positive' && x.sentiment !== 'negative')">
-            <div class="text-xs text-slate-500 dark:text-slate-400 mb-1">😐 中性</div>
+            <div class="text-sm text-slate-500 dark:text-slate-400 mb-1">😐 中性</div>
             <div class="flex flex-wrap gap-1.5">
               <span v-for="(t, i) in publicOpinion.opinion_themes.filter((x:any) => x.sentiment !== 'positive' && x.sentiment !== 'negative')" :key="'u'+i"
-                class="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+                class="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400">
                 {{ t.theme }}
-                <span class="opacity-50 text-[10px]">{{ t.example?.slice(0, 20) }}</span>
+                <span class="opacity-50 text-xs">{{ t.example?.slice(0, 20) }}</span>
               </span>
             </div>
           </div>
