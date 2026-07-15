@@ -1,9 +1,5 @@
 import { apiClient } from "./client";
 
-export function triggerCrawler(payload: any = {}) {
-  return apiClient.post("/crawler/trigger", payload);
-}
-
 export function searchCrawler(keyword: string, platforms?: string[], targetCount?: number, force?: boolean) {
   const payload: Record<string, any> = { keyword };
   if (platforms && platforms.length > 0) {
@@ -18,6 +14,3 @@ export function searchCrawler(keyword: string, platforms?: string[], targetCount
   return apiClient.post("/crawler/search", payload);
 }
 
-export function getCrawlerStatus() {
-  return apiClient.get("/crawler/status");
-}

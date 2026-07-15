@@ -89,11 +89,6 @@ export const getMine = (data?: object) => {
   return http.request<UserInfoResult>("get", "/api/user/profile", { data });
 };
 
-/** 账户设置-个人安全日志 */
-export const getMineLogs = (data?: object) => {
-  return http.request<ResultTable>("get", "/api/user/profile/logs", { data });
-};
-
 /** 获取用户配置（关键词等） */
 export const getUserConfig = () => {
   return http.request<any>("get", "/api/user/config");
@@ -119,7 +114,3 @@ export const repeatSearch = (id: number) => {
   return http.request<any>("post", `/api/user/search-history/${id}/repeat`);
 };
 
-/** 获取平台目录（含关注状态、搜索地址等） */
-export const getUserSources = () => {
-  return http.request<any>("get", "/api/user/sources");
-};
