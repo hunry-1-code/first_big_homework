@@ -229,10 +229,10 @@ onMounted(async () => {
     await nextTick();
     initCharts();
     // 传播数据异步加载，到达后重绘传播图
-    getEventPropagation(Number(route.params.id)).then(r => {
+    getEventPropagation(Number(route.params.id)).then(async r => {
       propagationData.value = r?.data || r;
-      console.log('[prop] data received, nodes:', propagationData.value?.graph?.nodes?.length);
-      nextTick(() => initPropagationChart());
+      await nextTick();
+      initPropagationChart();
     }).catch(err => { console.warn('[prop] fetch failed:', err); });
   } catch (err) {
     message("加载事件详情失败", { type: "error" });
@@ -642,8 +642,8 @@ function initRadarChart() {
 
 // ==================== 5. 传播路径网络图 ====================
 function initPropagationChart() {
-  if (!propagationRef.value) { console.warn('[prop] ref not ready'); return; }
-  if (!propagationData.value?.graph?.nodes?.length) { console.warn('[prop] no data'); return; }
+  if (!propagationRef.value) return;
+  if (!propagationData.value?.graph?.nodes?.length) return;
   if (propagationChart) propagationChart.dispose();
   propagationChart = echarts.init(propagationRef.value);
 
