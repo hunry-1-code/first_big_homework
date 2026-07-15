@@ -237,16 +237,10 @@ onMounted(async () => {
     eventData.value = eventResp.data;
     await nextTick();
     initCharts();
-    // 传播数据异步加载，到达后重绘传播图
+    // 传播数据异步加载（模板驱动，无需 echarts）
     getEventPropagation(Number(route.params.id)).then(async r => {
       propagationData.value = r?.data || r;
-      await nextTick();
-      initPropagationChart();
     }).catch(err => { console.warn('[prop] fetch failed:', err); });
-    // 延迟重试影响力图表：DOM 可能因 Element Plus 组件尚未完全渲染
-    setTimeout(() => {
-      if (!influenceChart) initInfluenceChart();
-    }, 500);
   } catch (err) {
     message("加载事件详情失败", { type: "error" });
   } finally {
@@ -262,7 +256,6 @@ function initCharts() {
   initPlatformChart();
   initRadarChart();
   initBubbleChart();
-  initPropagationChart();
   initInfluenceChart();
 }
 
