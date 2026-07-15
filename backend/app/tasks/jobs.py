@@ -161,23 +161,28 @@ def run_search_analysis_pipeline(task_id: int, article_ids: list[int], keyword: 
                 pass
     record_stage(task_id, "publish", "done", f"{publish_count} 个事件")
 
-    # 传播分析：在事件发布后计算，确保页面加载时已就绪
+    # 传播分析：后台异步计算，不阻塞任务完成
     if publish_count > 0:
-        update_task(task_id, progress=93, message="正在计算传播路径...")
-        record_stage(task_id, "propagation", "running", "传播路径分析 + 全网溯源")
+        record_stage(task_id, "propagation", "running", "传播路径将在后台计算")
         try:
-            from app.services.event_aggregation_service import _compute_and_cache_propagation
-            from app.models.event import Event as Evt
-            from app.models.article import Article
-            for cluster in AggregationCluster.query.filter_by(aggregation_run_id=aggregation_run.id).all():
-                if cluster.resolved_event_id:
-                    ev = db.session.get(Evt, cluster.resolved_event_id)
-                    if ev:
-                        arts = Article.query.filter_by(event_id=ev.id).order_by(Article.publish_time.asc()).all()
-                        _compute_and_cache_propagation(ev, arts, len({a.platform for a in arts if a.platform}))
+            import threading
+            def _bg_propagation():
+                try:
+                    from app.services.event_aggregation_service import _compute_and_cache_propagation
+                    from app.models.event import Event as Evt
+                    from app.models.article import Article as _A
+                    for cluster in AggregationCluster.query.filter_by(aggregation_run_id=aggregation_run.id).all():
+                        if cluster.resolved_event_id:
+                            ev = db.session.get(Evt, cluster.resolved_event_id)
+                            if ev:
+                                arts = _A.query.filter_by(event_id=ev.id).order_by(_A.publish_time.asc()).all()
+                                _compute_and_cache_propagation(ev, arts, len({a.platform for a in arts if a.platform}))
+                except Exception:
+                    pass
+            threading.Thread(target=_bg_propagation, daemon=True).start()
         except Exception:
             pass
-        record_stage(task_id, "propagation", "done", "传播路径已缓存")
+        record_stage(task_id, "propagation", "done", "传播路径将在后台计算")
 
     result = dict(
         analysis_run_id=analysis_run.id,
