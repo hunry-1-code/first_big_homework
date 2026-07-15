@@ -222,6 +222,17 @@ def crawl_job(task_id: int, registry: CrawlerRegistry | None = None, is_retry: b
         preferred_platform_limit=current_app.config.get("CRAWL_PLATFORM_PREFERRED_LIMIT", 50),
     )
     target = override_target or payload.get("target_count") or current_app.config.get("CRAWL_DEFAULT_TARGET_COUNT", 50)
+    # 补采去重：收集已有文章的唯一标识（url_hash + platform:source_article_id）
+    existing_ids: set[str] = set()
+    if override_target:
+        from app.models.article import Article as _Art
+        for a in _Art.query.filter_by(crawl_task_id=task_id).with_entities(
+            _Art.url_hash, _Art.platform, _Art.source_article_id
+        ).all():
+            if a.url_hash:
+                existing_ids.add(a.url_hash)
+            if a.platform and a.source_article_id:
+                existing_ids.add(f"{a.platform}:{a.source_article_id}")
     persisted_article_ids = []
     persisted_hot_documents = []
     processed = 0
@@ -303,6 +314,13 @@ def crawl_job(task_id: int, registry: CrawlerRegistry | None = None, is_retry: b
         round_processed = 0
         for index, document in enumerate(batch.documents, start=1):
             try:
+                # 补采去重：已存在的文章跳过（url_hash 或 platform+id 匹配）
+                if existing_ids:
+                    import hashlib
+                    doc_hash = hashlib.sha256((document.source_url or "").encode()).hexdigest()
+                    plat_id = f"{document.platform}:{document.source_article_id}" if document.source_article_id else ""
+                    if doc_hash in existing_ids or (plat_id and plat_id in existing_ids):
+                        continue
                 article, _output = persist_raw_document(document, task_id)
                 # 质量检查：nlp_weight >= 0.5 且内容 >= 50 字才算合格
                 nlp_w = float(article.nlp_weight or 0)
@@ -312,6 +330,11 @@ def crawl_job(task_id: int, registry: CrawlerRegistry | None = None, is_retry: b
                     processed += 1
                     round_processed += 1
                 persisted_article_ids.append(article.id)
+                # 将新文章加入去重集合
+                if existing_ids and article.url_hash:
+                    existing_ids.add(article.url_hash)
+                    if article.platform and article.source_article_id:
+                        existing_ids.add(f"{article.platform}:{article.source_article_id}")
                 added, comment_status, comment_error = _enrich_article_comments(
                     article, document, registry
                 )
