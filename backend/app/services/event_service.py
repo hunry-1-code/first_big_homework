@@ -372,8 +372,8 @@ def _rule_based_risk(event, articles) -> dict:
     scores = [float(getattr(a, "suspicious_score", 0) or 0) for a in articles]
     avg_score = sum(scores) / len(scores) if scores else 0
 
-    # 综合风险分：可疑率 60% + 平均分 40%
-    risk_score = round(s_ratio * 60 + (avg_score / 100) * 40, 1)
+    # 综合风险分：取文章平均可疑分（0-100），真实反映内容风险水平
+    risk_score = round(avg_score, 1)
 
     if risk_score >= 45:
         level = "高风险"
