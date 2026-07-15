@@ -51,11 +51,13 @@ def _event_context(event_id: int, platform: str | None = None) -> str:
     ])
 
 
-def _chat_history(user_id: int, limit: int = 6) -> list[dict]:
-    """获取用户最近 N 轮对话历史。"""
+def _chat_history(user_id: int, limit: int = 6, event_id: int | None = None) -> list[dict]:
+    """获取用户最近 N 轮对话历史（可选按事件过滤）。"""
+    query = QaHistory.query.filter_by(user_id=user_id)
+    if event_id is not None:
+        query = query.filter_by(event_id=event_id)
     rows = (
-        QaHistory.query
-        .filter_by(user_id=user_id)
+        query
         .order_by(QaHistory.id.desc())
         .limit(limit)
         .all()
@@ -70,7 +72,7 @@ def _chat_history(user_id: int, limit: int = 6) -> list[dict]:
 def answer_question(user_id: int, question: str, event_id=None, platform: str | None = None) -> dict:
     """回答用户问题，支持事件上下文和多轮对话历史。"""
     context = _event_context(event_id, platform) if event_id is not None else "用户未指定事件，请仅回答一般舆情分析问题。"
-    history = _chat_history(user_id, 6)  # 最近 3 轮
+    history = _chat_history(user_id, 6, event_id=event_id)  # 按事件过滤，避免跨事件串上下文
 
     client = LLMClient(
         api_key=current_app.config.get("LLM_API_KEY", ""),
