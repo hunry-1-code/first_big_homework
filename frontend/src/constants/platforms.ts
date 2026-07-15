@@ -141,7 +141,7 @@ export const SEARCH_PLATFORMS: SearchPlatform[] = [
     name: "人民网",
     id: "news_people",
     always: true,
-    icon: "ri/rss-fill",
+    icon: "https://www.google.com/s2/favicons?domain=people.com.cn&sz=64",
     color: "#c41e3a",
     bg: "#fef0f0"
   },
@@ -149,7 +149,7 @@ export const SEARCH_PLATFORMS: SearchPlatform[] = [
     name: "36氪",
     id: "news_36kr",
     always: true,
-    icon: "ri/rss-fill",
+    icon: "https://www.google.com/s2/favicons?domain=36kr.com&sz=64",
     color: "#3182ce",
     bg: "#ebf8ff"
   },
@@ -157,7 +157,7 @@ export const SEARCH_PLATFORMS: SearchPlatform[] = [
     name: "澎湃新闻",
     id: "news_thepaper",
     always: true,
-    icon: "ri/rss-fill",
+    icon: "https://www.google.com/s2/favicons?domain=thepaper.cn&sz=64",
     color: "#1e40af",
     bg: "#e8f0fe"
   },
@@ -165,7 +165,7 @@ export const SEARCH_PLATFORMS: SearchPlatform[] = [
     name: "InfoQ",
     id: "news_infoq",
     always: true,
-    icon: "ri/rss-fill",
+    icon: "https://www.google.com/s2/favicons?domain=infoq.cn&sz=64",
     color: "#38a169",
     bg: "#f0fff4"
   },
@@ -173,7 +173,7 @@ export const SEARCH_PLATFORMS: SearchPlatform[] = [
     name: "少数派",
     id: "news_sspai",
     always: true,
-    icon: "ri/rss-fill",
+    icon: "https://www.google.com/s2/favicons?domain=sspai.com&sz=64",
     color: "#d53f8c",
     bg: "#fff5f7"
   },

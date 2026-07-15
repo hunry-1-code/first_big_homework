@@ -27,34 +27,13 @@ class NewsCrawler:
         )
 
     def crawl(self, request: CrawlRequest) -> list[RawDocument]:
-        import requests as req
-        import time as _time
         keyword = request.keyword or ""
         limit = min(20, max(1, request.limit))
-        session = req.Session()
-        session.headers.update({
-            "User-Agent": self._ua,
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            "Accept-Language": "zh-CN,zh;q=0.9",
-        })
-
-        # ① 先访问百度首页获取 BAIDUID Cookie（反爬必须）
-        try:
-            session.get("https://www.baidu.com/", timeout=10)
-            _time.sleep(1.5)  # 模拟人类浏览间隔
-        except Exception:
-            pass
-
-        # ② 搜索百度新闻
-        search_url = f"https://www.baidu.com/s?wd={quote(keyword)}&tn=news&rtt=1"
-        try:
-            resp = session.get(search_url, timeout=15, allow_redirects=True)
-            html = resp.text
-        except Exception:
+        html = self._search(keyword)
+        if not html:
             return []
 
-        # 提取新闻 URL
-        urls = self._extract_urls(html, keyword)
+        urls = self._extract_urls(html)
         if not urls:
             return []
 
@@ -66,31 +45,34 @@ class NewsCrawler:
                     documents.append(doc)
             except Exception:
                 continue
-
         return documents
 
-    def _extract_urls(self, html: str, keyword: str) -> list[str]:
+    def _search(self, keyword: str) -> str | None:
+        """用 Playwright 渲染百度新闻搜索结果页，获取完整 HTML。"""
+        try:
+            from playwright.sync_api import sync_playwright
+            search_url = f"https://www.baidu.com/s?wd={quote(keyword)}&tn=news&rtt=1"
+            with sync_playwright() as p:
+                browser = p.chromium.launch(headless=True, args=["--no-sandbox"])
+                page = browser.new_page()
+                page.goto(search_url, timeout=15000, wait_until="networkidle")
+                html = page.content()
+                browser.close()
+                return html
+        except Exception:
+            return None
+
+    def _extract_urls(self, html: str) -> list[str]:
         """从百度新闻搜索结果中提取文章 URL。"""
         urls = []
         seen = set()
-        # 百度新闻页面中的真实链接：匹配 href 中的非百度域名 URL
         for pattern in [
             r'href="(https?://(?!www\.baidu\.com|.*\.baidu\.com|.*\.bdimg\.com|.*\.bcebos\.com)[^"]+)"',
             r'href="(https?://(?!.*baidu)[^"]+)"',
         ]:
             for match in re.finditer(pattern, html):
                 url = match.group(1)
-                # 过滤静态资源和无关链接
-                if any(skip in url.lower() for skip in (
-                    ".css", ".js", ".png", ".jpg", ".jpeg", ".gif", ".svg",
-                    ".woff", ".ttf", ".ico", "javascript:", "mailto:",
-                )):
-                    continue
-                # 过滤搜索引擎和广告链接
-                if any(skip in url for skip in (
-                    "bing.com", "google.com", "sogou.com", "so.com",
-                    "doubleclick", "advertisement",
-                )):
+                if any(s in url.lower() for s in (".css", ".js", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".woff", ".ttf", ".ico", "javascript:", "mailto:")):
                     continue
                 if url not in seen:
                     seen.add(url)
