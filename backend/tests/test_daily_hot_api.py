@@ -164,9 +164,7 @@ class DailyHotApiTest(unittest.TestCase):
         with patch(
             "app.api.hotspots.collect_daily_hot",
             return_value=run,
-        ) as collect, patch(
-            "app.tasks.jobs.enqueue_daily_hot_enrichments"
-        ) as enqueue:
+        ) as collect:
             response = self.client.post(
                 "/api/hotspots/today/refresh",
                 headers=self.admin_headers,
@@ -183,7 +181,51 @@ class DailyHotApiTest(unittest.TestCase):
         self.assertEqual(kwargs["result_limit"], 10)
         self.assertEqual(kwargs["rrf_k"], 60)
         self.assertTrue(kwargs["force"])
-        enqueue.assert_called_once_with(run.id, created_by=1)
+        self.assertEqual(
+            db.session.query(DailyHotItem)
+            .filter(DailyHotItem.analysis_task_id.isnot(None))
+            .count(),
+            0,
+        )
+
+    def test_user_can_manually_enrich_one_hot_item_and_reuse_active_task(self):
+        run = self._run(count=2, status="success")
+        item = DailyHotItem.query.filter_by(run_id=run.id, rank=1).one()
+
+        with patch("app.api.hotspots.submit_background_job") as submit:
+            first = self.client.post(
+                f"/api/hotspots/today/items/{item.id}/enrich",
+                headers=self.user_headers,
+            )
+            second = self.client.post(
+                f"/api/hotspots/today/items/{item.id}/enrich",
+                headers=self.user_headers,
+            )
+
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(second.status_code, 200)
+        first_data = first.get_json()["data"]
+        second_data = second.get_json()["data"]
+        self.assertEqual(first_data["task_id"], second_data["task_id"])
+        self.assertFalse(first_data["reused"])
+        self.assertTrue(second_data["reused"])
+        self.assertEqual(submit.call_count, 1)
+        other = DailyHotItem.query.filter_by(run_id=run.id, rank=2).one()
+        self.assertIsNone(other.analysis_task_id)
+
+    def test_manual_enrichment_rejects_merged_item(self):
+        run = self._run(count=2, status="success")
+        canonical = DailyHotItem.query.filter_by(run_id=run.id, rank=1).one()
+        merged = DailyHotItem.query.filter_by(run_id=run.id, rank=2).one()
+        merged.merged_into_item_id = canonical.id
+        db.session.commit()
+
+        response = self.client.post(
+            f"/api/hotspots/today/items/{merged.id}/enrich",
+            headers=self.user_headers,
+        )
+
+        self.assertEqual(response.status_code, 400)
 
     def test_today_and_formal_hotspot_endpoints_keep_distinct_contracts(self):
         event = Event(

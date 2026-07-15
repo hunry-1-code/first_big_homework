@@ -232,5 +232,202 @@ class PropagationBuilderTest(unittest.TestCase):
         self.assertEqual(name, "匿名用户")
 
 
+class PropagationExplanationTest(unittest.TestCase):
+    def _article(self, article_id, title, platform, keywords):
+        class Stub:
+            pass
+
+        article = Stub()
+        article.id = article_id
+        article.title = title
+        article.platform = platform
+        article.author = f"作者{article_id}"
+        article.publish_time = datetime(2026, 7, 10, 8) + timedelta(hours=article_id)
+        article.clean_content = title * 3
+        article.keywords = [{"term": term} for term in keywords]
+        article.entities = {}
+        return article
+
+    def test_keyword_relations_reference_shared_articles_and_platforms(self):
+        from app.propagation.keyword_relations import build_keyword_relations
+
+        rows = build_keyword_relations(
+            [
+                self._article(1, "人工智能产业政策发布", "news_people", ["人工智能", "产业政策"]),
+                self._article(2, "人工智能产业迎来投资", "news_36kr", ["人工智能", "产业政策", "投资"]),
+                self._article(3, "投资机构解读人工智能", "news_thepaper", ["人工智能", "投资"]),
+            ]
+        )
+
+        relation = next(
+            item
+            for item in rows
+            if set(item["terms"]) == {"人工智能", "产业政策"}
+        )
+        self.assertEqual(relation["article_ids"], [1, 2])
+        self.assertEqual(relation["article_count"], 2)
+        self.assertEqual(relation["platform_count"], 2)
+        self.assertEqual(len(relation["example_titles"]), 2)
+
+    def test_legacy_chat_client_is_not_used_for_internet_trace(self):
+        from app.services.propagation_analysis_service import analyze_propagation
+
+        articles = [self._article(1, "最早报道", "news_people", ["政策", "发布"])]
+        graph = {
+            "graph": {"nodes": [{"id": 1}], "links": []},
+            "key_nodes": [{"id": 1}],
+            "summary": {"origin_candidate_count": 1},
+            "limitations": [],
+        }
+
+        class Client:
+            model_name = "test-model"
+
+            def chat(self, messages, **kwargs):
+                return {
+                    "model": "test-model",
+                    "content": '{"summary":"分析","origin_candidate_id":999,"key_paths":[{"article_ids":[1,999],"explanation":"路径"}]}'
+                }
+
+        result = analyze_propagation("测试事件", articles, graph, client=Client())
+
+        self.assertEqual(result["llm_analysis"]["status"], "unavailable")
+        self.assertEqual(result["origin_analysis"]["method"], "doubao_web_search")
+        self.assertEqual(result["origin_analysis"]["scope"], "internet_web_search")
+        self.assertTrue(result["graph"]["links"])
+
+    def test_doubao_unavailable_keeps_keyword_rule_evidence(self):
+        from app.llm.doubao_client import DoubaoUnavailableError
+        from app.services.propagation_analysis_service import analyze_propagation
+
+        articles = [self._article(1, "最早报道", "news_people", ["政策", "发布"])]
+        graph = {
+            "graph": {"nodes": [{"id": 1}], "links": []},
+            "key_nodes": [{"id": 1}],
+            "summary": {"origin_candidate_count": 1},
+            "limitations": ["样本有限"],
+        }
+
+        class Client:
+            model_name = "test-model"
+
+            def web_search(self, query, limit=10):
+                raise DoubaoUnavailableError("offline")
+
+        result = analyze_propagation("测试事件", articles, graph, client=Client())
+
+        self.assertEqual(result["llm_analysis"]["status"], "unavailable")
+        self.assertEqual(result["origin_analysis"]["method"], "doubao_web_search")
+        self.assertEqual(result["origin_analysis"]["scope"], "internet_web_search")
+        self.assertTrue(result["graph"]["links"])
+
+    def test_doubao_trace_builds_six_node_keyword_path_with_edges(self):
+        from app.services.propagation_analysis_service import analyze_propagation
+
+        articles = [
+            self._article(1, "张雪峰谈高考志愿和专业选择", "bilibili", ["张雪峰", "高考志愿", "专业选择"]),
+            self._article(2, "就业前景与新闻学讨论", "weibo", ["就业前景", "新闻学", "张雪峰"]),
+        ]
+        graph = {"graph": {"nodes": [], "links": []}, "limitations": []}
+        top_keywords = [
+            {"word": "张雪峰", "weight": 1.0},
+            {"word": "高考志愿", "weight": 0.9},
+            {"word": "专业选择", "weight": 0.8},
+            {"word": "就业前景", "weight": 0.7},
+            {"word": "新闻学", "weight": 0.6},
+        ]
+
+        class Doubao:
+            model_name = "doubao-test"
+
+            def web_search(self, query, limit=10):
+                return {
+                    "model": "doubao-test",
+                    "citations": [{"title": "疑似首发", "url": "https://source.example/first"}],
+                    "search_calls": [{"type": "web_search_call"}],
+                    "text": '''```json
+                    {"summary":"事件由访谈切片扩散到志愿讨论", "origin":{"title":"疑似首发","url":"https://source.example/first","publish_time":"2026-07-01T08:00:00+08:00","source":"示例媒体","reason":"检索时间最早","confidence":0.86}, "paths":[{"source":"张雪峰","target":"高考志愿","reason":"人物观点进入高考场景","confidence":0.91,"evidence_urls":["https://source.example/first"]},{"source":"高考志愿","target":"专业选择","reason":"讨论转向专业决策","confidence":0.88},{"source":"专业选择","target":"就业前景","reason":"选择依据延伸到就业","confidence":0.82},{"source":"就业前景","target":"新闻学","reason":"具体专业成为争议焦点","confidence":0.79}]}
+                    ```''',
+                }
+
+        result = analyze_propagation(
+            "张雪峰事件", articles, graph, doubao_client=Doubao(), top_keywords=top_keywords
+        )
+
+        self.assertEqual(result["origin_analysis"]["scope"], "internet_web_search")
+        self.assertEqual(result["origin_analysis"]["status"], "success")
+        self.assertEqual(len(result["graph"]["nodes"]), 6)
+        self.assertEqual(len(result["graph"]["links"]), 5)
+        self.assertEqual(result["graph"]["nodes"][0]["category"], "origin_candidate")
+        self.assertTrue(all(link["source"] != link["target"] for link in result["graph"]["links"]))
+        self.assertTrue(all(link.get("evidence") for link in result["graph"]["links"]))
+
+    def test_doubao_unavailable_keeps_five_keywords_and_rule_paths(self):
+        from app.llm.doubao_client import DoubaoUnavailableError
+        from app.services.propagation_analysis_service import analyze_propagation
+
+        articles = [self._article(1, "事件讨论", "weibo", ["甲", "乙", "丙", "丁", "戊"])]
+
+        class Doubao:
+            model_name = "doubao-test"
+
+            def web_search(self, query, limit=10):
+                raise DoubaoUnavailableError("offline")
+
+        result = analyze_propagation(
+            "事件",
+            articles,
+            {"graph": {"nodes": [], "links": []}, "limitations": []},
+            doubao_client=Doubao(),
+            top_keywords=[
+                {"word": word, "weight": 1 - index * 0.1}
+                for index, word in enumerate(["关键词甲", "关键词乙", "关键词丙", "关键词丁", "关键词戊"])
+            ],
+        )
+
+        self.assertEqual(result["origin_analysis"]["status"], "unavailable")
+        self.assertEqual(result["coverage_status"], "insufficient")
+        self.assertEqual(len(result["graph"]["nodes"]), 5)
+        self.assertEqual(len(result["graph"]["links"]), 4)
+        self.assertTrue(all(link["evidence_type"] == "keyword_frequency_rule" for link in result["graph"]["links"]))
+
+    def test_non_json_doubao_search_keeps_citation_as_origin_evidence(self):
+        from app.services.propagation_analysis_service import analyze_propagation
+
+        articles = [self._article(1, "张雪峰传言", "weibo", ["张雪峰", "去世"])]
+
+        class Doubao:
+            model_name = "doubao-test"
+
+            def web_search(self, query, limit=10):
+                return {
+                    "model": "doubao-test",
+                    "text": "联网核查显示该消息属于网络传言，以下为检索结果。",
+                    "citations": [
+                        {"title": "张雪峰公开活动消息", "url": "https://example.com/fact-check"}
+                    ],
+                    "search_calls": [{"type": "web_search_call"}],
+                }
+
+        result = analyze_propagation(
+            "张雪峰去世传言",
+            articles,
+            {"graph": {"nodes": [], "links": []}, "limitations": []},
+            doubao_client=Doubao(),
+            top_keywords=[
+                {"word": word, "weight": 1 - index * 0.1}
+                for index, word in enumerate(["张雪峰", "去世", "地狱梗", "网暴", "高考"])
+            ],
+        )
+
+        self.assertEqual(result["origin_analysis"]["status"], "success")
+        self.assertEqual(result["coverage_status"], "sufficient")
+        self.assertEqual(result["origin_analysis"]["scope"], "internet_web_search")
+        self.assertEqual(result["origin_analysis"]["origin"]["url"], "https://example.com/fact-check")
+        self.assertEqual(len(result["graph"]["nodes"]), 6)
+        self.assertEqual(len(result["graph"]["links"]), 5)
+        self.assertEqual(result["graph"]["links"][0]["evidence_type"], "doubao_web_search")
+
+
 if __name__ == "__main__":
     unittest.main()

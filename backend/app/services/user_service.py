@@ -61,10 +61,19 @@ def update_config(user_id: int, payload: dict) -> dict:
 
 
 def list_sources() -> list[dict]:
-    return [
-        {"platform": "样例数据", "code": "sample", "type": "sample"},
-        {"platform": "新闻网页", "code": "news", "type": "news"},
-        {"platform": "热搜/热榜", "code": "hotlist", "type": "hotlist"},
-        {"platform": "社交平台", "code": "social", "type": "social"},
-    ]
+    from app.services.platform_catalog_service import list_platform_catalog
+    return list_platform_catalog()
+
+
+def set_source_followed(user_id: int, code: str, followed: bool) -> dict:
+    from app.services.platform_catalog_service import platform_codes
+    if code not in platform_codes():
+        raise KeyError("平台不存在")
+    current = get_config(user_id)
+    values = list(current.get("followed_sources") or [])
+    if followed and code not in values:
+        values.append(code)
+    if not followed:
+        values = [item for item in values if item != code]
+    return update_config(user_id, {"followed_sources": values, "keywords": current.get("keywords") or []})
 

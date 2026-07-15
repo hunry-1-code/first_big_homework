@@ -83,6 +83,24 @@ class CrawlerApiTest(unittest.TestCase):
 
         self.assertEqual(response.status_code, 400)
 
+    def test_forced_keyword_search_returns_task_without_cache_lookup(self):
+        response = self.client.post(
+            "/api/crawler/search",
+            json={
+                "keyword": "强制刷新事件",
+                "platforms": ["sample"],
+                "target_count": 1,
+                "force": True,
+            },
+            headers=self.headers,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()["data"]
+        self.assertIsInstance(payload["task_id"], int)
+        self.assertFalse(payload["cached"])
+        self.assertFalse(payload["stale"])
+
     def test_equivalent_keyword_search_reuses_recent_task(self):
         payload = {
             "keyword": "公共事件",
@@ -179,6 +197,22 @@ class CrawlerApiTest(unittest.TestCase):
 
         self.assertEqual(latest["task_type"], "crawl")
         self.assertNotIn("documents", latest.get("payload", {}))
+
+    def test_platforms_exposes_only_mainstream_news_for_news_group(self):
+        response = self.client.get("/api/crawler/platforms", headers=self.headers)
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()["data"]
+        self.assertIn("mainstream_news", payload["platforms"])
+        for internal in (
+            "news_people",
+            "news_36kr",
+            "news_thepaper",
+            "news_infoq",
+            "news_sspai",
+        ):
+            self.assertNotIn(internal, payload["platforms"])
+            self.assertNotIn(internal, payload["rss"])
 
 
 if __name__ == "__main__":

@@ -3,6 +3,7 @@ from flask import Blueprint, request
 from app.core.response import fail, ok
 from app.core.security import login_required
 from app.services.event_service import get_event_detail, get_propagation_data, list_events, search_events
+from app.services.lifecycle_prediction_service import build_prediction_payload
 from app.services.event_similarity_service import find_similar_events
 from app.services.sentiment_analysis_service import get_event_sentiment
 
@@ -53,6 +54,15 @@ def event_trend(event_id: int):
     if detail is None:
         return fail("事件不存在", 404)
     return ok(detail["trend"])
+
+
+@events_bp.get("/<int:event_id>/prediction")
+@login_required
+def event_prediction(event_id: int):
+    detail = get_event_detail(event_id)
+    if detail is None:
+        return fail("事件不存在", 404)
+    return ok(detail["prediction"])
 
 
 @events_bp.get("/<int:event_id>/sentiment")

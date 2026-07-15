@@ -47,10 +47,27 @@ def _raw_document(item: dict) -> RawDocument:
     )
 
 
-def _enrich_article_comments(article, document, registry) -> tuple[int, str | None]:
+def _enrich_article_comments(
+    article, document, registry
+) -> tuple[int, str | None, str | None]:
     platform = document.platform
+    if platform.startswith("news_"):
+        try:
+            crawler = registry.get("mainstream_news")
+            result = crawler.fetch_comments(document, limit=10)
+            count = 0
+            for raw in result.comments:
+                try:
+                    persist_comment(article, raw)
+                    count += 1
+                except ValueError:
+                    continue
+            return count, result.status, result.error
+        except Exception as exc:
+            db.session.rollback()
+            return 0, "failed", str(exc)[:240]
     if platform not in {"zhihu", "weibo", "douyin", "xiaohongshu", "bilibili"}:
-        return 0, None
+        return 0, None, None
     try:
         limit = current_app.config.get("COMMENT_MAX_PER_ARTICLE", 50)
         if platform == "bilibili":
@@ -68,10 +85,10 @@ def _enrich_article_comments(article, document, registry) -> tuple[int, str | No
                 count += 1
             except ValueError:
                 continue
-        return count, None
+        return count, "success" if count else "empty", None
     except Exception as exc:
         db.session.rollback()
-        return 0, str(exc)
+        return 0, "failed", str(exc)
 
 
 def run_search_analysis_pipeline(task_id: int, article_ids: list[int], keyword: str | None, platforms: list[str] | None, user_id: int, original_task_id: int | None = None) -> dict:
@@ -159,33 +176,6 @@ def run_search_analysis_pipeline(task_id: int, article_ids: list[int], keyword: 
         ),
     )
     record_stage(task_id, "done", "done", f"事件{publish_count}个")
-    # LLM 批量升级评论情感 + 提取公众主题 + 叙事差异（后台预计算）
-    if publish_count > 0:
-        try:
-            from app.services.public_opinion_service import upgrade_comment_sentiments, extract_opinion_themes, analyze_narrative_gap
-            from app.models.event_aggregation import AggregationCluster
-            clusters = AggregationCluster.query.filter_by(aggregation_run_id=aggregation_run.id).all()
-            for cl in clusters:
-                if cl.resolved_event_id:
-                    n = upgrade_comment_sentiments(cl.resolved_event_id)
-                    if n > 0:
-                        record_stage(task_id, "sentiment", "done", f"LLM升级{n}条评论情感")
-                    # 预计算主题和叙事差异，存入 event metadata
-                    try:
-                        themes = extract_opinion_themes(cl.resolved_event_id)
-                        gap = analyze_narrative_gap(cl.resolved_event_id)
-                        from app.models.event import Event
-                        ev = db.session.get(Event, cl.resolved_event_id)
-                        if ev and (themes or gap):
-                            meta = ev.metadata_evidence or {}
-                            if themes: meta["opinion_themes"] = themes
-                            if gap: meta["narrative_gap_analysis"] = gap
-                            ev.metadata_evidence = meta
-                            db.session.commit()
-                    except Exception:
-                        pass
-        except Exception:
-            pass
     from app.services.task_service import build_summary
     s = build_summary(task_id)
     if s:
@@ -222,15 +212,18 @@ def crawl_job(task_id: int, registry: CrawlerRegistry | None = None) -> dict:
     failed = 0
     comment_count = 0
     comment_errors = []
+    comment_statuses: dict[str, dict[str, int]] = {}
     all_errors = []
     all_platform_counts: dict[str, int] = {}
     total_collected = 0
 
-    # 补采循环：最多两轮，确保合格文章数达标
-    for round_idx in range(2):
+    # 主流新闻聚合源固定只取一轮，避免对五站重复请求同一批内容。
+    max_rounds = 1 if platforms and set(platforms) == {"mainstream_news"} else 2
+    for round_idx in range(max_rounds):
         round_target = int(target * 1.3) if round_idx == 0 else int((target - processed) * 1.5)
-        if round_target < 5:
+        if round_idx > 0 and round_target < 5:
             break  # 缺口太小不补
+        round_target = max(1, round_target)
 
         update_task(task_id, progress=5 + round_idx * 10,
                     message=f"第{round_idx+1}轮采集，目标 {round_target} 篇...")
@@ -259,8 +252,23 @@ def crawl_job(task_id: int, registry: CrawlerRegistry | None = None) -> dict:
                     processed += 1
                     round_processed += 1
                 persisted_article_ids.append(article.id)
-                added, comment_error = _enrich_article_comments(article, document, registry)
+                added, comment_status, comment_error = _enrich_article_comments(
+                    article, document, registry
+                )
                 comment_count += added
+                if document.platform.startswith("news_") and comment_status:
+                    status_row = comment_statuses.setdefault(
+                        document.platform,
+                        {
+                            "success": 0,
+                            "empty": 0,
+                            "unsupported": 0,
+                            "failed": 0,
+                            "saved": 0,
+                        },
+                    )
+                    status_row[comment_status] = status_row.get(comment_status, 0) + 1
+                    status_row["saved"] += added
                 if comment_error:
                     comment_errors.append({"platform": document.platform, "article_id": article.id, "message": comment_error})
                 if mode == "hot" and document.source_type == "hotlist":
@@ -281,21 +289,10 @@ def crawl_job(task_id: int, registry: CrawlerRegistry | None = None) -> dict:
             update_task(task_id, progress=30, message=f"合格文章 {processed}/{target}，启动补充采集...")
             record_stage(task_id, "preprocess", "running", f"合格{processed}篇不足{target}，补充采集中...")
 
-    errors = all_errors
-    batch.platform_counts = all_platform_counts
-    # 兼容后续代码：batch.documents 已用完，但后续只用到 batch.errors 和 batch.platform_counts
     update_task(task_id, progress=30, message=f"采集完成：共 {total_collected} 篇原始数据，{processed} 篇合格。")
     record_stage(task_id, "preprocess", "done", f"{processed}篇合格/{total_collected}篇原始")
 
-    errors = [
-        {
-            "platform": issue.platform,
-            "code": issue.code,
-            "message": issue.message,
-            "retryable": issue.retryable,
-        }
-        for issue in batch.errors
-    ]
+    errors = all_errors
     summary = {
         "collected": total_collected,
         "processed": processed,
@@ -304,6 +301,7 @@ def crawl_job(task_id: int, registry: CrawlerRegistry | None = None) -> dict:
         "errors": errors,
         "comments_collected": comment_count,
         "comment_errors": comment_errors,
+        "comment_statuses": comment_statuses,
     }
     if mode == "hot" and persisted_hot_documents:
         update_task(task_id, progress=96, message="正在整理热榜种子并扩展多平台搜索。")
@@ -469,7 +467,7 @@ def crawl_job(task_id: int, registry: CrawlerRegistry | None = None) -> dict:
             summary["sentiment_run_id"] = sentiment_run.id
     elif mode == "search" and persisted_article_ids:
         record_stage(task_id, "preprocess", "done", f"{processed}篇")
-        effective_platforms = platforms or list(batch.platform_counts.keys())
+        effective_platforms = platforms or list(all_platform_counts.keys())
         analysis_result = run_search_analysis_pipeline(
             task_id,
             persisted_article_ids,
@@ -557,21 +555,13 @@ def daily_hot_job(task_id: int, registry: CrawlerRegistry | None = None) -> dict
             update_task(task_id, progress=80, message=f"正在 LLM 主题去重 ({len(items)} 条)...")
             canonical = deduplicate_hot_topics(items)
             update_task(task_id, progress=85, message=f"去重完成: {len(items)} → {len(canonical)} 个主题")
-    # 限制 enrichment 数量：最多 10 个，避免僵尸堆积
-    enrichment_tasks = []
-    if run.status in {"success", "partial"}:
-        enrichment_tasks = enqueue_daily_hot_enrichments(
-            run.id,
-            created_by=task.get("created_by"),
-            registry=registry,
-        )[:10]
     summary = {
         "run_id": run.id,
         "status": run.status,
         "item_count": int(run.item_count or 0),
         "available_sources": run.available_sources or [],
         "failed_sources": run.failed_sources or [],
-        "enrichment_task_count": len(enrichment_tasks),
+        "enrichment_task_count": 0,
     }
     task_status = "failed" if run.status == "failed" else "success"
     update_task(
@@ -630,7 +620,9 @@ def _run_daily_hot_enrichment_chain(
     for document in batch.documents:
         article, _output = persist_raw_document(document, task_id)
         article_ids.append(article.id)
-        added, comment_error = _enrich_article_comments(article, document, registry)
+        added, _comment_status, comment_error = _enrich_article_comments(
+            article, document, registry
+        )
         comment_count += added
         if comment_error:
             comment_errors.append({"platform": document.platform, "article_id": article.id, "message": comment_error})
@@ -681,6 +673,7 @@ def _run_daily_hot_enrichment_chain(
     published = publish_cluster(
         cluster.id,
         user_id=task.get("created_by"),
+        minimum_member_count=1,
     )
     event_id = int(published["event_id"]) if published.get("event_id") else None
     if event_id is not None:
@@ -770,31 +763,6 @@ def daily_hot_enrichment_job(
         result=result,
     )
     return result
-
-
-def enqueue_daily_hot_enrichments(
-    run_id: int,
-    *,
-    created_by: int,
-    registry: CrawlerRegistry | None = None,
-) -> list[dict]:
-    from app.services.daily_hot_service import create_daily_hot_enrichment_tasks
-    from app.tasks.runner import submit_background_job
-
-    tasks = create_daily_hot_enrichment_tasks(run_id, created_by=created_by)
-    app = current_app._get_current_object()
-    for task in tasks:
-        if task.get("reused"):
-            continue
-        submit_background_job(
-            app,
-            lambda task_id, current_registry=registry: daily_hot_enrichment_job(
-                task_id,
-                registry=current_registry,
-            ),
-            task["id"],
-        )
-    return tasks
 
 
 def import_job(task_id: int) -> dict:

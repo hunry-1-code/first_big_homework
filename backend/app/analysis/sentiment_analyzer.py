@@ -186,9 +186,12 @@ def analyze_comments_batch(
             for item in parsed:
                 if isinstance(item, dict) and "id" in item:
                     cid = int(item["id"])
+                    label = item.get("label")
+                    if label not in {"positive", "negative", "neutral"}:
+                        continue
                     results[cid] = {
-                        "label": item.get("label", "neutral"),
-                        "score": {"positive": 0.6, "negative": -0.6, "neutral": 0.0}.get(item.get("label"), 0.0),
+                        "label": label,
+                        "score": {"positive": 0.6, "negative": -0.6, "neutral": 0.0}[label],
                         "confidence": 0.85,
                         "reason": str(item.get("reason", ""))[:50],
                         "method": "llm_batch",
@@ -201,6 +204,21 @@ def analyze_comments_batch(
                     results[c["id"]] = {**r, "method": "snownlp_fallback"}
                 except Exception:
                     results[c["id"]] = {"label": "neutral", "score": 0.0, "confidence": 0.3, "reason": "", "method": "failed"}
+
+        for c in batch:
+            if c["id"] in results:
+                continue
+            try:
+                fallback = analyze_with_snownlp(c["text"] or "")
+                results[c["id"]] = {**fallback, "method": "snownlp_fallback"}
+            except Exception:
+                results[c["id"]] = {
+                    "label": "neutral",
+                    "score": 0.0,
+                    "confidence": 0.3,
+                    "reason": "",
+                    "method": "failed",
+                }
 
     return results
 

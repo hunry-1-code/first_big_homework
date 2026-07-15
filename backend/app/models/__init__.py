@@ -33,6 +33,7 @@ from app.models.sentiment import (
 from app.models.task import Task
 from app.models.user import User
 from app.models.user_config import UserConfig
+from app.models.user_search_history import UserSearchHistory
 
 
 __all__ = [
@@ -67,4 +68,5 @@ __all__ = [
     "TopicResult",
     "User",
     "UserConfig",
+    "UserSearchHistory",
 ]

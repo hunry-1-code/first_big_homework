@@ -5,6 +5,9 @@ from urllib.parse import urlsplit
 from app.crawler.base import CrawlerRegistry
 from app.crawler.bilibili import BilibiliCrawler
 from app.crawler.http import HttpClient
+from app.crawler.mainstream_news import MainstreamNewsCrawler
+from app.crawler.news_comments import NewsCommentDispatcher
+from app.crawler.people_news import PeopleNewsCrawler
 from app.crawler.qianfan import QianfanSearchCrawler, QianfanTrendingCrawler
 from app.crawler.news import NewsCrawler
 from app.crawler.rss import RssCrawler
@@ -39,6 +42,56 @@ def build_crawler_registry(config) -> CrawlerRegistry:
     registry.register(NewsCrawler(_client("www.baidu.com", timeout, "baidu_news", max_response_bytes)))
     registry.register(BilibiliCrawler(_client("bilibili.com", timeout, "bilibili", max_response_bytes)))
     registry.register(WeiboHotCrawler(_client("weibo.com", timeout, "weibo_hot", max_response_bytes)))
+
+    people_rss = RssCrawler(
+        _client("people.com.cn", timeout, "news_people", max_response_bytes),
+        "https://www.people.com.cn/rss/politics.xml",
+        platform="news_people",
+        minimum_content_length=50,
+    )
+    people = PeopleNewsCrawler(
+        _client("search.people.cn", timeout, "news_people", max_response_bytes),
+        rss_fallback=people_rss,
+        minimum_content_length=50,
+    )
+    news_sources = [
+        people,
+        RssCrawler(
+            _client("36kr.com", timeout, "news_36kr", max_response_bytes),
+            "https://36kr.com/feed",
+            platform="news_36kr",
+            minimum_content_length=50,
+        ),
+        RssCrawler(
+            _client("thepaper.cn", timeout, "news_thepaper", max_response_bytes),
+            "https://m.thepaper.cn/rss_news",
+            platform="news_thepaper",
+            minimum_content_length=50,
+        ),
+        RssCrawler(
+            _client("infoq.cn", timeout, "news_infoq", max_response_bytes),
+            "https://www.infoq.cn/feed",
+            platform="news_infoq",
+            minimum_content_length=50,
+        ),
+        RssCrawler(
+            _client("sspai.com", timeout, "news_sspai", max_response_bytes),
+            "https://sspai.com/feed",
+            platform="news_sspai",
+            minimum_content_length=50,
+        ),
+    ]
+    registry.register(
+        MainstreamNewsCrawler(
+            news_sources,
+            comment_dispatcher=NewsCommentDispatcher(
+                sspai_client=_client("sspai.com", timeout, "news_sspai", max_response_bytes),
+                thepaper_client=_client(
+                    "cache.thepaper.cn", timeout, "news_thepaper", max_response_bytes
+                ),
+            ),
+        )
+    )
 
     qianfan_key = _setting(config, "QIANFAN_API_KEY", "")
     if qianfan_key:

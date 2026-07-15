@@ -51,14 +51,40 @@ def enqueue_daily_hot_refresh(app) -> dict:
         return task
 
 
-def register_daily_hot_refresh(app, scheduler) -> None:
+def register_daily_hot_refresh(app, scheduler, *, interval_seconds: int | None = None) -> None:
     scheduler.add_job(
         lambda: enqueue_daily_hot_refresh(app),
         "interval",
-        seconds=app.config.get("DAILY_HOT_REFRESH_INTERVAL_SECONDS", 900),
+        seconds=max(
+            60,
+            int(
+                interval_seconds
+                if interval_seconds is not None
+                else app.config.get("DAILY_HOT_REFRESH_INTERVAL_SECONDS", 900)
+            ),
+        ),
         id="daily-hot-refresh",
         max_instances=1,
         coalesce=True,
         replace_existing=True,
+    )
+
+
+def set_daily_hot_schedule(
+    app,
+    scheduler,
+    *,
+    enabled: bool,
+    interval_seconds: int | None = None,
+) -> None:
+    job = scheduler.get_job("daily-hot-refresh") if hasattr(scheduler, "get_job") else None
+    if not enabled:
+        if job is not None:
+            scheduler.remove_job("daily-hot-refresh")
+        return
+    register_daily_hot_refresh(
+        app,
+        scheduler,
+        interval_seconds=interval_seconds,
     )
 

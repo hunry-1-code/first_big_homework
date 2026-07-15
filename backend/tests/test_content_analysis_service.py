@@ -93,8 +93,8 @@ class ContentAnalysisServiceTest(unittest.TestCase):
             url=f"https://example.com/{index}",
             url_hash=f"{index:064x}",
             title=title,
-            raw_content=" ".join(tokens),
-            clean_content=" ".join(tokens),
+            raw_content=" ".join(tokens * 15),
+            clean_content=" ".join(tokens * 15),
             clean_status=clean_status,
             content_version=1,
             duplicate_of_id=duplicate_of_id,
@@ -151,7 +151,7 @@ class ContentAnalysisServiceTest(unittest.TestCase):
 
         self.assertFalse(reused)
         self.assertEqual(run.article_count, 8)
-        self.assertEqual(run.representative_count, 5)
+        self.assertEqual(run.representative_count, 3)
         rows = AnalysisRunArticle.query.filter_by(analysis_run_id=run.id).all()
         statuses = {row.article_id: row.feature_status for row in rows}
         self.assertEqual(statuses[duplicate.id], "skipped_duplicate")
@@ -174,7 +174,7 @@ class ContentAnalysisServiceTest(unittest.TestCase):
         db.session.refresh(run)
         self.assertEqual(run.status, "success")
         self.assertEqual(result["analysis_run_id"], run.id)
-        self.assertEqual(result["representative_count"], 5)
+        self.assertEqual(result["representative_count"], 3)
         rows = AnalysisRunArticle.query.filter_by(
             analysis_run_id=run.id, is_representative=True
         ).all()
@@ -229,6 +229,55 @@ class ContentAnalysisServiceTest(unittest.TestCase):
         with self.assertRaises(NoValidDocumentError):
             create_analysis_run([], mode="search", keyword="空", platforms=["news"])
 
+    def test_explicit_recrawled_article_ids_are_not_filtered_by_first_task_id(self):
+        article = self._article(
+            1,
+            "人工智能产业发展",
+            ["人工智能产业发展模型应用"] * 10,
+            platform="news_people",
+        )
+        article.crawl_task_id = 1
+        db.session.commit()
+
+        run, reused = create_analysis_run(
+            [article.id],
+            mode="search",
+            keyword="人工智能",
+            platforms=["mainstream_news"],
+            source_task_id=2,
+        )
+
+        self.assertFalse(reused)
+        self.assertEqual(run.representative_count, 1)
+        self.assertEqual(
+            AnalysisRunArticle.query.filter_by(analysis_run_id=run.id).count(), 1
+        )
+
+    def test_artificial_intelligence_alias_matches_ai_but_not_smartphone(self):
+        ai_article = self._article(
+            1,
+            "AI 基础设施投资持续升温",
+            ["AI基础设施投资与大模型产业发展"] * 10,
+            platform="news_infoq",
+        )
+        phone_article = self._article(
+            2,
+            "全球智能手机出货量创新低",
+            ["智能手机市场出货量与消费电子行业"] * 10,
+            platform="news_sspai",
+        )
+
+        run, _ = create_analysis_run(
+            [ai_article.id, phone_article.id],
+            mode="search",
+            keyword="人工智能",
+            platforms=["mainstream_news"],
+        )
+
+        rows = AnalysisRunArticle.query.filter_by(analysis_run_id=run.id).all()
+        self.assertEqual([row.article_id for row in rows], [ai_article.id])
+        self.assertEqual(run.representative_count, 1)
+
     def test_content_version_change_fails_snapshot_verification(self):
         article = self._article(1, "重庆暴雨", ["重庆", "暴雨", "救援"])
         run, _ = create_analysis_run(
@@ -257,7 +306,7 @@ class ContentAnalysisServiceTest(unittest.TestCase):
         result = run_content_analysis(run.id, encoder=encoder)
 
         self.assertEqual(encoder.calls, 1)
-        self.assertEqual(ArticleEmbedding.query.count(), 5)
+        self.assertEqual(ArticleEmbedding.query.count(), 3)
         self.assertNotIn("BGE_UNAVAILABLE", result["warnings"])
         vectors = [row.vector for row in ArticleEmbedding.query.all()]
         self.assertTrue(all(abs(sum(value * value for value in vector) - 1.0) < 1e-6 for vector in vectors))
@@ -269,7 +318,7 @@ class ContentAnalysisServiceTest(unittest.TestCase):
         second, _ = create_analysis_run(
             [article.id for article in second_articles],
             mode="search",
-            keyword="新事件",
+            keyword="新文章",
             platforms=["news"],
         )
         failed_result = run_content_analysis(second.id, encoder=FakeEncoder(fail=True))
@@ -361,8 +410,8 @@ class ContentAnalysisApiTest(unittest.TestCase):
             url="https://example.com/api-1",
             url_hash="f" * 64,
             title="重庆暴雨官方通报",
-            raw_content="重庆 暴雨 官方 通报 救援",
-            clean_content="重庆 暴雨 官方 通报 救援",
+            raw_content="重庆 暴雨 官方 通报 救援 " * 15,
+            clean_content="重庆 暴雨 官方 通报 救援 " * 15,
             clean_status="success",
             content_version=1,
             nlp_weight=1.0,

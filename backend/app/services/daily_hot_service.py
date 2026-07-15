@@ -227,6 +227,8 @@ def collect_daily_hot(
     db.session.add(run)
     db.session.flush()
     for rank, item in enumerate(fused, start=1):
+        from app.services.event_topic_service import classify_topic_text
+        classification = classify_topic_text(item.normalized_title)
         db.session.add(
             DailyHotItem(
                 run_id=run.id,
@@ -239,6 +241,7 @@ def collect_daily_hot(
                 first_seen_at=now,
                 last_seen_at=now,
                 enrichment_status="pending",
+                topic_keywords=classification["evidence"],
             )
         )
     db.session.commit()
@@ -275,10 +278,20 @@ def serialize_daily_hot_run(
     from app.models import Event
     event_ids = [item.event_id for item in items if item.event_id]
     event_map = {event.id: event for event in Event.query.filter(Event.id.in_(event_ids)).all()} if event_ids else {}
+    from app.services.event_topic_service import classify_topic_text
+    item_topics = {}
     category_counts = {}
-    for event in event_map.values():
-        if event.topic_category:
-            category_counts[event.topic_category] = category_counts.get(event.topic_category, 0) + 1
+    for item in items:
+        event = event_map.get(item.event_id)
+        fallback = classify_topic_text(item.title)
+        topic = {
+            "category": event.topic_category if event and event.topic_category else fallback["category"],
+            "topic_name": event.topic_name if event and event.topic_name else fallback["topic_name"],
+            "topic_keywords": item.topic_keywords or fallback["evidence"],
+        }
+        item_topics[item.id] = topic
+        category = topic["category"]
+        category_counts[category] = category_counts.get(category, 0) + 1
     stale = (
         run.completed_at is None
         or (now - run.completed_at).total_seconds() > max(0, int(ttl_seconds))
@@ -308,9 +321,9 @@ def serialize_daily_hot_run(
                 "enrichment_status": item.enrichment_status,
                 "event_id": item.event_id,
                 "analysis_task_id": item.analysis_task_id,
-                "category": event_map[item.event_id].topic_category if item.event_id in event_map else None,
-                "topic_name": event_map[item.event_id].topic_name if item.event_id in event_map else None,
-                "topic_keywords": item.topic_keywords or [],
+                "category": item_topics[item.id]["category"],
+                "topic_name": item_topics[item.id]["topic_name"],
+                "topic_keywords": item_topics[item.id]["topic_keywords"],
             }
             for item in items
         ],
@@ -348,45 +361,49 @@ def create_daily_hot_enrichment_tasks(
     tasks = []
     items = DailyHotItem.query.filter_by(run_id=run.id).order_by(DailyHotItem.rank).all()
     for item in items:
-        if item.enrichment_status in {"completed", "no_event"}:
+        if item.enrichment_status in {"completed", "no_event"} or item.merged_into_item_id:
             continue
-        active = (
-            db.session.get(Task, item.analysis_task_id)
-            if item.analysis_task_id
-            else None
-        )
-        if active is not None and active.status in {"pending", "running"}:
-            task = {
-                "id": active.id,
-                "type": active.task_type,
-                "task_type": active.task_type,
-                "status": active.status,
-                "payload": active.payload or {},
-                "created_by": active.created_by,
-                "reused": True,
-            }
-            tasks.append(task)
-            continue
-        task, reused = create_or_reuse_recent_task(
-            "daily_hot_enrichment",
-            created_by=created_by,
-            payload={
-                "daily_hot_item_id": item.id,
-                "normalized_keyword": item.normalized_key,
-                "keyword": item.title,
-            },
-            within_seconds=24 * 3600,
-        )
-        task = dict(task)
-        task["reused"] = reused
-        item.analysis_task_id = task["id"]
-        if item.enrichment_status == "failed":
-            item.enrichment_status = "pending"
-            item.error_code = None
-            item.error_message = None
-        tasks.append(task)
+        tasks.append(create_daily_hot_item_enrichment_task(item.id, created_by=created_by))
     db.session.commit()
     return tasks
+
+
+def create_daily_hot_item_enrichment_task(item_id: int, *, created_by: int) -> dict:
+    item = db.session.get(DailyHotItem, int(item_id))
+    if item is None:
+        raise KeyError(f"daily hot item not found: {item_id}")
+    if item.merged_into_item_id is not None:
+        raise ValueError("merged hot item cannot be enriched independently")
+    active = db.session.get(Task, item.analysis_task_id) if item.analysis_task_id else None
+    if active is not None and active.status in {"pending", "running", "success"}:
+        return {
+            "id": active.id,
+            "type": active.task_type,
+            "task_type": active.task_type,
+            "status": active.status,
+            "payload": active.payload or {},
+            "created_by": active.created_by,
+            "reused": True,
+        }
+    task, reused = create_or_reuse_recent_task(
+        "daily_hot_enrichment",
+        created_by=created_by,
+        payload={
+            "daily_hot_item_id": item.id,
+            "normalized_keyword": item.normalized_key,
+            "keyword": item.title,
+        },
+        within_seconds=24 * 3600,
+    )
+    task = dict(task)
+    task["reused"] = reused
+    item.analysis_task_id = task["id"]
+    if item.enrichment_status in {"failed", "no_event"}:
+        item.enrichment_status = "pending"
+        item.error_code = None
+        item.error_message = None
+    db.session.commit()
+    return task
 
 
 def deduplicate_hot_topics(items: list[DailyHotItem]) -> list[DailyHotItem]:
@@ -472,6 +489,7 @@ def deduplicate_hot_topics(items: list[DailyHotItem]) -> list[DailyHotItem]:
 __all__ = [
     "collect_daily_hot",
     "create_daily_hot_enrichment_tasks",
+    "create_daily_hot_item_enrichment_task",
     "deduplicate_hot_topics",
     "get_today_hotspots",
     "serialize_daily_hot_run",

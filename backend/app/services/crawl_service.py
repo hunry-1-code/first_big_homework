@@ -97,9 +97,16 @@ class CrawlService:
                 seen.update(keys)
                 batch.documents.append(document)
                 added += 1
+                concrete_platform = document.platform or platform
+                batch.platform_counts[concrete_platform] = (
+                    batch.platform_counts.get(concrete_platform, 0) + 1
+                )
                 if len(batch.documents) >= target:
                     break
-            batch.platform_counts[platform] = added
+            source_counts = getattr(crawler, "last_source_counts", None)
+            if isinstance(source_counts, dict):
+                for source_platform in source_counts:
+                    batch.platform_counts.setdefault(source_platform, 0)
             if len(batch.documents) >= target:
                 break
 

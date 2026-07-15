@@ -15,6 +15,7 @@ from app.services.hotspot_service import (
 )
 from app.services.daily_hot_service import (
     collect_daily_hot,
+    create_daily_hot_item_enrichment_task,
     get_today_hotspots,
     serialize_daily_hot_run,
 )
@@ -146,12 +147,6 @@ def refresh_today_hotspots():
         ttl_seconds=current_app.config.get("DAILY_HOT_TTL_SECONDS", 900),
         force=True,
     )
-    from app.tasks.jobs import enqueue_daily_hot_enrichments
-
-    enqueue_daily_hot_enrichments(
-        run.id,
-        created_by=g.current_user["id"],
-    )
     return ok(
         serialize_daily_hot_run(
             run,
@@ -159,4 +154,48 @@ def refresh_today_hotspots():
             ttl_seconds=current_app.config.get("DAILY_HOT_TTL_SECONDS", 900),
         ),
         message="今日热点已刷新。",
+    )
+
+
+@hotspots_bp.post("/today/items/<int:item_id>/enrich")
+@login_required
+def enrich_today_hotspot(item_id: int):
+    from app.models import DailyHotItem
+    from app.tasks.jobs import daily_hot_enrichment_job
+
+    item = db.session.get(DailyHotItem, item_id)
+    if item is None:
+        return fail("热点条目不存在", 404)
+    if item.merged_into_item_id is not None:
+        return fail("该热点已合并，请选择主热点", 400)
+    if item.enrichment_status == "completed" and item.event_id:
+        return ok(
+            {
+                "task_id": item.analysis_task_id,
+                "event_id": item.event_id,
+                "status": item.enrichment_status,
+                "reused": True,
+            }
+        )
+    try:
+        task = create_daily_hot_item_enrichment_task(
+            item.id,
+            created_by=g.current_user["id"],
+        )
+    except (KeyError, ValueError) as exc:
+        return fail(str(exc), 400)
+    if not task.get("reused"):
+        submit_background_job(
+            current_app._get_current_object(),
+            daily_hot_enrichment_job,
+            task["id"],
+        )
+    return ok(
+        {
+            "task_id": task["id"],
+            "event_id": item.event_id,
+            "status": item.enrichment_status,
+            "reused": bool(task.get("reused")),
+        },
+        message="热点详情抓取任务已提交。",
     )

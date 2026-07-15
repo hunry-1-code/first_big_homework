@@ -213,38 +213,49 @@ def analyze_narrative_gap(event_id: int) -> dict | None:
         return None
 
 
-def upgrade_comment_sentiments(event_id: int) -> int:
+def upgrade_comment_sentiments(event_id: int) -> dict:
     """用 LLM 批量升级事件下所有评论的情感标注。只处理未 LLM 分析过的评论。
-    返回升级条数。"""
+    返回按分析来源统计的结构化结果。"""
+    summary = {"selected": 0, "llm": 0, "snownlp_fallback": 0, "failed": 0}
     article_ids = [r[0] for r in Article.query.with_entities(Article.id).filter_by(event_id=event_id).all()]
     if not article_ids:
-        return 0
+        return summary
     # 只取未 LLM 分析过的评论（优先选高质量：长文+高赞）
     candidates = Comment.query.filter(
         Comment.article_id.in_(article_ids),
         Comment.analysis_status != "llm",
     ).order_by(
         (Comment.likes_count + Comment.replies_count).desc()
-    ).limit(100).all()
+    ).all()
 
     if not candidates:
-        return 0
+        return summary
+
+    summary["selected"] = len(candidates)
 
     try:
         from app.analysis.sentiment_analyzer import analyze_comments_batch
         batch_input = [{"id": c.id, "text": c.content or ""} for c in candidates]
         results = analyze_comments_batch(batch_input)
 
-        upgraded = 0
         for c in candidates:
             r = results.get(c.id)
             if r and r.get("method") == "llm_batch":
                 c.sentiment_label = r["label"]
                 c.sentiment_score = r.get("score", 0.0)
                 c.analysis_status = "llm"
-                upgraded += 1
+                summary["llm"] += 1
+            elif r and r.get("method") == "snownlp_fallback":
+                c.sentiment_label = r.get("label", c.sentiment_label or "neutral")
+                c.sentiment_score = r.get("score", c.sentiment_score or 0.0)
+                c.analysis_status = "snownlp_fallback"
+                summary["snownlp_fallback"] += 1
+            else:
+                c.analysis_status = "failed"
+                summary["failed"] += 1
         db.session.commit()
-        return upgraded
+        return summary
     except Exception:
         db.session.rollback()
-        return 0
+        summary["failed"] = summary["selected"]
+        return summary

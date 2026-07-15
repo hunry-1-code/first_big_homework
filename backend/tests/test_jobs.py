@@ -12,13 +12,17 @@ if str(BACKEND_ROOT) not in sys.path:
 
 from app import create_app
 from app.crawler.base import CrawlerRegistry, RawDocument
+from app.crawler.comments import RawComment
 from app.crawler.errors import CrawlerError
+from app.crawler.news_comments import NewsCommentResult
 from app.crawler.sample import SampleCrawler
 from app.extensions import db
 from app.models import (
     AggregationRun,
     AnalysisRun,
     Article,
+    Comment,
+    Event,
     EventHeatSnapshot,
     DailyHotRun,
     HotSeedExpansion,
@@ -29,7 +33,15 @@ from app.models import (
 )
 from app.services.task_service import create_task, get_task, reset_task_store, update_task
 from app.services import task_service
-from app.tasks.jobs import crawl_job, daily_hot_job, hotspot_job, import_job
+from app.tasks.jobs import (
+    _enrich_article_comments,
+    crawl_job,
+    daily_hot_job,
+    hotspot_job,
+    import_job,
+)
+from app.services.article_pipeline_service import persist_raw_document
+from app.services.public_opinion_service import get_public_opinion_snapshot
 from app.tasks import runner
 from app.tasks.runner import submit_background_job
 from app.tasks.scheduler import enqueue_daily_hot_refresh
@@ -81,6 +93,134 @@ class JobTest(unittest.TestCase):
         self.assertEqual(summary["processed"], 1)
         self.assertEqual(Article.query.count(), 1)
         self.assertEqual(Task.query.count(), 1)
+
+    def test_news_comment_enrichment_persists_comments_and_returns_status(self):
+        document = RawDocument(
+            platform="news_sspai",
+            source_url="https://sspai.com/post/112320",
+            source_article_id="112320",
+            title="少数派文章",
+            raw_content="人工智能新闻正文" * 20,
+        )
+        article, _ = persist_raw_document(document, 1)
+
+        class AggregateCrawler:
+            platform = "mainstream_news"
+
+            def crawl(self, request):
+                return []
+
+            def fetch_comments(self, fetched_document, limit=10):
+                self.limit = limit
+                return NewsCommentResult(
+                    status="success",
+                    comments=[
+                        RawComment(
+                            platform="news_sspai",
+                            source_comment_id="428733",
+                            content="公开评论内容",
+                            author="Setsuna",
+                        )
+                    ],
+                )
+
+        crawler = AggregateCrawler()
+        registry = CrawlerRegistry()
+        registry.register(crawler)
+
+        count, status, error = _enrich_article_comments(article, document, registry)
+
+        self.assertEqual((count, status, error), (1, "success", None))
+        self.assertEqual(crawler.limit, 10)
+        self.assertEqual(Comment.query.count(), 1)
+        self.assertEqual(Comment.query.first().article_id, article.id)
+        event = Event(title="主流新闻评论分析")
+        db.session.add(event)
+        db.session.flush()
+        article.event_id = event.id
+        db.session.commit()
+
+        opinion = get_public_opinion_snapshot(event.id)
+
+        self.assertEqual(opinion["comment_count"], 1)
+        self.assertEqual(opinion["analysis_mode"], "narrative_gap")
+
+    def test_news_comment_failure_does_not_remove_persisted_article(self):
+        document = RawDocument(
+            platform="news_thepaper",
+            source_url="https://m.thepaper.cn/newsDetail_forward_33585997",
+            source_article_id="33585997",
+            title="澎湃文章",
+            raw_content="人工智能新闻正文" * 20,
+        )
+        article, _ = persist_raw_document(document, 1)
+
+        class AggregateCrawler:
+            platform = "mainstream_news"
+
+            def crawl(self, request):
+                return []
+
+            def fetch_comments(self, fetched_document, limit=10):
+                return NewsCommentResult(status="failed", error="timeout")
+
+        registry = CrawlerRegistry()
+        registry.register(AggregateCrawler())
+
+        count, status, error = _enrich_article_comments(article, document, registry)
+
+        self.assertEqual((count, status, error), (0, "failed", "timeout"))
+        self.assertIsNotNone(db.session.get(Article, article.id))
+
+    def test_mainstream_crawl_summary_reports_concrete_comment_statuses(self):
+        class AggregateCrawler:
+            platform = "mainstream_news"
+
+            def crawl(self, request):
+                return [
+                    RawDocument(
+                        platform="news_people",
+                        source_url="https://people.com.cn/1",
+                        source_article_id="people-1",
+                        title="人民网人工智能报道",
+                        raw_content="人工智能产业发展新闻正文" * 30,
+                    )
+                ]
+
+            def fetch_comments(self, document, limit=10):
+                return NewsCommentResult(status="unsupported")
+
+        registry = CrawlerRegistry()
+        registry.register(AggregateCrawler())
+        task = create_task(
+            "crawl",
+            created_by=1,
+            payload={
+                "keyword": "人工智能",
+                "platforms": ["mainstream_news"],
+                "target_count": 1,
+                "mode": "search",
+            },
+        )
+
+        with patch(
+            "app.tasks.jobs.run_search_analysis_pipeline",
+            return_value={"aggregation_run_id": 1, "event_count": 0},
+        ):
+            summary = crawl_job(task["id"], registry=registry)
+
+        self.assertEqual(summary["platform_counts"], {"news_people": 1})
+        self.assertEqual(
+            summary["comment_statuses"]["news_people"],
+            {
+                "success": 0,
+                "empty": 0,
+                "unsupported": 1,
+                "failed": 0,
+                "saved": 0,
+            },
+        )
+        self.assertEqual(summary["collected"], 1)
 
     def test_import_job_processes_validated_documents(self):
         task = create_task(
@@ -244,7 +384,9 @@ class JobTest(unittest.TestCase):
         self.assertEqual(current["status"], "success")
         self.assertEqual(current["result"]["status"], "partial")
         self.assertEqual(current["result"]["item_count"], 1)
+        self.assertEqual(current["result"]["enrichment_task_count"], 0)
         self.assertEqual(DailyHotRun.query.count(), 1)
+        self.assertEqual(Task.query.filter_by(task_type="daily_hot_enrichment").count(), 0)
         self.assertEqual([crawler.calls for crawler in crawlers], [1, 1, 1])
 
     def test_sync_sqlite_execution_does_not_start_heartbeat_thread(self):
@@ -444,6 +586,7 @@ class JobTest(unittest.TestCase):
 
         scheduler = FakeScheduler()
         self.app.config["TASK_RECOVERY_SCAN_SECONDS"] = 30
+        self.app.config["DAILY_HOT_SCHEDULER_ENABLED"] = True
 
         self.assertTrue(hasattr(runner, "start_recovery_scheduler"))
         runner.start_recovery_scheduler(self.app, scheduler=scheduler)
@@ -453,6 +596,29 @@ class JobTest(unittest.TestCase):
         self.assertEqual(jobs["task-recovery-scan"][2]["seconds"], 30)
         self.assertIn("daily-hot-refresh", jobs)
         self.assertTrue(scheduler.started)
+
+    def test_recovery_scheduler_start_is_idempotent_per_app(self):
+        class FakeScheduler:
+            def __init__(self):
+                self.jobs = []
+                self.started = False
+
+            def add_job(self, function, trigger, **kwargs):
+                self.jobs.append((function, trigger, kwargs))
+
+            def start(self):
+                self.started = True
+
+        first = FakeScheduler()
+        second = FakeScheduler()
+
+        returned_first = runner.start_recovery_scheduler(self.app, scheduler=first)
+        returned_second = runner.start_recovery_scheduler(self.app, scheduler=second)
+
+        self.assertIs(returned_first, first)
+        self.assertIs(returned_second, first)
+        self.assertTrue(first.started)
+        self.assertFalse(second.started)
 
     def test_daily_hot_scheduler_uses_active_admin_and_reuses_task(self):
         admin = User(

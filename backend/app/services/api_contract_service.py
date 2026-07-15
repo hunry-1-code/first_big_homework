@@ -13,6 +13,12 @@ PLATFORMS = {
     "baidu": "百度搜索",
     "baidu_news": "主流媒体",
     "rss_36kr": "36氪",
+    "mainstream_news": "主流新闻网站",
+    "news_people": "人民网",
+    "news_36kr": "36氪",
+    "news_thepaper": "澎湃新闻",
+    "news_infoq": "InfoQ",
+    "news_sspai": "少数派",
 }
 
 LIFECYCLE_STAGES = {"潜伏期", "成长期", "高潮期", "消退期"}

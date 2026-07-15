@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from datetime import datetime, timezone
 from typing import Iterable
 
@@ -28,6 +29,9 @@ from app.models import (
 )
 from app.preprocessing.segmenter import SEGMENT_VERSION, segment_document
 from app.services.task_service import StaleTaskLeaseError, assert_task_lease
+
+
+SEARCH_MATCH_VERSION = "search-keyword-v2"
 
 
 def _utcnow() -> datetime:
@@ -117,12 +121,44 @@ def _query_fingerprint(mode, keyword, platforms) -> str:
             "mode": (mode or "search").strip().casefold(),
             "keyword": " ".join((keyword or "").split()).casefold(),
             "platforms": _normalized_platforms(platforms),
+            "search_match_version": SEARCH_MATCH_VERSION,
         }
     )
 
 
 def query_fingerprint(mode, keyword, platforms) -> str:
     return _query_fingerprint(mode, keyword, platforms)
+
+
+def _search_keyword_terms(keyword: str) -> list[str]:
+    aliases = {
+        "人工智能": ["人工智能", "AI", "AIGC", "大模型"],
+    }
+    if keyword in aliases:
+        return aliases[keyword]
+    if any(ch.isspace() for ch in keyword):
+        return [part for part in keyword.split() if part]
+    terms = [keyword]
+    if any("一" <= ch <= "鿿" for ch in keyword) and len(keyword) >= 4:
+        for index in range(0, len(keyword) - 1, 2):
+            part = keyword[index : index + 2]
+            if part not in terms:
+                terms.append(part)
+    return terms
+
+
+def _title_matches_keyword(title: str, terms: list[str]) -> bool:
+    folded = title.casefold()
+    for term in terms:
+        folded_term = term.casefold()
+        if folded_term.isascii() and folded_term.isalnum():
+            if re.search(
+                rf"(?<![a-z0-9]){re.escape(folded_term)}(?![a-z0-9])", folded
+            ):
+                return True
+        elif folded_term in folded:
+            return True
+    return False
 
 
 def create_analysis_run(
@@ -163,6 +199,7 @@ def create_analysis_run(
             "articles": identities,
             "segment_version": SEGMENT_VERSION,
             "config_hash": config.config_hash(),
+            "search_match_version": SEARCH_MATCH_VERSION,
         }
     )
     fingerprint = _query_fingerprint(mode, keyword, normalized_platforms)
@@ -200,37 +237,14 @@ def create_analysis_run(
     db.session.add(run)
     db.session.flush()
 
-    # 搜索模式下按 crawl_task_id 隔离数据：不同爬取任务的文章不混合
-    if mode == "search" and source_task_id is not None:
-        filtered_ids = []
-        skipped = 0
-        for article_id in requested_ids:
-            article = articles_by_id.get(article_id)
-            if article is None:
-                continue
-            if article.crawl_task_id == source_task_id or article.crawl_task_id is None:
-                filtered_ids.append(article_id)
-            else:
-                skipped += 1
-        if skipped:
-            run.warnings = (run.warnings or []) + [f"按 crawl_task_id 隔离，过滤 {skipped} 篇非本任务文章"]
-        requested_ids = filtered_ids
+    # requested_ids 由当前采集/重试流程显式传入，是本次分析的数据边界。
+    # 同一 URL 被再次抓取时会复用 Article 行，其 crawl_task_id 仍可能是首次任务；
+    # 因此不能再按该单值字段过滤，否则强制刷新会把本轮文章全部排除。
 
     # 关键词相关性过滤：标题包含搜索关键词的才进入聚类（所有搜索模式都执行）
     if mode == "search" and keyword:
         kw = keyword.strip()
-        # 拆分关键词：空格分隔 → 按词匹配；无空格中文 → 全词 + 每2字切分
-        kw_parts = []
-        if any(ch.isspace() for ch in kw):
-            kw_parts = [p for p in kw.split() if len(p) >= 1]
-        elif len(kw) >= 2:
-            kw_parts = [kw]  # 完整短语
-            # 中文多字词额外切分为2字片段（"台风巴威" → +"台风"+"巴威"）
-            if any('一' <= ch <= '鿿' for ch in kw) and len(kw) >= 4:
-                for i in range(0, len(kw) - 1, 2):
-                    part = kw[i:i+2]
-                    if part not in kw_parts:
-                        kw_parts.append(part)
+        kw_parts = _search_keyword_terms(kw)
         filtered_ids = []
         skipped = 0
         for article_id in requested_ids:
@@ -239,13 +253,23 @@ def create_analysis_run(
                 continue
             title = (article.title or "")
             # 标题包含关键词或其任一部分即视为相关
-            if any(p in title for p in kw_parts):
+            if _title_matches_keyword(title, kw_parts):
                 filtered_ids.append(article_id)
             else:
                 skipped += 1
         if skipped:
             run.warnings = (run.warnings or []) + [f"关键词「{kw}」过滤 {skipped} 篇标题不相关文章"]
-        requested_ids = filtered_ids
+        keyword_matched_ids = set(filtered_ids)
+        requested_ids = [
+            article_id
+            for article_id in requested_ids
+            if article_id in keyword_matched_ids
+            or not _feature_status(
+                articles_by_id[article_id], features_by_article.get(article_id)
+            )[1]
+        ]
+    else:
+        keyword_matched_ids = None
 
     representative_count = 0
     # 先查已有记录，避免重复插入

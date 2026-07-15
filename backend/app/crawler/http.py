@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ipaddress
 import json
+import re
 import socket
 import time
 from collections.abc import Callable
@@ -48,8 +49,23 @@ class HttpClient:
         return self.request_json("POST", url, **kwargs)
 
     def get_text(self, url: str, **kwargs: Any) -> str:
+        prefer_xml = bool(kwargs.pop("prefer_xml", False))
         response = self._request("GET", url, **kwargs)
         body = self._read_body(response)
+        if prefer_xml:
+            declaration = re.match(
+                br"\s*<\?xml[^>]+encoding=[\"']([^\"']+)[\"']",
+                body[:200],
+                re.IGNORECASE,
+            )
+            encodings = ["utf-8-sig"]
+            if declaration:
+                encodings.insert(0, declaration.group(1).decode("ascii", errors="ignore"))
+            for encoding in dict.fromkeys(encodings):
+                try:
+                    return body.decode(encoding)
+                except (LookupError, UnicodeDecodeError):
+                    continue
         encoding = getattr(response, "encoding", None) or "utf-8"
         return body.decode(encoding, errors="replace")
 

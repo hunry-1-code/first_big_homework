@@ -26,12 +26,14 @@ def _state():
 def status():
     s = _state()
     last_run = current_app.extensions.get("daily_hot_last_run")
-    next_run = current_app.extensions.get("daily_hot_next_run")
+    scheduler = current_app.extensions.get("task_recovery_scheduler")
+    job = scheduler.get_job("daily-hot-refresh") if scheduler and hasattr(scheduler, "get_job") else None
+    next_run = getattr(job, "next_run_time", None)
     return ok({
-        "enabled": s["enabled"],
+        "enabled": job is not None,
         "interval_minutes": s["interval_minutes"],
         "last_run": last_run.isoformat() if last_run else None,
-        "next_run": next_run.isoformat() if next_run else None,
+        "next_run": next_run.isoformat() if hasattr(next_run, "isoformat") else next_run,
     })
 
 
@@ -41,13 +43,18 @@ def toggle():
     body = request.get_json(silent=True) or {}
     enabled = bool(body.get("enabled", False))
     s = _state()
-    was_enabled = s["enabled"]
     s["enabled"] = enabled
-
-    if enabled and not was_enabled:
-        _start_scheduler()
-    elif not enabled and was_enabled:
-        _stop_scheduler()
+    scheduler = current_app.extensions.get("task_recovery_scheduler")
+    if enabled and scheduler is None:
+        scheduler = _scheduler()
+    if scheduler is not None:
+        from app.tasks.scheduler import set_daily_hot_schedule
+        set_daily_hot_schedule(
+            current_app._get_current_object(),
+            scheduler,
+            enabled=enabled,
+            interval_seconds=s["interval_minutes"] * 60,
+        )
 
     return ok({"enabled": s["enabled"]}, message="每日热点已启用" if enabled else "每日热点已停用")
 
@@ -62,7 +69,13 @@ def set_interval():
     s = _state()
     s["interval_minutes"] = minutes
     if s["enabled"]:
-        _restart_scheduler()
+        from app.tasks.scheduler import set_daily_hot_schedule
+        set_daily_hot_schedule(
+            current_app._get_current_object(),
+            _scheduler(),
+            enabled=True,
+            interval_seconds=minutes * 60,
+        )
     return ok({"interval_minutes": minutes}, message=f"间隔已设为 {minutes} 分钟")
 
 
@@ -82,42 +95,10 @@ def trigger_now():
         return fail(str(e), 500)
 
 
-def _start_scheduler():
-    from apscheduler.schedulers.background import BackgroundScheduler
-    s = _state()
-    scheduler = BackgroundScheduler(timezone="Asia/Shanghai")
-    scheduler.add_job(
-        _run_daily_hot,
-        "interval",
-        minutes=s["interval_minutes"],
-        id="daily-hot-refresh",
-        replace_existing=True,
-    )
-    scheduler.start()
-    current_app.extensions["daily_hot_scheduler"] = scheduler
+def _scheduler():
+    scheduler = current_app.extensions.get("task_recovery_scheduler")
+    if scheduler is not None:
+        return scheduler
+    from app.tasks.runner import start_recovery_scheduler
 
-
-def _stop_scheduler():
-    scheduler = current_app.extensions.pop("daily_hot_scheduler", None)
-    if scheduler:
-        scheduler.shutdown(wait=False)
-
-
-def _restart_scheduler():
-    _stop_scheduler()
-    _start_scheduler()
-
-
-def _run_daily_hot():
-    from datetime import datetime, timezone
-    from app.services.task_service import create_task
-    from app.tasks.jobs import daily_hot_job
-    from app.tasks.runner import submit_background_job
-
-    task = create_task("daily_hot", 1, {"force": False})
-    submit_background_job(current_app._get_current_object(), daily_hot_job, task["id"])
-    now = datetime.now(timezone.utc)
-    current_app.extensions["daily_hot_last_run"] = now
-    current_app.extensions["daily_hot_next_run"] = now.replace(
-        minute=now.minute + _state()["interval_minutes"]
-    )
+    return start_recovery_scheduler(current_app._get_current_object())

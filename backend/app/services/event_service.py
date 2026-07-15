@@ -402,6 +402,7 @@ def _event_item(event: Event, snapshot: EventHeatSnapshot | None = None, platfor
                 for k in (ek.get("keywords") or [])[:3]]
     except Exception:
         pass
+    from app.services.lifecycle_prediction_service import build_prediction_payload
     return {
         "id": event.id,
         "title": event.title,
@@ -423,6 +424,7 @@ def _event_item(event: Event, snapshot: EventHeatSnapshot | None = None, platfor
             if event.lifecycle_updated_at
             else None
         ),
+        "prediction": build_prediction_payload(event),
         "time_code": event.time_code,
         "location": event.location,
         "key_figures": event.key_figures,
@@ -625,7 +627,7 @@ def get_event_detail(event_id: int) -> dict | None:
             "articles": [
                 {
                     "id": article.id,
-                    "platform": api_platform_name(article.platform) or "百度搜索",
+                    "platform": api_platform_name(article.platform) or "未知平台",
                     "title": article.title,
                     "clean_content": article.clean_content,
                     "author": article.author,
@@ -662,7 +664,18 @@ def get_propagation_data(event_id: int) -> dict | None:
 
     from app.propagation import build_propagation_graph
     from app.services.api_contract_service import api_platform_name
-    return build_propagation_graph(articles, platform_mapper=api_platform_name)
+    graph = build_propagation_graph(articles, platform_mapper=api_platform_name)
+    from app.services.propagation_analysis_service import analyze_propagation
+
+    graph.update(
+        analyze_propagation(
+            event.title,
+            articles,
+            graph,
+            top_keywords=(_event_keywords(event).get("keywords") or [])[:5],
+        )
+    )
+    return graph
 
 
 def delete_event(event_id: int) -> None:

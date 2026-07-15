@@ -72,6 +72,21 @@ class Config:
         1, int(os.getenv("QIANFAN_REQUEST_TIMEOUT", "30"))
     )
 
+    # 火山方舟/豆包仅用于事件全网溯源，与 DeepSeek 的 LLM_* 配置完全独立。
+    DOUBAO_ARK_API_KEY = os.getenv("DOUBAO_ARK_API_KEY", "")
+    DOUBAO_ARK_BASE_URL = os.getenv(
+        "DOUBAO_ARK_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3"
+    )
+    DOUBAO_ARK_MODEL = os.getenv(
+        "DOUBAO_ARK_MODEL", "doubao-seed-2-1-pro-260628"
+    )
+    DOUBAO_WEB_SEARCH_LIMIT = min(
+        10, max(1, int(os.getenv("DOUBAO_WEB_SEARCH_LIMIT", "10")))
+    )
+    DOUBAO_REQUEST_TIMEOUT = max(
+        1, int(os.getenv("DOUBAO_REQUEST_TIMEOUT", "180"))
+    )
+
     AUTO_PUBLISH_EVENTS = (
         os.getenv("AUTO_PUBLISH_EVENTS", "false").lower() == "true"
     )
@@ -243,7 +258,7 @@ class Config:
     )
     DAILY_HOT_RESULT_LIMIT = min(
         100,
-        max(1, int(os.getenv("DAILY_HOT_RESULT_LIMIT", "10"))),
+        max(1, int(os.getenv("DAILY_HOT_RESULT_LIMIT", "20"))),
     )
     DAILY_HOT_RRF_K = max(1, int(os.getenv("DAILY_HOT_RRF_K", "60")))
     DAILY_HOT_TTL_SECONDS = max(
@@ -265,7 +280,7 @@ class Config:
 
     EVENT_AGGREGATION_ATTACH_THRESHOLD = min(
         1.0,
-        max(0.0, float(os.getenv("EVENT_AGGREGATION_ATTACH_THRESHOLD", "0.50"))),
+        max(0.0, float(os.getenv("EVENT_AGGREGATION_ATTACH_THRESHOLD", "0.55"))),
     )
     EVENT_AGGREGATION_CREATE_THRESHOLD = min(
         1.0,
@@ -299,7 +314,7 @@ class Config:
         "EVENT_AGGREGATION_ALGORITHM_VERSION", "event-aggregation-v1"
     )
     EVENT_AGGREGATION_USE_HDBSCAN = (
-        os.getenv("EVENT_AGGREGATION_USE_HDBSCAN", "false").lower() == "true"
+        os.getenv("EVENT_AGGREGATION_USE_HDBSCAN", "true").lower() == "true"
     )
     EVENT_SEARCH_CACHE_HOURS = max(
         1, int(os.getenv("EVENT_SEARCH_CACHE_HOURS", "2"))

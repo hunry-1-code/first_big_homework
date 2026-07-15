@@ -17,7 +17,7 @@ class AggregationConfig:
     candidate_limit: int = 20
     maximum_event_gap_days: int = 30
     minimum_evidence_count: int = 1
-    search_cache_hours: int = 24
+    search_cache_hours: int = 2
     related_event_limit: int = 5
     algorithm_version: str = "event-aggregation-v1"
     use_hdbscan: bool = False  # 启用 HDBSCAN 密度聚类替代贪心聚类

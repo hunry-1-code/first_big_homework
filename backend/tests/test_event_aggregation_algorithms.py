@@ -14,6 +14,7 @@ from app.analysis.event_clusterer import (
     EventCluster,
     _time_compatibility,
     cluster_documents,
+    cluster_documents_hdbscan,
 )
 from app.analysis.event_similarity import cosine_similarity, score_event_match
 from app.analysis.hot_detector import assign_event_cluster
@@ -50,7 +51,7 @@ class AggregationConfigTest(unittest.TestCase):
         self.assertEqual(Config.EVENT_AGGREGATION_TFIDF_WEIGHT, defaults.tfidf_weight)
         self.assertEqual(Config.EVENT_AGGREGATION_ENTITY_WEIGHT, defaults.entity_weight)
         self.assertEqual(Config.EVENT_AGGREGATION_TIME_WEIGHT, defaults.time_weight)
-        self.assertEqual(Config.EVENT_SEARCH_CACHE_HOURS, 24)
+        self.assertEqual(Config.EVENT_SEARCH_CACHE_HOURS, defaults.search_cache_hours)
 
 
 class EventSimilarityTest(unittest.TestCase):
@@ -245,6 +246,30 @@ class EventClustererTest(unittest.TestCase):
         self.assertEqual(len(result.clusters), 0)
         self.assertEqual(result.assignments[0].action, "deferred")
         self.assertIn("INSUFFICIENT_EVIDENCE", result.assignments[0].reasons)
+
+    def test_hdbscan_dimension_mismatch_falls_back_with_warning(self):
+        documents = [
+            self._document(1, "事件一", 0, [1.0, 0.0]),
+            self._document(2, "事件一跟进", 1, [0.9, 0.1, 0.0]),
+            self._document(3, "事件二", 2, [0.0, 1.0]),
+        ]
+
+        result = cluster_documents_hdbscan(documents, AggregationConfig())
+
+        self.assertEqual({item.article_id for item in result.assignments}, {1, 2, 3})
+        self.assertIn("HDBSCAN_FEATURE_DIMENSION_MISMATCH", result.warnings)
+
+    def test_hdbscan_all_zero_vectors_fall_back_with_warning(self):
+        documents = [
+            self._document(1, "事件一", 0, [0.0, 0.0]),
+            self._document(2, "事件一跟进", 1, [0.0, 0.0]),
+            self._document(3, "事件二", 2, [0.0, 0.0]),
+        ]
+
+        result = cluster_documents_hdbscan(documents, AggregationConfig())
+
+        self.assertEqual({item.article_id for item in result.assignments}, {1, 2, 3})
+        self.assertIn("HDBSCAN_NO_USABLE_VECTORS", result.warnings)
 
     def test_legacy_assignment_adapter_uses_real_similarity(self):
         result = assign_event_cluster(

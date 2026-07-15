@@ -359,29 +359,39 @@ def cluster_documents_hdbscan(
     if len(docs) < 3:
         return cluster_documents(docs, config)
 
+    def fallback(warning: str) -> ClusterResult:
+        result = cluster_documents(docs, config)
+        result.warnings = [warning, *result.warnings]
+        return result
+
     try:
         import numpy as np
         from hdbscan import HDBSCAN
         from sklearn.preprocessing import StandardScaler
 
-        # 提取 BGE + TF-IDF 向量拼接
+        bge_dimensions = {len(d.bge_vector) for d in docs if d.bge_vector}
+        tfidf_dimensions = {len(d.tfidf_vector) for d in docs if d.tfidf_vector}
+        if len(bge_dimensions) > 1 or len(tfidf_dimensions) > 1:
+            return fallback("HDBSCAN_FEATURE_DIMENSION_MISMATCH")
+        bge_dimension = next(iter(bge_dimensions), 0)
+        tfidf_dimension = next(iter(tfidf_dimensions), 0)
+        if bge_dimension + tfidf_dimension == 0:
+            return fallback("HDBSCAN_NO_USABLE_VECTORS")
+
         vectors = []
-        for d in docs:
-            vec = []
-            bge = [float(v) for v in (d.bge_vector or [])]
-            tfidf = [float(v) for v in (d.tfidf_vector or [])]
-            if not bge and not tfidf:
-                vec = [0.0] * 512  # fallback
-            else:
-                # BGE + TF-IDF 拼接，BGE 权重更高
-                if bge:
-                    vec.extend(bge)
-                if tfidf:
-                    pad_len = max(0, len(bge) - len(tfidf)) if bge else 0
-                    vec.extend(tfidf + [0.0] * pad_len)
-            vectors.append(vec)
+        for document in docs:
+            bge = [float(value) for value in (document.bge_vector or [])]
+            tfidf = [float(value) for value in (document.tfidf_vector or [])]
+            vectors.append(
+                (bge if bge else [0.0] * bge_dimension)
+                + (tfidf if tfidf else [0.0] * tfidf_dimension)
+            )
 
         X = np.array(vectors, dtype=np.float64)
+        if not np.isfinite(X).all():
+            return fallback("HDBSCAN_NON_FINITE_VECTORS")
+        if not np.any(np.abs(X) > 1e-12):
+            return fallback("HDBSCAN_NO_USABLE_VECTORS")
         # 标准化
         X = StandardScaler().fit_transform(X)
 
@@ -405,11 +415,12 @@ def cluster_documents_hdbscan(
 
         # 如果 HDBSCAN 把所有点都归为噪声，回退贪心
         if n_clusters == 0:
-            return cluster_documents(docs, config)
+            return fallback("HDBSCAN_ALL_NOISE")
 
         clusters: list[EventCluster] = []
         assignments: list[ClusterAssignment] = []
 
+        label_to_cluster = {}
         for label in sorted(unique_labels):
             if label == -1:
                 continue  # 噪声点后续处理
@@ -417,6 +428,7 @@ def cluster_documents_hdbscan(
             cluster = EventCluster(cluster_index=len(clusters), documents=cluster_docs)
             cluster.recompute()
             clusters.append(cluster)
+            label_to_cluster[int(label)] = cluster
 
         # 分配文章
         for i, d in enumerate(docs):
@@ -439,7 +451,7 @@ def cluster_documents_hdbscan(
                         reasons=["HDBSCAN_NOISE"],
                     ))
             else:
-                cluster = clusters[label if label >= 0 else 0]
+                cluster = label_to_cluster[int(label)]
                 assignments.append(ClusterAssignment(
                     article_id=d.article_id, cluster_index=cluster.cluster_index,
                     action="attach", similarity=1.0,
@@ -451,7 +463,9 @@ def cluster_documents_hdbscan(
         return ClusterResult(clusters=clusters, assignments=assignments, warnings=warnings)
 
     except ImportError:
-        return cluster_documents(docs, config)
+        return fallback("HDBSCAN_DEPENDENCY_UNAVAILABLE")
+    except Exception as exc:
+        return fallback(f"HDBSCAN_FAILED:{type(exc).__name__}")
 
 
 __all__ = [

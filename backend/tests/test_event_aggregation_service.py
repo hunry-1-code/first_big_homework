@@ -457,6 +457,12 @@ class EventAggregationServiceTest(unittest.TestCase):
         with patch(
             "app.services.event_aggregation_service._llm_client",
             return_value=client,
+        ), patch(
+            "app.services.event_aggregation_service._ai_generate_title",
+            return_value=None,
+        ), patch(
+            "app.services.event_aggregation_service._ai_generate_report",
+            return_value=None,
         ):
             run_event_aggregation(run.id, now=self.now)
 
@@ -782,6 +788,7 @@ class EventAggregationServiceTest(unittest.TestCase):
         self.assertEqual(event.summary, report.overview_text)
         self.assertEqual(first["postprocess"]["sentiment"], "success")
         self.assertEqual(first["postprocess"]["heat"], "success")
+        self.assertEqual(first["postprocess"]["comments"]["sentiment"]["selected"], 0)
 
     def test_admin_can_publish_search_cluster_via_api(self):
         article = self._article(1, "重庆暴雨", ["重庆", "暴雨"], [1.0, 0.0])

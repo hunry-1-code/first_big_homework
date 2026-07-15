@@ -176,10 +176,6 @@ def recover_background_jobs(app, job_registry: dict[str, Callable] | None = None
             task.id: task.task_type
             for task in Task.query.filter(Task.id.in_(task_ids))
         }
-        task_types = {
-            task.id: task.task_type
-            for task in Task.query.filter(Task.id.in_(task_ids))
-        }
 
     submitted = 0
     for task_id in task_ids:
@@ -199,6 +195,9 @@ def recover_background_jobs(app, job_registry: dict[str, Callable] | None = None
 
 
 def start_recovery_scheduler(app, scheduler=None):
+    existing = app.extensions.get("task_recovery_scheduler")
+    if existing is not None:
+        return existing
     if scheduler is None:
         from app.tasks.scheduler import create_scheduler
 

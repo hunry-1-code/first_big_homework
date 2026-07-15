@@ -13,7 +13,7 @@ from app.crawler.base import CrawlerRegistry, RawDocument
 from app.crawler.errors import CrawlerError
 from app.extensions import db
 from app.models import DailyHotItem, DailyHotRun
-from app.services.daily_hot_service import collect_daily_hot
+from app.services.daily_hot_service import collect_daily_hot, serialize_daily_hot_run
 
 
 class TestConfig:
@@ -171,6 +171,32 @@ class DailyHotServiceTest(unittest.TestCase):
         self.assertEqual(run.status, "failed")
         self.assertEqual(run.item_count, 0)
         self.assertEqual(DailyHotItem.query.count(), 0)
+
+    def test_unenriched_items_are_classified_for_category_filtering(self):
+        registry, _crawlers = self._registry()
+        registry.get("weibo_hot").documents = [
+            RawDocument(
+                platform="weibo_hot",
+                source_url="https://example.com/education",
+                source_article_id="education",
+                title="高考志愿填报与大学专业选择",
+                raw_content="高考志愿填报与大学专业选择",
+                raw_json={"rank": 1},
+            )
+        ]
+        run = collect_daily_hot(
+            registry=registry,
+            sources=["weibo_hot"],
+            now=self.now,
+            force=True,
+        )
+
+        payload = serialize_daily_hot_run(run, limit=10, ttl_seconds=900, now=self.now)
+
+        self.assertEqual(payload["items"][0]["category"], "教育")
+        self.assertEqual(payload["items"][0]["topic_name"], "高考志愿填报与大学专业选择")
+        self.assertIn("高考", payload["items"][0]["topic_keywords"])
+        self.assertEqual(payload["category_counts"], {"教育": 1})
 
 
 if __name__ == "__main__":

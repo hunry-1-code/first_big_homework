@@ -7,6 +7,7 @@ from app import create_app
 from app.extensions import db
 from app.models import Article,Event,DailyHotRun,DailyHotItem
 from app.services.event_topic_service import classify_event_topic
+from app.services.event_topic_service import classify_topic_text
 from app.services.daily_hot_service import serialize_daily_hot_run
 from datetime import datetime,date,timezone
 
@@ -27,3 +28,10 @@ def test_daily_hot_event_is_classified_and_serialized():
   payload=serialize_daily_hot_run(run,limit=10,ttl_seconds=900)
   assert result['category']=='自然灾害'
   assert payload['items'][0]['category']=='自然灾害'
+
+
+def test_real_hot_titles_cover_finance_sports_education_and_entertainment():
+ assert classify_topic_text('国内油价17日24时或迎上涨')['category']=='经济金融'
+ assert classify_topic_text('法国vs西班牙 点球破门')['category']=='体育'
+ assert classify_topic_text('女生694分被清华录取')['category']=='教育'
+ assert classify_topic_text('暑期档长剧裸播')['category']=='娱乐文化'

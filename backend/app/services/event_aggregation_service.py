@@ -52,7 +52,13 @@ _GLOBAL_WRITE_LOCK = RLock()
 
 def _postprocess_published_event(event_id: int, publish_run_id: int, user_id: int, now: datetime) -> dict:
     """Build formal-event derivatives after publication; safe to call repeatedly."""
-    status = {"sentiment": "skipped", "heat": "skipped", "report": "skipped", "warnings": []}
+    status = {
+        "sentiment": "skipped",
+        "comments": {"status": "skipped"},
+        "heat": "skipped",
+        "report": "skipped",
+        "warnings": [],
+    }
     try:
         from app.services.sentiment_analysis_service import create_sentiment_run, run_sentiment_analysis
 
@@ -64,6 +70,17 @@ def _postprocess_published_event(event_id: int, publish_run_id: int, user_id: in
         db.session.rollback()
         status["sentiment"] = "failed"
         status["warnings"].append(f"SENTIMENT_POSTPROCESS_FAILED:{type(exc).__name__}")
+
+    try:
+        from app.services.event_comment_analysis_service import analyze_event_comments
+
+        status["comments"] = analyze_event_comments(event_id)
+    except Exception as exc:
+        db.session.rollback()
+        status["comments"] = {"status": "failed"}
+        status["warnings"].append(
+            f"COMMENT_ANALYSIS_POSTPROCESS_FAILED:{type(exc).__name__}"
+        )
 
     publish_run = db.session.get(AggregationRun, int(publish_run_id))
     hotspot = (
@@ -648,13 +665,16 @@ def _update_event(event, run, now):
     event.last_activity_time = max(times, default=None)
     event.independent_report_count = len([item for item in articles if not item.is_duplicate])
     event.platform_count = len({item.platform for item in articles if item.platform})
-    from app.services.lifecycle_service import daily_comment_counts, daily_sentiment_polarity
+    from app.services.lifecycle_service import build_daily_lifecycle_series
+    lifecycle_series = build_daily_lifecycle_series(articles)
     update_event_lifecycle(
         event,
-        daily_counts_from_articles(articles),
+        lifecycle_series["articles"],
         now=now,
-        daily_comments=daily_comment_counts(articles),
-        daily_sentiment=daily_sentiment_polarity(articles),
+        daily_comments=lifecycle_series["comments"],
+        daily_sentiment=lifecycle_series["sentiment_polarity"],
+        daily_platforms=lifecycle_series["platforms"],
+        dates=lifecycle_series["dates"],
         crawl_mode="search",
     )
     from app.services.event_service import update_event_metadata
@@ -1137,6 +1157,7 @@ def publish_cluster(
     user_id: int,
     now: datetime | None = None,
     config: AggregationConfig | None = None,
+    minimum_member_count: int | None = None,
 ) -> dict:
     now = now or _utcnow()
     config = config or _config_from_app()
@@ -1149,7 +1170,11 @@ def publish_cluster(
     if source_run.scope not in {"search_shared", "manual"}:
         raise ValueError("只有搜索或手动事件簇需要发布")
     # 最小簇大小过滤：成员过少的簇不足以成为独立事件
-    min_members = current_app.config.get("EVENT_AGGREGATION_MIN_CLUSTER_SIZE", 2)
+    min_members = (
+        current_app.config.get("EVENT_AGGREGATION_MIN_CLUSTER_SIZE", 2)
+        if minimum_member_count is None
+        else max(1, int(minimum_member_count))
+    )
     if source.member_count is not None and source.member_count < min_members:
         raise ValueError(f"事件簇成员数({source.member_count})不足({min_members})，不发布")
     if source.resolved_event_id is not None:

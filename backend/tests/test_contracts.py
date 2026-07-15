@@ -47,6 +47,18 @@ class QianfanConfigContractTest(unittest.TestCase):
         self.assertEqual(Config.QIANFAN_REQUEST_TIMEOUT, 30)
 
 
+class DoubaoConfigContractTest(unittest.TestCase):
+    def test_doubao_ark_configuration_is_separate_from_deepseek(self):
+        self.assertTrue(hasattr(Config, "DOUBAO_ARK_API_KEY"))
+        self.assertEqual(
+            Config.DOUBAO_ARK_BASE_URL,
+            "https://ark.cn-beijing.volces.com/api/v3",
+        )
+        self.assertEqual(Config.DOUBAO_ARK_MODEL, "doubao-seed-2-1-pro-260628")
+        self.assertEqual(Config.DOUBAO_WEB_SEARCH_LIMIT, 10)
+        self.assertEqual(Config.DOUBAO_REQUEST_TIMEOUT, 180)
+
+
 class SentimentConfigContractTest(unittest.TestCase):
     def test_sentiment_configuration_is_available(self):
         self.assertEqual(Config.SENTIMENT_TEXT_LIMIT, 500)

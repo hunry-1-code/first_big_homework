@@ -1,6 +1,7 @@
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import Mock, patch
 
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
@@ -11,7 +12,7 @@ from app.crawler.base import CrawlRequest
 from app.crawler.errors import CrawlerError
 from app.crawler.bilibili import BilibiliCrawler
 from app.crawler.qianfan import QianfanSearchCrawler, QianfanTrendingCrawler
-from app.crawler.rss import RssCrawler
+from app.crawler.rss import RssCrawler, extract_article_text
 from app.crawler.tikhub import TikHubCrawler
 from app.crawler.weibo import WeiboHotCrawler
 from app.crawler.zhihu import ZhihuHotCrawler, ZhihuSearchCrawler
@@ -250,6 +251,73 @@ class CrawlerAdapterTest(unittest.TestCase):
         self.assertEqual(client.calls[1][1]["headers"]["Referer"], "https://search.bilibili.com/")
         self.assertIn("buvid3=buvid-3", client.calls[1][1]["headers"]["Cookie"])
 
+    def test_bilibili_fetch_comments_converts_bvid_and_maps_replies(self):
+        class Cookies:
+            def set(self, *args, **kwargs):
+                pass
+
+        class Session:
+            cookies = Cookies()
+
+        class Client:
+            def __init__(self):
+                self.session = Session()
+                self.calls = []
+
+            def get_json(self, url, **kwargs):
+                self.calls.append((url, kwargs))
+                if url.endswith("/x/frontend/finger/spi"):
+                    return {"code": 0, "data": {"b_3": "buvid-3", "b_4": "buvid-4"}}
+                if url.endswith("/x/web-interface/view"):
+                    return {"code": 0, "data": {"aid": 12345}}
+                return {
+                    "code": 0,
+                    "data": {
+                        "replies": [
+                            {
+                                "rpid": 10,
+                                "content": {"message": "一级评论"},
+                                "member": {"uname": "用户A"},
+                                "like": 8,
+                                "rcount": 1,
+                                "replies": [
+                                    {
+                                        "rpid": 11,
+                                        "content": {"message": "回复内容"},
+                                        "member": {"uname": "用户B"},
+                                        "like": 2,
+                                    }
+                                ],
+                            }
+                        ]
+                    },
+                }
+
+        client = Client()
+        rows = BilibiliCrawler(client).fetch_comments("BV1TEST", limit=5)
+
+        self.assertEqual([item.source_comment_id for item in rows], ["10", "11"])
+        self.assertEqual(rows[1].parent_source_comment_id, "10")
+        reply_call = client.calls[-1]
+        self.assertTrue(reply_call[0].endswith("/x/v2/reply"))
+        self.assertEqual(reply_call[1]["params"]["oid"], 12345)
+        self.assertEqual(reply_call[1]["headers"]["Referer"], "https://search.bilibili.com/")
+
+    def test_bilibili_fetch_comments_rejects_invalid_id_without_reply_request(self):
+        class Client:
+            def __init__(self):
+                self.calls = []
+
+            def get_json(self, url, **kwargs):
+                self.calls.append(url)
+                return {"code": 0, "data": {}}
+
+        client = Client()
+        rows = BilibiliCrawler(client).fetch_comments("not-an-id", limit=5)
+
+        self.assertEqual(rows, [])
+        self.assertFalse(any(url.endswith("/x/v2/reply") for url in client.calls))
+
     def test_weibo_hot_maps_realtime_list(self):
         payload = {
             "data": {
@@ -285,7 +353,7 @@ class CrawlerAdapterTest(unittest.TestCase):
         }
         crawler = TikHubCrawler(StubClient(payload), "key", platform="weibo")
 
-        result = crawler.crawl(CrawlRequest("weibo", "测试", 1))
+        result = crawler.crawl(CrawlRequest("weibo", "微博", 1))
 
         self.assertEqual(result[0].source_article_id, "123")
         self.assertEqual(result[0].author, "用户")
@@ -354,6 +422,110 @@ class CrawlerAdapterTest(unittest.TestCase):
 
         self.assertEqual(result[0].source_article_id, "item-1")
         self.assertEqual(result[0].title, "RSS 标题")
+
+    def test_rss_matches_summary_sets_headers_and_strictly_limits_results(self):
+        xml = """<?xml version='1.0' encoding='utf-8'?>
+        <rss><channel>
+          <item><guid>1</guid><title>行业观察一</title><description>人工智能正在改变产业结构，正文摘要足够长用于降级保存。</description><link>https://example.com/1</link></item>
+          <item><guid>2</guid><title>行业观察二</title><description>人工智能应用进入新阶段，这是一段足够长的文章摘要内容。</description><link>https://example.com/2</link></item>
+          <item><guid>3</guid><title>行业观察三</title><description>人工智能治理受到关注，这也是一段足够长的摘要文本。</description><link>https://example.com/3</link></item>
+        </channel></rss>"""
+        client = StubClient(xml)
+        crawler = RssCrawler(
+            client,
+            "https://example.com/feed.xml",
+            article_extractor=lambda _: None,
+            minimum_content_length=10,
+        )
+
+        result = crawler.crawl(CrawlRequest("rss", keyword="人工智能", limit=2))
+
+        self.assertEqual(len(result), 2)
+        self.assertTrue(all("人工智能" in item.raw_content for item in result))
+        headers = client.calls[0][2]["headers"]
+        self.assertIn("Mozilla", headers["User-Agent"])
+        self.assertEqual(
+            headers["Accept"],
+            "application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
+        )
+        self.assertTrue(client.calls[0][2]["prefer_xml"])
+
+    def test_rss_expands_artificial_intelligence_keyword_to_common_news_terms(self):
+        xml = """<?xml version='1.0' encoding='utf-8'?>
+        <rss><channel><item><guid>ai-1</guid>
+          <title>AI 基础设施投资持续升温</title>
+          <description>大模型产业进入新的发展阶段，这是一段足够长的摘要。</description>
+          <link>https://example.com/ai-1</link>
+        </item></channel></rss>"""
+        crawler = RssCrawler(
+            StubClient(xml),
+            "https://example.com/feed.xml",
+            article_extractor=lambda _: None,
+            minimum_content_length=10,
+        )
+
+        rows = crawler.crawl(CrawlRequest("rss", keyword="人工智能", limit=1))
+
+        self.assertEqual([row.source_article_id for row in rows], ["ai-1"])
+
+    def test_rss_keyword_matching_ignores_html_attributes_and_maps_cont_id(self):
+        xml = """<?xml version='1.0' encoding='utf-8'?>
+        <rss><channel>
+          <item><contId>33500001</contId><title>普通文化新闻</title>
+            <description><![CDATA[<div data-ai="" x-webkit-airplay="allow">这是一段普通文化报道摘要。</div>]]></description>
+            <link>https://m.thepaper.cn/newsDetail_forward_33500001</link>
+          </item>
+          <item><contId>33500002</contId><title>AI 基建新闻</title>
+            <description><![CDATA[<p>人工智能基础设施相关报道摘要。</p>]]></description>
+            <link>https://m.thepaper.cn/newsDetail_forward_33500002</link>
+          </item>
+        </channel></rss>"""
+        crawler = RssCrawler(
+            StubClient(xml),
+            "https://m.thepaper.cn/rss_news",
+            platform="news_thepaper",
+            article_extractor=lambda _: None,
+            minimum_content_length=10,
+        )
+
+        rows = crawler.crawl(
+            CrawlRequest("news_thepaper", keyword="人工智能", limit=2)
+        )
+
+        self.assertEqual([row.source_article_id for row in rows], ["33500002"])
+
+    def test_article_extractor_uses_browser_headers_and_txt_output(self):
+        response = Mock()
+        response.content = b"<html><body>article</body></html>"
+        response.headers = {"Content-Length": str(len(response.content))}
+        response.raise_for_status.return_value = None
+
+        with patch("app.crawler.rss.requests.get", return_value=response) as get, patch(
+            "app.crawler.rss.trafilatura.extract", return_value="正文" * 120
+        ) as extract:
+            text = extract_article_text("https://www.infoq.cn/article/1")
+
+        self.assertGreater(len(text), 200)
+        self.assertIn("Mozilla", get.call_args.kwargs["headers"]["User-Agent"])
+        self.assertEqual(extract.call_args.kwargs["output_format"], "txt")
+
+    def test_rss_does_not_match_keyword_only_in_distant_related_links(self):
+        unrelated = "普通活动信息" * 260 + " AI 相关阅读"
+        xml = f"""<?xml version='1.0' encoding='utf-8'?>
+        <rss><channel><item><guid>promo</guid><title>抽奖活动</title>
+          <description>{unrelated}</description>
+          <link>https://example.com/promo</link>
+        </item></channel></rss>"""
+        crawler = RssCrawler(
+            StubClient(xml),
+            "https://example.com/feed.xml",
+            article_extractor=lambda _: None,
+            minimum_content_length=10,
+        )
+
+        rows = crawler.crawl(CrawlRequest("rss", keyword="人工智能", limit=1))
+
+        self.assertEqual(rows, [])
 
 
 if __name__ == "__main__":

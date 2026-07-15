@@ -670,14 +670,17 @@ def _persist_heat(run, rows, articles, topic_rows, calculated_at, config):
         ]
         event.platform_count = result.raw_statistics["platform_count"]
         event.time_confidence = result.time_confidence
-        from app.services.lifecycle_service import daily_comment_counts, daily_sentiment_polarity
+        from app.services.lifecycle_service import build_daily_lifecycle_series
         event_arts = [article for _row, article in event_articles[result.event_id]]
+        lifecycle_series = build_daily_lifecycle_series(event_arts)
         update_event_lifecycle(
             event,
-            daily_counts_from_articles(event_arts),
+            lifecycle_series["articles"],
             now=calculated_at,
-            daily_comments=daily_comment_counts(event_arts),
-            daily_sentiment=daily_sentiment_polarity(event_arts),
+            daily_comments=lifecycle_series["comments"],
+            daily_sentiment=lifecycle_series["sentiment_polarity"],
+            daily_platforms=lifecycle_series["platforms"],
+            dates=lifecycle_series["dates"],
             crawl_mode="monitor",
         )
         warnings.extend(result.warnings)

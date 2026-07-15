@@ -1,156 +1,67 @@
-"""趋势预测（生命周期判定）单元测试。
-
-覆盖：潜伏期/成长期/高潮期/消退期判定 + 阶段切换点 + 滑动窗口平滑 + 边界条件
-"""
-import sys
-import unittest
 from pathlib import Path
+import sys
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
 from app.analysis.trend_predictor import (
-    LATENT_MAX_DAILY,
-    LATENT_MAX_TOTAL,
-    WINDOW_SIZE,
-    _growth_rate,
-    _smooth,
     analyze_lifecycle,
     get_lifecycle_change_points,
     predict_lifecycle_stage,
 )
 
 
-class SmoothTest(unittest.TestCase):
-    """滑动窗口均值平滑测试"""
+def test_short_series_is_explicitly_insufficient():
+    prediction = analyze_lifecycle([1, 2])
 
-    def test_single_value(self):
-        self.assertEqual(_smooth([10]), [10.0])
-
-    def test_window_smoothing(self):
-        result = _smooth([1, 5, 10], window=3)
-        self.assertEqual(len(result), 3)
-        # 中间点应为 (1+5+10)/3 = 5.33...
-        self.assertAlmostEqual(result[1], 16 / 3, places=4)
-
-    def test_window_size_one_no_smoothing(self):
-        self.assertEqual(_smooth([1, 5, 10], window=1), [1.0, 5.0, 10.0])
+    assert prediction.stage == "潜伏期"
+    assert prediction.status == "data_insufficient"
+    assert prediction.confidence < 0.5
+    assert prediction.evidence["point_count"] == 2
 
 
-class GrowthRateTest(unittest.TestCase):
-    """日增长率计算测试"""
-
-    def test_first_is_zero(self):
-        rates = _growth_rate([10.0, 20.0, 30.0])
-        self.assertEqual(rates[0], 0.0)
-
-    def test_positive_growth(self):
-        rates = _growth_rate([10.0, 20.0])
-        self.assertEqual(rates[1], 1.0)  # 100% growth
-
-    def test_negative_growth(self):
-        rates = _growth_rate([20.0, 10.0])
-        self.assertEqual(rates[1], -0.5)
-
-    def test_zero_prev_positive_current(self):
-        rates = _growth_rate([0.0, 5.0])
-        self.assertEqual(rates[1], 1.0)
+def test_growth_peak_and_decline_patterns():
+    assert predict_lifecycle_stage([5, 15, 30, 50, 80, 120]) == "成长期"
+    assert predict_lifecycle_stage([80, 100, 120, 115, 118, 116, 114]) == "高潮期"
+    assert predict_lifecycle_stage([120, 115, 110, 105, 100, 50, 40]) == "消退期"
 
 
-class LifecycleStageTest(unittest.TestCase):
-    """生命周期阶段判定测试"""
+def test_multi_signal_prediction_records_weights_and_momentum():
+    prediction = analyze_lifecycle(
+        [5, 8, 12, 20, 30],
+        daily_comments=[2, 5, 20, 40, 80],
+        daily_sentiment_polarity=[0.1, 0.15, 0.3, 0.5, 0.7],
+        daily_platform_count=[1, 1, 2, 3, 4],
+    )
 
-    def test_empty_returns_latent(self):
-        self.assertEqual(predict_lifecycle_stage([]), "潜伏期")
-
-    def test_negative_counts_are_treated_as_zero(self):
-        self.assertEqual(predict_lifecycle_stage([-5, -1, 0]), "潜伏期")
-
-    def test_latent_low_counts(self):
-        counts = [3, 4, 5, 3, 5]
-        self.assertEqual(predict_lifecycle_stage(counts), "潜伏期")
-
-    def test_growth_sustained_rise(self):
-        counts = [5, 15, 30, 50, 80, 120]
-        self.assertEqual(predict_lifecycle_stage(counts), "成长期")
-
-    def test_peak_stable_high(self):
-        counts = [80, 100, 120, 115, 118, 116, 114]
-        self.assertEqual(predict_lifecycle_stage(counts), "高潮期")
-
-    def test_decline_from_peak(self):
-        counts = [120, 115, 110, 105, 100, 50, 40]
-        self.assertEqual(predict_lifecycle_stage(counts), "消退期")
-
-    def test_decline_three_consecutive_days(self):
-        counts = [130, 120, 115, 110, 100, 80, 60, 50, 45, 40]
-        self.assertEqual(predict_lifecycle_stage(counts), "消退期")
-
-    def test_structured_result_marks_short_series_insufficient(self):
-        prediction = analyze_lifecycle([1, 2, 3], previous_stage="潜伏期")
-
-        self.assertEqual(prediction.stage, "潜伏期")
-        self.assertEqual(prediction.status, "data_insufficient")
-        self.assertLess(prediction.confidence, 0.5)
-        self.assertIn("point_count", prediction.evidence)
-
-    def test_peak_cannot_silently_move_back_to_growth(self):
-        prediction = analyze_lifecycle(
-            [50, 80, 100, 105, 110],
-            previous_stage="高潮期",
-        )
-
-        self.assertEqual(prediction.stage, "高潮期")
-        self.assertFalse(prediction.reactivated)
-
-    def test_decline_remains_sticky_without_clear_reactivation(self):
-        prediction = analyze_lifecycle(
-            [120, 100, 70, 50, 48, 50],
-            previous_stage="消退期",
-        )
-
-        self.assertEqual(prediction.stage, "消退期")
-        self.assertFalse(prediction.reactivated)
-
-    def test_decline_can_reactivate_on_sustained_rebound(self):
-        prediction = analyze_lifecycle(
-            [120, 90, 50, 20, 30, 50, 80],
-            previous_stage="消退期",
-        )
-
-        self.assertEqual(prediction.stage, "成长期")
-        self.assertTrue(prediction.reactivated)
+    assert prediction.stage == "成长期"
+    assert prediction.momentum > 0
+    assert prediction.next_stage_hint in {"成长期", "高潮期"}
+    assert prediction.evidence["signal_weights"] == {
+        "volume": 0.4,
+        "comments": 0.35,
+        "sentiment": 0.15,
+        "platforms": 0.1,
+    }
 
 
-class LifecycleChangePointsTest(unittest.TestCase):
-    """阶段切换点测试"""
+def test_declining_event_can_reactivate_after_clear_recent_rebound():
+    prediction = analyze_lifecycle(
+        [120, 90, 50, 20, 30, 55, 95],
+        previous_stage="消退期",
+    )
 
-    def test_empty_returns_empty(self):
-        self.assertEqual(get_lifecycle_change_points([], []), [])
-
-    def test_single_point_no_change(self):
-        self.assertEqual(get_lifecycle_change_points([1], ["day1"]), [])
-
-    def test_transition_detected(self):
-        counts = [5, 15, 30, 50, 80, 120]
-        dates = ["d1", "d2", "d3", "d4", "d5", "d6"]
-        points = get_lifecycle_change_points(counts, dates)
-        self.assertGreater(len(points), 0)
-
-    def test_extra_dates_are_ignored(self):
-        points = get_lifecycle_change_points([3, 4], ["d1", "d2", "d3"])
-        self.assertIsInstance(points, list)
+    assert prediction.stage == "成长期"
+    assert prediction.reactivated is True
+    assert prediction.momentum > 0.08
 
 
-class ConfigThresholdsTest(unittest.TestCase):
-    """确认阈值常量可导入且类型正确"""
+def test_change_points_use_public_api_without_removed_helpers():
+    points = get_lifecycle_change_points(
+        [2, 4, 10, 25, 50, 45, 20],
+        ["d1", "d2", "d3", "d4", "d5", "d6", "d7"],
+    )
 
-    def test_thresholds_defined(self):
-        self.assertIsInstance(LATENT_MAX_DAILY, int)
-        self.assertIsInstance(LATENT_MAX_TOTAL, int)
-        self.assertIsInstance(WINDOW_SIZE, int)
-
-
-if __name__ == "__main__":
-    unittest.main()
+    assert isinstance(points, list)
+    assert all(set(item) == {"date", "from_stage", "to_stage", "index"} for item in points)

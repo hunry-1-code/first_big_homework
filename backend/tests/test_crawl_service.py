@@ -127,6 +127,36 @@ class CrawlServiceTest(unittest.TestCase):
 
         self.assertEqual(len(batch.documents), 1)
 
+    def test_aggregate_platform_counts_use_concrete_document_sources(self):
+        registry = CrawlerRegistry()
+
+        class AggregateCrawler:
+            platform = "mainstream_news"
+
+            def crawl(self, request):
+                return [
+                    RawDocument(
+                        platform="news_people",
+                        source_url="https://people.com.cn/1",
+                        title="人民网",
+                        raw_content="正文",
+                    ),
+                    RawDocument(
+                        platform="news_sspai",
+                        source_url="https://sspai.com/post/1",
+                        title="少数派",
+                        raw_content="正文",
+                    ),
+                ]
+
+        registry.register(AggregateCrawler())
+
+        batch = CrawlService(registry).collect(
+            "人工智能", ["mainstream_news"], target_count=10
+        )
+
+        self.assertEqual(batch.platform_counts, {"news_people": 1, "news_sspai": 1})
+
 
 if __name__ == "__main__":
     unittest.main()

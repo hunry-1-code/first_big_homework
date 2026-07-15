@@ -162,7 +162,11 @@ def assignments(run_id: int):
 def publish(cluster_id: int):
     try:
         return ok(
-            publish_cluster(cluster_id, user_id=g.current_user["id"]),
+            publish_cluster(
+                cluster_id,
+                user_id=g.current_user["id"],
+                minimum_member_count=1,
+            ),
             message="搜索事件已发布到正式事件库。",
         )
     except KeyError:

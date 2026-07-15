@@ -162,6 +162,22 @@ class CrawlerCoreTest(unittest.TestCase):
 
         self.assertEqual(context.exception.code, "CRAWL_RESPONSE_TOO_LARGE")
 
+    def test_http_client_decodes_utf8_xml_despite_wrong_response_encoding(self):
+        response = FakeResponse(200, text="")
+        response.content = (
+            "<?xml version='1.0' encoding='utf-8'?><rss><title>人民网</title></rss>"
+        ).encode("utf-8")
+        response.encoding = "ISO-8859-1"
+        client = HttpClient(
+            session=FakeSession([response]),
+            allowed_hosts={"example.com"},
+            resolver=lambda _: ["93.184.216.34"],
+        )
+
+        text = client.get_text("https://example.com/feed.xml", prefer_xml=True)
+
+        self.assertIn("人民网", text)
+
 
 if __name__ == "__main__":
     unittest.main()
