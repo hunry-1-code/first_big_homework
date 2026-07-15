@@ -248,7 +248,9 @@ async function loadHistory() {
       const historyList: ChatMessage[] = [];
       records.forEach((item: any) => {
         // 如果当前选择了某个事件，只过滤出该事件的历史提问；如果未选事件，展示所有历史
-        if (!selectedEventId.value || item.event_id === selectedEventId.value) {
+        // 选事件→只显示该事件历史; 没选→只显示无事件归属的通用对话
+        const match = selectedEventId.value ? item.event_id === selectedEventId.value : !item.event_id;
+        if (match) {
           historyList.push({
             role: "user",
             content: item.question,
