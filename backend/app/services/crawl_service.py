@@ -42,9 +42,11 @@ class CrawlService:
         if not selected:
             return batch
 
+        # 每平台配额 = min(上限, 总目标的 2 倍)
+        # 允许高产平台多贡献，低产平台少占配额
         allocation = min(
             self.preferred_platform_limit,
-            max(1, (target + len(selected) - 1) // len(selected)),
+            max(3, target * 2),
         )
         seen: set[str] = set()
 
