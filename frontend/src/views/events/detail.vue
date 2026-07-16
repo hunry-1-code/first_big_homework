@@ -1043,23 +1043,139 @@ onBeforeUnmount(() => {
 
 // ==================== 导出报告 ====================
 const exportFormat = ref("html");
+
 async function handleExport() {
-  const url = `/api/events/${route.params.id}/report/export?format=${exportFormat.value}`;
-  const tokenData = JSON.parse(localStorage.getItem("userInfo") || "{}");
-  const token = tokenData?.token || "";
-  try {
-    const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-    if (!resp.ok) { message("导出失败", { type: "error" }); return; }
-    const blob = await resp.blob();
+  const html = await generateExportHTML();
+  if (!html) return;
+
+  if (exportFormat.value === "html") {
+    // 直接下载 HTML 文件
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `event_report_${route.params.id}.${exportFormat.value}`;
+    a.href = url;
+    a.download = `event_report_${route.params.id}.html`;
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(a.href);
-    message("报告已导出", { type: "success" });
-  } catch {
-    message("报告导出失败", { type: "error" });
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    message("HTML 报告已导出", { type: "success" });
+  } else {
+    // PDF：通过隐藏 iframe 打印 → 用户选「另存为 PDF」
+    const iframe = document.createElement("iframe");
+    iframe.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;border:none;z-index:99999;background:#fff;";
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentDocument || iframe.contentWindow!.document;
+    doc.open();
+    doc.write(html);
+    doc.close();
+
+    // 等 iframe 内图片/样式加载完再打印
+    iframe.onload = () => {
+      setTimeout(() => {
+        iframe.contentWindow!.focus();
+        iframe.contentWindow!.print();
+      }, 300);
+    };
+    // 打印完成后移除 iframe
+    setTimeout(() => {
+      try { document.body.removeChild(iframe); } catch { /* already removed */ }
+    }, 3000);
+    message("请在打印对话框中选择「另存为 PDF」保存", { type: "success" });
   }
+}
+
+async function generateExportHTML(): Promise<string | null> {
+  // ---- 图表对 ----
+  const chartPairs: Array<{ chart: echarts.ECharts | null; ref: typeof trendRef }> = [
+    { chart: trendChart, ref: trendRef },
+    { chart: sentimentTrendChart, ref: sentimentTrendRef },
+    { chart: sentimentChart, ref: sentimentRef },
+    { chart: platformChart, ref: platformRef },
+    { chart: bubbleChart, ref: bubbleRef },
+    { chart: radarChart, ref: radarRef },
+    { chart: influenceChart, ref: influenceRef },
+  ];
+
+  // 1) 图表 → base64 图片
+  const chartReplacements: Array<{ selector: string; html: string }> = [];
+  let markId = 0;
+
+  for (const { chart, ref } of chartPairs) {
+    if (!chart || chart.isDisposed() || !ref.value) continue;
+    try {
+      const dataUrl = chart.getDataURL({
+        type: "png",
+        pixelRatio: 2,
+        backgroundColor: isDark.value ? "#1e1e1e" : "#ffffff",
+      });
+      const marker = `data-export-chart-${markId}`;
+      ref.value.setAttribute("data-export-marker", marker);
+      chartReplacements.push({
+        selector: `[data-export-marker="${marker}"]`,
+        html: `<img src="${dataUrl}" style="max-width:100%;height:auto;display:block;" />`,
+      });
+      markId++;
+    } catch { /* skip */ }
+  }
+
+  // 2) 克隆容器
+  const container = document.querySelector(".event-detail-container") as HTMLElement | null;
+  if (!container) {
+    message("导出失败：未找到内容容器", { type: "error" });
+    return null;
+  }
+
+  const clone = container.cloneNode(true) as HTMLElement;
+
+  // 3) 替换图表为图片
+  for (const { selector, html } of chartReplacements) {
+    const el = clone.querySelector(selector) as HTMLElement | null;
+    if (el) {
+      el.innerHTML = html;
+      el.removeAttribute("data-export-marker");
+      el.style.height = "auto";
+    }
+  }
+
+  // 4) 清理原始 DOM 标记
+  document.querySelectorAll("[data-export-marker]").forEach(el => el.removeAttribute("data-export-marker"));
+
+  // 5) 隐藏交互元素（只对导出内容）
+  clone.querySelectorAll(
+    ".el-button, .el-dropdown, button, .no-print, .el-popper, .el-overlay, .el-dialog, .el-message, .el-loading-mask, .el-select__caret, .el-input__suffix, [class*='zoom'], [class*='shape']"
+  ).forEach(el => ((el as HTMLElement).style.display = "none"));
+  clone.querySelectorAll(".el-select, .el-input").forEach(el => ((el as HTMLElement).style.pointerEvents = "none"));
+
+  // 6) 收集所有样式
+  const styleTexts: string[] = [];
+  document.querySelectorAll("style").forEach(el => {
+    const text = el.textContent || "";
+    if (text.trim()) styleTexts.push(text);
+  });
+
+  // 7) 构建完整 HTML
+  const pageTitle = eventData.value?.title || "事件分析报告";
+  return `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>${pageTitle}</title>
+<style>
+  html, body { margin: 0 !important; padding: 0 !important; width: 100% !important; }
+  body { font-family: "Microsoft YaHei","PingFang SC",sans-serif; background: #f0f2f5; color: #333; line-height: 1.6; }
+  #export-wrapper { max-width: 1200px !important; margin: 24px auto !important; display: block !important; box-sizing: border-box !important; }
+  @media print { body { background: #fff !important; } #export-wrapper { box-shadow: none !important; max-width: none !important; margin: 0 !important; } }
+${styleTexts.join("\n")}
+</style>
+</head>
+<body>
+<div id="export-wrapper">
+${clone.outerHTML}
+</div>
+</body>
+</html>`;
 }
 
 function percent(value: number) {
